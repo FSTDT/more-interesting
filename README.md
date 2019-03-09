@@ -20,7 +20,7 @@ Flags, on the other hand, would remain anonymous.
 WAY too much opportunity for harassment in making those public.
 As per MI's copying of the [Discourse](https://discourse.org/)
 moderation model, flags are not anonymous to the moderators,
-and they are intentionally designed to escalate quickly and have
+and they are intentionally designed to escalate quickly (three flags are enough to hide a post) and have
 good feedback, so that users are encouraged to employ them,
 and don't give up on them ["because it's ineffective"](https://lobste.rs/s/v9rktg/new_users_ethics_civility_threads_you#c_xm6qwm).
 
