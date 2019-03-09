@@ -1,0 +1,23 @@
+{{#*inline "page"}}
+<form action="" method="post">
+{{#each posts}}
+    <article>
+        <header class=article-header>
+            {{#if this.url}}
+                <a class=article-header-inner href="{{this.url}}">{{this.title}}</a>
+            {{else}}
+                <a class=article-header-inner href={{this.uuid}}>{{this.title}}</a>
+            {{/if}}
+        </header>
+        <aside class=article-contents>
+            <button name=star-button value={{#if this.starred_by_me}}remove{{else}}add{{/if}}>
+                <img width=12 height=12 src=-assets/{{#if this.starred_by_me}}star_active.svg{{else}}star.svg{{/if}}>
+            </button>
+            submitted by <a href="{{this.submitted_by_username}}">{{this.submitted_by_username}}</a> |
+            <a href={{this.uuid}}>0 comments</a>
+        </aside>
+    </article>
+{{/each}}
+</form>
+{{/inline}}
+{{~> (parent)~}}

@@ -1,0 +1,22 @@
+<!DOCTYPE html>
+<meta name=viewport content=width=device-width>
+<link rel=stylesheet href=-assets/style.css>
+<title>{{title}}</title>
+<header class=top-header>
+    <nav>
+        <a class=top-header-link href="/">Home</a>
+        <form class=top-header-aside>
+            {{#if username}}
+                {{username}}
+                <a class=button href="-submit">+ POST</a>
+                <button action=-logout method=post>LOG OUT</button>
+            {{else}}
+                <a class=button href="-login">LOG IN</a>
+            {{/if}}
+        </form>
+    </nav>
+</header>
+<main>
+{{~> page}}
+</main>
+<script src=-assets/script.js></script>

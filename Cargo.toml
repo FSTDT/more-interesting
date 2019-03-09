@@ -1,0 +1,15 @@
+[package]
+name = "more-interesting"
+version = "0.1.0"
+authors = ["Michael Howell <michael@notriddle.com>"]
+edition = "2018"
+
+[dependencies]
+rocket = "0.4.0"
+rocket_contrib = { version = "0.4.0", default-features = false, features = ["diesel_postgres_pool", "serve", "handlebars_templates"] }
+diesel = { version = "1.0.0", features = ["postgres", "chrono", "uuid"] }
+chrono = { version = "0.4.6", features = ["serde"] }
+ring = "0.13.5"
+rand = "0.6.5"
+serde = { version = "1.0.89", features = ["derive"] }
+uuid = { version = "0.6", features = ["serde"] }
