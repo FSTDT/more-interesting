@@ -71,7 +71,8 @@ impl MoreInterestingConn {
         use self::posts::dsl::*;
         use self::stars::dsl::*;
         use self::users::dsl::*;
-        Ok(posts.left_outer_join(stars)
+        // This is probably the slow way to do it.
+        Ok(posts.left_outer_join(stars.on(post_id.eq(self::posts::dsl::id).and(user_id.eq(user_id_param))))
             .inner_join(users)
             .select((
                 self::posts::dsl::id,
@@ -86,7 +87,6 @@ impl MoreInterestingConn {
                 self::users::dsl::username,
             ))
             .filter(visible.eq(true))
-            .filter(user_id.eq(user_id_param).or(user_id.is_null()))
             .limit(50)
             .get_results::<(i32, Uuid, String, Option<String>, bool, i32, NaiveDateTime, i32, Option<i32>, String)>(&self.0)?
             .into_iter()
@@ -97,7 +97,9 @@ impl MoreInterestingConn {
         use self::posts::dsl::*;
         use self::stars::dsl::*;
         use self::users::dsl::*;
-        Ok(tuple_to_post_info(posts.left_outer_join(stars)
+        // This is probably the slow way to do it.
+        // It's also a bunch of duplicate code.
+        Ok(tuple_to_post_info(posts.left_outer_join(stars.on(post_id.eq(self::posts::dsl::id).and(user_id.eq(user_id_param))))
             .inner_join(users)
             .select((
                 self::posts::dsl::id,
@@ -112,7 +114,6 @@ impl MoreInterestingConn {
                 self::users::dsl::username,
             ))
             .filter(visible.eq(true))
-            .filter(user_id.eq(user_id_param).or(user_id.is_null()))
             .filter(uuid.eq(uuid_param))
             .first::<(i32, Uuid, String, Option<String>, bool, i32, NaiveDateTime, i32, Option<i32>, String)>(&self.0)?))
     }
