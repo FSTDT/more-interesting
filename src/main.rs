@@ -160,9 +160,7 @@ fn get_comments(conn: MoreInterestingConn, user: Option<User>, uuid: String) -> 
 
 #[get("/-setup")]
 fn setup(conn: MoreInterestingConn) -> impl Responder<'static> {
-    if !conn.has_no_users().unwrap_or(false) {
-        "setup"
-    } else {
+    if conn.has_no_users().unwrap_or(false) {
         let username = std::env::var("MORE_INTERESTING_INIT_USERNAME").ok();
         let password = std::env::var("MORE_INTERESTING_INIT_PASSWORD").ok();
         if let (Some(username), Some(password)) = (username, password) {
@@ -174,6 +172,8 @@ fn setup(conn: MoreInterestingConn) -> impl Responder<'static> {
         } else {
             "cannot run without MORE_INTERESTING_INIT_USERNAME and MORE_INTERESTING_INIT_PASSWORD env variables"
         }
+    } else {
+        "setup"
     }
 }
 
