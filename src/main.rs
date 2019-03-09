@@ -33,6 +33,18 @@ struct TemplateContext {
     parent: &'static str,
 }
 
+/*
+Note on the URL scheme: we cram a lot of stuff into the top-level URL scheme.
+It helps keep the URLs short and easy-to-remember.
+
+* `http://example.instance/notriddle` is the URL of notriddle's profile.
+* `http://example.instance/85f844c8-bf2e-4012-9ae1-14f6d69a3c3c` is the URL of a post.
+* `http://example.instance/-add-star` is an internal URL.
+
+The leading hyphen on a lot of these URLs is there to distinguish between reserved words and
+usernames.
+*/
+
 #[derive(FromForm)]
 struct AddStarForm {
     post: String,
