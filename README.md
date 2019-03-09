@@ -32,6 +32,10 @@ More Interesting doesn't require your email address, phone number, IP address, o
 
 More Interesting allows users to participate without JavaScript.
 
+More Interesting displays 200 articles on the front page. This is in start contrast to other sites,
+which typically only show 25 articles on the front page. Pulling this off requires, and will continue to require,
+careful benchmarking and frontend design.
+
 ### Discussion and Ranking
 
 The biggest difference from the mold is how More Interesting's alternatives to Threading and Voting.
@@ -187,7 +191,7 @@ Run it with Cargo with these env vars set:
 * `MORE_INTERESTING_INIT_USERNAME`
 * `MORE_INTERESTING_INIT_PASSWORD`
 
-Then go to `http://localhost:3001/setup`
+Then go to `http://localhost:3001/-setup`
 
 ## License
 
