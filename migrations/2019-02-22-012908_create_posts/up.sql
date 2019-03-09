@@ -10,7 +10,11 @@ CREATE TABLE users (
 );
 
 CREATE TABLE posts (
+  -- This ID exists for use in foreign keys only,
+  -- since it's small and very fast to look up.
   id SERIAL PRIMARY KEY,
+  -- This UUID is what should actually be exposed through the URL and web interface.
+  -- Since it's random, users can't guess the URLs of hidden posts.
   uuid UUID NOT NULL DEFAULT gen_random_uuid(),
   title VARCHAR NOT NULL,
   url VARCHAR NULL,
