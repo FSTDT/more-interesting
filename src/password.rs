@@ -38,7 +38,7 @@ fn parts(whole: &mut [u8]) -> Parts {
 /// The resulting "hash" includes a salt and a version number,
 /// so it can be upgraded without having to screw with any of the old passwords.
 pub fn password_hash(password: &str) -> Vec<u8> {
-    let mut result = vec![0; 1 + CREDENTIAL_LEN + CREDENTIAL_LEN];
+    let mut result = vec![0; 1 + (2 * CREDENTIAL_LEN)];
     let parts = parts(&mut result[..]);
     parts.version[0] = 1;
     get_salt(parts.salt);
