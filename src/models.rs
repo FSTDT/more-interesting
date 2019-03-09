@@ -138,9 +138,9 @@ impl MoreInterestingConn {
             .execute(&self.0)
             .map(|i| { assert_eq!(i, 1); })
     }
-    pub fn has_no_users(&self) -> Result<bool, DieselError> {
+    pub fn has_users(&self) -> Result<bool, DieselError> {
         use self::users::dsl::*;
-        users.count().first(&self.0).map(|c: i64| c == 0)
+        users.count().first(&self.0).map(|c: i64| c != 0)
     }
     pub fn get_user_by_id(&self, user_id_param: i32) -> Result<User, DieselError> {
         use self::users::dsl::*;
