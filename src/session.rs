@@ -17,7 +17,7 @@ impl<'a, 'r> FromRequest<'a, 'r> for User {
             if let Ok(user) = conn.get_user_by_id(user_id) {
                 Outcome::Success(user)
             } else {
-                Outcome::Failure((Status::BadRequest, ())
+                Outcome::Failure((Status::BadRequest, ()))
             }
         } else {
             Outcome::Failure((Status::BadRequest, ()))
