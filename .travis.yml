@@ -1,0 +1,32 @@
+sudo: false
+language: rust
+
+rust:
+  - nightly
+
+os:
+  - linux
+  - windows
+
+install:
+  - if [[ "$TRAVIS_OS_NAME" == "windows" ]]; then choco install windows-sdk-10.0; fi # windows workaround (for now)
+
+script:
+  - cargo check
+  - cargo test
+
+cache:
+  cargo: true
+
+branches:
+  only:
+    - master
+    - staging
+    - trying
+
+matrix:
+  exclude:
+    - if: branch = master and type = push
+
+notifications:
+  email: false
