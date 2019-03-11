@@ -11,6 +11,7 @@ mod schema;
 mod models;
 mod password;
 mod session;
+mod base128;
 
 use rocket::request::Form;
 use rocket::response::{Responder, Redirect};
@@ -24,6 +25,7 @@ use rocket_contrib::templates::Template;
 use serde::Serialize;
 use std::borrow::Cow;
 use crate::models::{PostInfo, NewStar};
+use base128::Base128;
 
 #[derive(Serialize)]
 struct TemplateContext {
@@ -37,23 +39,22 @@ struct TemplateContext {
 Note on the URL scheme: we cram a lot of stuff into the top-level URL scheme.
 It helps keep the URLs short and easy-to-remember.
 
-* `http://example.instance/notriddle` is the URL of notriddle's profile.
-* `http://example.instance/85f844c8-bf2e-4012-9ae1-14f6d69a3c3c` is the URL of a post.
+* `http://example.instance/@notriddle` is the URL of notriddle's profile.
+* `http://example.instance/85f844c8` is the URL of a post.
 * `http://example.instance/-add-star` is an internal URL.
 
 The leading hyphen on a lot of these URLs is there to distinguish between reserved words and
-usernames.
+potential post IDs.
 */
 
 #[derive(FromForm)]
 struct AddStarForm {
-    post: String,
+    post: Base128,
 }
 
 #[post("/-add-star", data = "<post>")]
 fn add_star(conn: MoreInterestingConn, user: User, post: Form<AddStarForm>) -> impl Responder<'static> {
-    let uuid = post.post.parse().unwrap();
-    let post = conn.get_post_info_by_uuid(user.id, uuid).unwrap();
+    let post = conn.get_post_info_by_uuid(user.id, post.post).unwrap();
     conn.add_star(&NewStar {
         user_id: user.id,
         post_id: post.id
@@ -63,13 +64,12 @@ fn add_star(conn: MoreInterestingConn, user: User, post: Form<AddStarForm>) -> i
 
 #[derive(FromForm)]
 struct RmStarForm {
-    post: String,
+    post: Base128,
 }
 
 #[post("/-rm-star", data = "<post>", rank=1)]
 fn rm_star(conn: MoreInterestingConn, user: User, post: Form<RmStarForm>) -> impl Responder<'static> {
-    let uuid = post.post.parse().unwrap();
-    let post = conn.get_post_info_by_uuid(user.id, uuid).unwrap();
+    let post = conn.get_post_info_by_uuid(user.id, post.post).unwrap();
     conn.rm_star(&NewStar {
         user_id: user.id,
         post_id: post.id
@@ -156,18 +156,14 @@ fn logout(mut cookies: Cookies) -> impl Responder<'static> {
 }
 
 #[get("/<uuid>")]
-fn get_comments(conn: MoreInterestingConn, user: Option<User>, uuid: String) -> Result<impl Responder<'static>, Status> {
+fn get_comments(conn: MoreInterestingConn, user: Option<User>, uuid: Base128) -> Result<impl Responder<'static>, Status> {
     let (username, user_id) = user.map(|u| (u.username, u.id)).unwrap_or((String::new(), 0));
-    if let Ok(uuid) = uuid.parse() {
-        Ok(Template::render("index", &TemplateContext {
-            title: Cow::Borrowed("home"),
-            posts: vec![conn.get_post_info_by_uuid(user_id, uuid).unwrap()],
-            parent: "layout",
-            username,
-        }))
-    } else {
-        Err(Status::NotFound)
-    }
+    Ok(Template::render("index", &TemplateContext {
+        title: Cow::Borrowed("home"),
+        posts: vec![conn.get_post_info_by_uuid(user_id, uuid).unwrap()],
+        parent: "layout",
+        username,
+    }))
 }
 
 #[get("/-setup")]

@@ -14,3 +14,7 @@ ring = "0.13.5"
 rand = "0.6.5"
 serde = { version = "1.0.89", features = ["derive"] }
 uuid = { version = "0.6", features = ["serde"] }
+unicode-normalization = "0.1.8"
+lazy_static = "1"
+quickcheck = "0.8"
+byteorder = "1.3"

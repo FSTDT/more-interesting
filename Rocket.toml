@@ -4,3 +4,6 @@ port = 3001
 
 [global.databases]
 more_interesting = { url = "postgres://postgres:Postgres1234@localhost/more_interesting_dev" }
+
+[development]
+secret_key = "+n4YMZHfGEIyejl0qD9QDlUi1x/uqExtTskUUObXVcI="

@@ -5,12 +5,13 @@ use chrono::NaiveDateTime;
 use crate::schema::{users, posts, stars};
 use crate::password::{password_hash, password_verify, PasswordResult};
 use serde::Serialize;
+use crate::base128::Base128;
 use uuid::Uuid;
 
 #[derive(Queryable, Serialize)]
 pub struct Post {
     pub id: i32,
-    pub uuid: Uuid,
+    pub uuid: Base128,
     pub title: String,
     pub url: Option<String>,
     pub visible: bool,
@@ -40,7 +41,7 @@ pub struct NewPost<'a> {
 #[derive(Serialize)]
 pub struct PostInfo {
     pub id: i32,
-    pub uuid: Uuid,
+    pub uuid: Base128,
     pub title: String,
     pub url: Option<String>,
     pub visible: bool,
@@ -88,12 +89,12 @@ impl MoreInterestingConn {
             ))
             .filter(visible.eq(true))
             .limit(50)
-            .get_results::<(i32, Uuid, String, Option<String>, bool, i32, NaiveDateTime, i32, Option<i32>, String)>(&self.0)?
+            .get_results::<(i32, Base128, String, Option<String>, bool, i32, NaiveDateTime, i32, Option<i32>, String)>(&self.0)?
             .into_iter()
             .map(tuple_to_post_info)
             .collect())
     }
-    pub fn get_post_info_by_uuid(&self, user_id_param: i32, uuid_param: Uuid) -> Result<PostInfo, DieselError> {
+    pub fn get_post_info_by_uuid(&self, user_id_param: i32, uuid_param: Base128) -> Result<PostInfo, DieselError> {
         use self::posts::dsl::*;
         use self::stars::dsl::*;
         use self::users::dsl::*;
@@ -114,8 +115,8 @@ impl MoreInterestingConn {
                 self::users::dsl::username,
             ))
             .filter(visible.eq(true))
-            .filter(uuid.eq(uuid_param))
-            .first::<(i32, Uuid, String, Option<String>, bool, i32, NaiveDateTime, i32, Option<i32>, String)>(&self.0)?))
+            .filter(uuid.eq(uuid_param.into_uuid()))
+            .first::<(i32, Base128, String, Option<String>, bool, i32, NaiveDateTime, i32, Option<i32>, String)>(&self.0)?))
     }
     pub fn create_post(&self, new_post: &NewPost) -> Result<Post, DieselError> {
         diesel::insert_into(posts::table)
@@ -178,7 +179,7 @@ impl MoreInterestingConn {
     }
 }
 
-fn tuple_to_post_info((id, uuid, title, url, visible, score, created_at, submitted_by, starred_post_id, submitted_by_username): (i32, Uuid, String, Option<String>, bool, i32, NaiveDateTime, i32, Option<i32>, String)) -> PostInfo {
+fn tuple_to_post_info((id, uuid, title, url, visible, score, created_at, submitted_by, starred_post_id, submitted_by_username): (i32, Base128, String, Option<String>, bool, i32, NaiveDateTime, i32, Option<i32>, String)) -> PostInfo {
     PostInfo {
         id, uuid, title, url, visible, score, created_at, submitted_by, submitted_by_username,
         starred_by_me: starred_post_id.is_some()
