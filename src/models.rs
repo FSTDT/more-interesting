@@ -141,7 +141,8 @@ impl MoreInterestingConn {
     }
     pub fn has_users(&self) -> Result<bool, DieselError> {
         use self::users::dsl::*;
-        users.count().first(&self.0).map(|c: i64| c != 0)
+        use diesel::{select, dsl::exists};
+        select(exists(users.select(id))).get_result(&self.0)
     }
     pub fn get_user_by_id(&self, user_id_param: i32) -> Result<User, DieselError> {
         use self::users::dsl::*;

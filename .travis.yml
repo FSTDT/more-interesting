@@ -1,0 +1,28 @@
+sudo: false
+language: rust
+
+rust:
+  - nightly
+
+os:
+  - linux
+
+script:
+  - cargo check
+  - cargo test
+
+cache:
+  cargo: true
+
+branches:
+  only:
+    - master
+    - staging
+    - trying
+
+matrix:
+  exclude:
+    - if: branch = master and type = push
+
+notifications:
+  email: false
