@@ -32,6 +32,8 @@ More Interesting doesn't require your email address, phone number, IP address, o
 
 More Interesting allows users to participate without JavaScript. While the vote buttons probably will use JS, most other forms of interaction shouldn't need it. See [details-dialog](https://github.com/github/details-dialog-element), the menues in [bors-ng](https://app.bors.tech), and [this post](https://dev.to/winduptoy/a-javascript-free-frontend-2d3e).
 
+And [this list. So much this list!](https://axesslab.com/accessibility-according-to-pwd/)
+
 More Interesting displays 200 articles on the front page. This is in stark contrast to other sites,
 which typically only show 25 articles on the front page. Pulling this off requires, and will continue to require,
 careful benchmarking and frontend design.
