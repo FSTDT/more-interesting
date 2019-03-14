@@ -23,8 +23,8 @@ pub struct Post {
 #[derive(Queryable)]
 pub struct User {
     pub id: i32,
-    pub hardbanned: bool,
-    pub shadowbanned: bool,
+    pub banned: bool,
+    pub trust_level: i32,
     pub username: String,
     pub password_hash: Vec<u8>,
     pub created_at: NaiveDateTime,
@@ -59,7 +59,7 @@ pub struct NewStar {
     pub post_id: i32,
 }
 
-pub struct NewUser<'a> {
+pub struct UserAuth<'a> {
     pub username: &'a str,
     pub password: &'a str,
 }
@@ -152,7 +152,7 @@ impl MoreInterestingConn {
         use self::users::dsl::*;
         users.filter(username.eq(username_param)).get_result(&self.0)
     }
-    pub fn register_user(&self, new_user: &NewUser) -> Result<User, DieselError> {
+    pub fn register_user(&self, new_user: &UserAuth) -> Result<User, DieselError> {
         #[derive(Insertable)]
         #[table_name="users"]
         struct NewUser<'a> {
@@ -170,7 +170,7 @@ impl MoreInterestingConn {
             })
             .get_result(&self.0)
     }
-    pub fn authenticate_user(&self, new_user: &NewUser) -> Option<User> {
+    pub fn authenticate_user(&self, new_user: &UserAuth) -> Option<User> {
         let mut user = self.get_user_by_username(new_user.username).ok()?;
         if password_verify(new_user.password, &mut user.password_hash[..]) == PasswordResult::Passed {
             Some(user)

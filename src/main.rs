@@ -18,7 +18,7 @@ use rocket::response::{Responder, Redirect};
 use rocket::http::{Cookies, Cookie};
 use models::MoreInterestingConn;
 use models::User;
-use models::NewUser;
+use models::UserAuth;
 use rocket::http::Status;
 use rocket_contrib::serve::StaticFiles;
 use rocket_contrib::templates::Template;
@@ -135,7 +135,7 @@ struct UserForm {
 
 #[post("/-login", data = "<post>")]
 fn login(conn: MoreInterestingConn, post: Form<UserForm>, mut cookies: Cookies) -> impl Responder<'static> {
-    match conn.authenticate_user(&NewUser {
+    match conn.authenticate_user(&UserAuth {
         username: &post.username,
         password: &post.password,
     }) {
@@ -174,7 +174,7 @@ fn setup(conn: MoreInterestingConn) -> impl Responder<'static> {
         let username = std::env::var("MORE_INTERESTING_INIT_USERNAME").ok();
         let password = std::env::var("MORE_INTERESTING_INIT_PASSWORD").ok();
         if let (Some(username), Some(password)) = (username, password) {
-            conn.register_user(&NewUser {
+            conn.register_user(&UserAuth {
                 username: &username[..],
                 password: &password[..],
             }).unwrap();
