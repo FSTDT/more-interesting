@@ -22,8 +22,8 @@ table! {
 table! {
     users (id) {
         id -> Int4,
-        hardbanned -> Bool,
-        shadowbanned -> Bool,
+        banned -> Bool,
+        trust_level -> Int4,
         username -> Varchar,
         password_hash -> Bytea,
         created_at -> Timestamp,

@@ -2,15 +2,26 @@ CREATE EXTENSION IF NOT EXISTS pgcrypto;
 
 CREATE TABLE users (
   id SERIAL PRIMARY KEY,
-  hardbanned BOOLEAN NOT NULL DEFAULT 'f',
-  shadowbanned BOOLEAN NOT NULL DEFAULT 'f',
+  banned BOOLEAN NOT NULL DEFAULT 'f',
+  -- 0=able to post, but highly rate-limited
+  -- 1=looser rate limit
+  -- 2=able to change titles and tags for users with a trust level lower than 2
+  -- 3=moderator
+  -- this is a somewhat flatter hierarchy than what Discourse user,
+  -- but MI is designed for smaller communities
+  trust_level INTEGER NOT NULL DEFAULT 0,
   username VARCHAR NOT NULL,
   password_hash BYTEA NOT NULL,
   created_at TIMESTAMP NOT NULL DEFAULT NOW()
 );
 
 CREATE TABLE posts (
+  -- This ID exists for use in foreign keys only,
+  -- since it's small and very fast to look up.
   id SERIAL PRIMARY KEY,
+  -- This UUID is what should actually be exposed through the URL and web interface.
+  -- Since it's random, users can't guess the URLs of hidden posts.
+  uuid UUID NOT NULL DEFAULT gen_random_uuid(),
   title VARCHAR NOT NULL,
   url VARCHAR NULL,
   visible BOOLEAN NOT NULL DEFAULT 't',
