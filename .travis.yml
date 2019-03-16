@@ -1,28 +1,44 @@
 sudo: false
 language: rust
-
 rust:
   - nightly
-
 os:
   - linux
-
-script:
-  - cargo check
-  - cargo test
-
 cache:
   cargo: true
+
+matrix:
+  exclude:
+    - if: branch = master and type = push
+  include:
+    - script:
+        - cargo check
+        - cargo test
+    - addons:
+        postgresql: "9.6"
+        chrome: stable
+      env:
+        - MORE_INTERESTING_WEBDRIVER=chrome
+        - MORE_INTERESTING_INIT_USERNAME=root
+        - MORE_INTERESTING_INIT_PASSWORD=ready2go
+      before_install:
+        - nvm install 10
+        - cd test/webdriver && npm ci && cd ..
+      install:
+        - which diesel || cargo install diesel_cli
+        - which chromedriver || (wget https://chromedriver.storage.googleapis.com/2.46/chromedriver_linux64.zip && unzip chromedriver_linux64.zip -d /home/travis/.cargo/bin)
+      script:
+        - diesel database setup
+        - diesel migration run
+        - cargo build
+        - cargo run &
+        - sleep 5
+        - pwd && cd webdriver && npm test && cd ..
 
 branches:
   only:
     - master
     - staging
     - trying
-
-matrix:
-  exclude:
-    - if: branch = master and type = push
-
 notifications:
   email: false
