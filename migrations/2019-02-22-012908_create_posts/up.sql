@@ -5,7 +5,7 @@ CREATE TABLE users (
   banned BOOLEAN NOT NULL DEFAULT 'f',
   -- 0=able to post, but highly rate-limited
   -- 1=looser rate limit
-  -- 2=able to change titles and tags for users with a trust level lower than 2
+  -- 2=able to change titles and tags on other people's posts
   -- 3=moderator
   -- this is a somewhat flatter hierarchy than what Discourse user,
   -- but MI is designed for smaller communities
@@ -25,7 +25,9 @@ CREATE TABLE posts (
   title VARCHAR NOT NULL,
   url VARCHAR NULL,
   visible BOOLEAN NOT NULL DEFAULT 't',
+  initial_stellar_time INTEGER NOT NULL DEFAULT 0,
   score INTEGER NOT NULL DEFAULT 0,
+  authored_by_submitter BOOLEAN NOT NULL DEFAULT 'f',
   created_at TIMESTAMP NOT NULL DEFAULT NOW(),
   submitted_by INTEGER NOT NULL REFERENCES users(id)
 );

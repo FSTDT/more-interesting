@@ -7,6 +7,8 @@ use crate::password::{password_hash, password_verify, PasswordResult};
 use serde::Serialize;
 use crate::base128::Base128;
 use uuid::Uuid;
+use std::cmp::{min, max};
+use ordered_float::OrderedFloat;
 
 #[derive(Queryable, Serialize)]
 pub struct Post {
@@ -15,7 +17,9 @@ pub struct Post {
     pub title: String,
     pub url: Option<String>,
     pub visible: bool,
+    pub initial_stellar_time: i32,
     pub score: i32,
+    pub authored_by_submitter: bool,
     pub created_at: NaiveDateTime,
     pub submitted_by: i32,
 }
@@ -30,8 +34,6 @@ pub struct User {
     pub created_at: NaiveDateTime,
 }
 
-#[derive(Insertable)]
-#[table_name="posts"]
 pub struct NewPost<'a> {
     pub title: &'a str,
     pub url: Option<&'a str>,
@@ -45,7 +47,9 @@ pub struct PostInfo {
     pub title: String,
     pub url: Option<String>,
     pub visible: bool,
+    pub hotness: f64,
     pub score: i32,
+    pub authored_by_submitter: bool,
     pub created_at: NaiveDateTime,
     pub submitted_by: i32,
     pub submitted_by_username: String,
@@ -64,6 +68,15 @@ pub struct UserAuth<'a> {
     pub password: &'a str,
 }
 
+#[derive(Insertable)]
+#[table_name="posts"]
+struct CreatePost<'a> {
+    title: &'a str,
+    url: Option<&'a str>,
+    submitted_by: i32,
+    initial_stellar_time: i32,
+}
+
 #[database("more_interesting")]
 pub struct MoreInterestingConn(PgConnection);
 
@@ -72,8 +85,8 @@ impl MoreInterestingConn {
         use self::posts::dsl::*;
         use self::stars::dsl::*;
         use self::users::dsl::*;
-        // This is probably the slow way to do it.
-        Ok(posts.left_outer_join(stars.on(post_id.eq(self::posts::dsl::id).and(user_id.eq(user_id_param))))
+        let mut all: Vec<PostInfo> = posts
+            .left_outer_join(stars.on(post_id.eq(self::posts::dsl::id).and(user_id.eq(user_id_param))))
             .inner_join(users)
             .select((
                 self::posts::dsl::id,
@@ -81,25 +94,29 @@ impl MoreInterestingConn {
                 self::posts::dsl::title,
                 self::posts::dsl::url,
                 self::posts::dsl::visible,
+                self::posts::dsl::initial_stellar_time,
                 self::posts::dsl::score,
+                self::posts::dsl::authored_by_submitter,
                 self::posts::dsl::created_at,
                 self::posts::dsl::submitted_by,
                 self::stars::dsl::post_id.nullable(),
                 self::users::dsl::username,
             ))
             .filter(visible.eq(true))
-            .limit(50)
-            .get_results::<(i32, Base128, String, Option<String>, bool, i32, NaiveDateTime, i32, Option<i32>, String)>(&self.0)?
+            .order_by(initial_stellar_time)
+            .limit(400)
+            .get_results::<(i32, Base128, String, Option<String>, bool, i32, i32, bool, NaiveDateTime, i32, Option<i32>, String)>(&self.0)?
             .into_iter()
-            .map(tuple_to_post_info)
-            .collect())
+            .map(|t| tuple_to_post_info(t, self.get_current_stellar_time()))
+            .collect();
+        all.sort_by_key(|info| OrderedFloat(-info.hotness));
+        Ok(all)
     }
     pub fn get_post_info_by_uuid(&self, user_id_param: i32, uuid_param: Base128) -> Result<PostInfo, DieselError> {
         use self::posts::dsl::*;
         use self::stars::dsl::*;
         use self::users::dsl::*;
-        // This is probably the slow way to do it.
-        // It's also a bunch of duplicate code.
+        // This is a bunch of duplicate code.
         Ok(tuple_to_post_info(posts.left_outer_join(stars.on(post_id.eq(self::posts::dsl::id).and(user_id.eq(user_id_param))))
             .inner_join(users)
             .select((
@@ -108,7 +125,9 @@ impl MoreInterestingConn {
                 self::posts::dsl::title,
                 self::posts::dsl::url,
                 self::posts::dsl::visible,
+                self::posts::dsl::initial_stellar_time,
                 self::posts::dsl::score,
+                self::posts::dsl::authored_by_submitter,
                 self::posts::dsl::created_at,
                 self::posts::dsl::submitted_by,
                 self::stars::dsl::post_id.nullable(),
@@ -116,28 +135,48 @@ impl MoreInterestingConn {
             ))
             .filter(visible.eq(true))
             .filter(uuid.eq(uuid_param.into_uuid()))
-            .first::<(i32, Base128, String, Option<String>, bool, i32, NaiveDateTime, i32, Option<i32>, String)>(&self.0)?))
+            .first::<(i32, Base128, String, Option<String>, bool, i32, i32, bool, NaiveDateTime, i32, Option<i32>, String)>(&self.0)?, self.get_current_stellar_time()))
+    }
+    pub fn get_current_stellar_time(&self) -> i32 {
+        use self::stars::dsl::*;
+        // the stars table should be limited by the i32 limits, but diesel doesn't know that
+        stars.count().get_result(&self.0).unwrap_or(0) as i32
     }
     pub fn create_post(&self, new_post: &NewPost) -> Result<Post, DieselError> {
         diesel::insert_into(posts::table)
-            .values(new_post)
+            .values(CreatePost {
+                title: new_post.title,
+                url: new_post.url,
+                submitted_by: new_post.submitted_by,
+                initial_stellar_time: self.get_current_stellar_time(),
+            })
             .get_result(&self.0)
     }
-    pub fn add_star(&self, new_star: &NewStar) -> Result<(), DieselError> {
-        diesel::insert_into(stars::table)
+    pub fn add_star(&self, new_star: &NewStar) {
+        let affected_rows = diesel::insert_into(stars::table)
             .values(new_star)
             .execute(&self.0)
-            .map(|i| { assert_eq!(i, 1); })
+            .unwrap_or(0);
+        // affected rows will be 1 if inserted, or 0 otherwise
+        self.update_score_on_post(new_star.post_id, affected_rows as i32);
     }
-    pub fn rm_star(&self, new_star: &NewStar) -> Result<(), DieselError> {
+    pub fn rm_star(&self, new_star: &NewStar) {
         use self::stars::dsl::*;
-        diesel::delete(
+        let affected_rows = diesel::delete(
             stars
                 .filter(user_id.eq(new_star.user_id))
                 .filter(post_id.eq(new_star.post_id))
         )
             .execute(&self.0)
-            .map(|i| { assert_eq!(i, 1); })
+            .unwrap_or(0);
+        // affected rows will be 1 if deleted, or 0 otherwise
+        self.update_score_on_post(new_star.post_id, -(affected_rows as i32));
+    }
+    fn update_score_on_post(&self, post_id_value: i32, count_value: i32) {
+        use self::posts::dsl::*;
+        diesel::update(posts.find(post_id_value)).set(score.eq(score + count_value))
+            .execute(&self.0)
+            .expect("if adding a star worked, then so should updating the post");
     }
     pub fn has_users(&self) -> Result<bool, DieselError> {
         use self::users::dsl::*;
@@ -180,9 +219,18 @@ impl MoreInterestingConn {
     }
 }
 
-fn tuple_to_post_info((id, uuid, title, url, visible, score, created_at, submitted_by, starred_post_id, submitted_by_username): (i32, Base128, String, Option<String>, bool, i32, NaiveDateTime, i32, Option<i32>, String)) -> PostInfo {
+fn tuple_to_post_info((id, uuid, title, url, visible, initial_stellar_time, score, authored_by_submitter, created_at, submitted_by, starred_post_id, submitted_by_username): (i32, Base128, String, Option<String>, bool, i32, i32, bool, NaiveDateTime, i32, Option<i32>, String), current_stellar_time: i32) -> PostInfo {
     PostInfo {
-        id, uuid, title, url, visible, score, created_at, submitted_by, submitted_by_username,
-        starred_by_me: starred_post_id.is_some()
+        id, uuid, title, url, visible, score, authored_by_submitter, created_at,
+        submitted_by, submitted_by_username,
+        starred_by_me: starred_post_id.is_some(),
+        hotness: compute_hotness(initial_stellar_time, current_stellar_time, score, authored_by_submitter)
     }
+}
+
+fn compute_hotness(initial_stellar_time: i32, current_stellar_time: i32, score: i32, authored_by_submitter: bool) -> f64 {
+    let gravity = 1.33;
+    let boost = if authored_by_submitter { 0.33 } else { 0.0 };
+    let stellar_age = max(current_stellar_time - initial_stellar_time, 0) as f64;
+    (boost + (score as f64) + 1.0) / (stellar_age + 1.0).powf(gravity)
 }

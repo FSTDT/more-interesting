@@ -38,14 +38,19 @@ More Interesting displays 200 articles on the front page. This is in stark contr
 which typically only show 25 articles on the front page. Pulling this off requires, and will continue to require,
 careful benchmarking and frontend design.
 
+### No such thing as karma
+
+This should go without saying, but MI does not show any numbers next to a user's name, and never will.
+The closest analogue is "trust levels", but those do not grow indefinitely, so there's no incentive to game them once you pass the TL2 threshold.
+
 ### Discussion and Ranking
 
 The biggest difference from the mold is how More Interesting's alternatives to Threading and Voting.
 
-For stories, the model is relatively similar: "Starring" a post causes it to go up, and time causes a post to
+For posts, the model is relatively similar: "Starring" a post causes it to go up, and "time" causes a post to
 go down. Unlike in Lobsters and Reddit, though, a post that receives enough reports from trusted users will
 be completely hidden, regardless of how many stars it gets. Three flags and twenty stars? Better hide it automatically!
-Additionally, More Interesting does not rank a story higher because of its comment count; ranking is exclusively based
+Additionally, More Interesting does not rank a post higher because of its comment count; ranking is exclusively based
 on star count and time.
 
 The comment conversation, on the other hand, almost entirely avoids any form of ranking. The default view is
@@ -112,6 +117,55 @@ There are several reasons for choosing this design for comments:
 * I want to avoid giving people ways to strategically subvert the Reply model. Nested threads like Reddit and Lobsters encourage people to reply to the currently-top megathread, instead of making their own separate replies. This makes the non-threaded reply mechanism a trap for the inexperienced, assuming they want their not-very-upvoted thread to be seen instead of just being hidden behind the massively-upvoted megathread.
 * Starring comments helps to quench the "me-too" impulse without crowding it out. Also, the star counts ("1K", "100", "215", and "180") should all be clickable links to shown who voted a certain way.
 * And, of course, by not ranking posts by comment count (only stars and the "authored by" bit act as boosts), I try to avoid creating megathread "brush fires," or worse, situations where attempting to decry something actually boosts its visibility. Telling someone that their idea sucks should not cause the post to float to the top, and in the absence of good sentiment analysis, I'd rather do nothing.
+
+#### The hotness ranking algorithm
+
+Of course, eternal optimist and egotistical contrarian that I am, I couldn't actually adopt an existing ranking algorithm verbatim.
+As the [Hacker News fans themselves][HN] noted, [their ranking algorithm][HN algo] has its weaknesses.
+
+* It penalizes articles that're posted in the wee hours of the night, and, as such, it encourages strategic posting times
+* It's actually kind of complicated. In particular, since it uses an actual clock, it's a bit harder to test and cache,
+* It counts comments as votes. That's stupid: the number of people replying to an article does not imply its quality.
+
+Thus, the more-interesting ranking algorithm for top-level posts is actually simpler, although it takes a bit longer to explain.
+
+Stellar time is determined by taking the number of rows in the star table.
+This number goes up by one every time anyone casts a star on any article,
+so it sort of acts like a clock, but it only changes when there's actual site activity,
+and it changes more quickly when there's more site activity.
+
+So here's the rank algorithm:
+
+    gravity = 1.33
+    boost = if authored_by_poster { 0.33 } else { 0.0 }
+    stellar_age = max(current_stellar_time - initial_stellar_time, 0)
+    hotness = (boost + score + 1.0) / pow(stellar_age + 1.0, gravity)
+    
+Why `boost + score + 1.0`? I want articles to start falling normally without receiving any stars,
+and they won't fall (and, in fact, will be invisible on the home page) if their hotness score is zero.
+The boost is there to promote locally sourced content, of course.
+
+Why `stellar_age + 1.0`?
+The `+ 1.0` is there because I don't want brand new articles to have a denominator of zero.
+
+Interesting point: an article's hotness should not go above `1.33`, when an article is brand new and has the author's boost.
+In fact, an article's hotness technically goes down every time it's starred, because the act of starring it also causes its tick age to go up by one,
+and, due to the gravitational exponent, the denominator grows more quickly than the numerator.
+Since all articles are acquiring tick age, while only the starred article increases its score, starring an article still causes it to rise on the home page. 
+
+Technically, because a user can actually remove a star, stellar age can go down, but this situation should be rare enough that it doesn't seriously affect the ranking.
+This is also why stellar age is defined as `max(..., 0)`: negative stellar ages can result in erratic behavior.
+
+More Interesting uses a much lower gravitational constant than Hacker News,
+partially because it is not specifically a news site,
+but mostly because the tick counter will likely increment faster than one per hour on a good day.
+
+There are probably [better algorithms][better] for this, but I prefer using an algo that the end user can actually understand.
+Like Lobsters, and unlike Hacker News and Reddit, there is no secret sauce and there never will be.
+
+[HN]: https://archive.is/iIxNQ
+[HN algo]: https://archive.is/Zkcky
+[better]: https://archive.is/tPfQC
 
 ### Tagging
 
