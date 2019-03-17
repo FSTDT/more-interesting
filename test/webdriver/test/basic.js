@@ -40,4 +40,12 @@ describe("testing javascript in the browser", function() {
         var text = await headline.getText();
         return assert.equal(text, "Home");
     });
+
+    it("log out button should go away when you log out", async function() {
+        var logout_button = await this.browser.findElement(By.css('button[formaction="-logout"]'));
+        await logout_button.click();
+        await this.browser.wait(until.urlIs("http://localhost:3001/"));
+        logout_button = await this.browser.findElements(By.css('button[formaction="-logout"]'));
+        return assert(!logout_button.length);
+    });
 });
