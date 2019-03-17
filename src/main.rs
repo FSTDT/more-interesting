@@ -58,7 +58,7 @@ fn add_star(conn: MoreInterestingConn, user: User, post: Form<AddStarForm>) -> i
     conn.add_star(&NewStar {
         user_id: user.id,
         post_id: post.id
-    }).unwrap();
+    });
     Redirect::to(uri!(index))
 }
 
@@ -73,7 +73,7 @@ fn rm_star(conn: MoreInterestingConn, user: User, post: Form<RmStarForm>) -> imp
     conn.rm_star(&NewStar {
         user_id: user.id,
         post_id: post.id
-    }).unwrap();
+    });
     Redirect::to(uri!(index))
 }
 

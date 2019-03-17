@@ -5,7 +5,9 @@ table! {
         title -> Varchar,
         url -> Nullable<Varchar>,
         visible -> Bool,
+        initial_stellar_time -> Int4,
         score -> Int4,
+        authored_by_submitter -> Bool,
         created_at -> Timestamp,
         submitted_by -> Int4,
     }
