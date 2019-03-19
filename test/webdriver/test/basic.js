@@ -42,6 +42,8 @@ describe("testing javascript in the browser", function() {
     });
 
     it("log out button should go away when you log out", async function() {
+        var user_menu = await this.browser.findElements(By.css('.details-menu-summary'));
+        await user_menu[1].click();
         var logout_button = await this.browser.findElement(By.css('button[formaction="-logout"]'));
         await logout_button.click();
         await this.browser.wait(until.urlIs("http://localhost:3001/"));

@@ -5,18 +5,37 @@
 <header class=top-header>
     <nav>
         <a class=top-header-link href="/">Home</a>
-        <form class=top-header-aside>
+        <details-menu class=top-header-aside role=menubar>
             {{#if username}}
-                {{username}}
-                <a class=button href="-submit">+ POST</a>
-                <button formaction=-logout formmethod=post>LOG OUT</button>
+                <details class="details-menu-outer" role=menuitem>
+                    <summary class="details-menu-summary" aria-haspopup=menu>+</summary>
+                    <form class="details-menu-inner" role=menu>
+                        <a class=details-menu-item href="-submit" role=menuitem>Create Post</a>
+                    </form>
+                </details>
+                <details class="details-menu-outer" role=menuitem>
+                    <summary class="details-menu-summary" aria-haspopup=menu>{{username}}</summary>
+                    <form class="details-menu-inner" role=menu>
+                        <a class=details-menu-item href="-settings" role=menuitem>Settings</a>
+                        <a class=details-menu-item href="@{{username}}" role=menuitem>Your profile</a>
+                        <button class=details-menu-item formaction=-logout formmethod=post role=menuitem>Sign Out</button>
+                    </form>
+                </details>
             {{else}}
-                <a class=button href="-login">LOG IN</a>
+                <a class=button href="-login" role=menuitem>LOG IN</a>
             {{/if}}
-        </form>
+        </details-menu>
     </nav>
 </header>
-<main>
+<main class=main-outer><section class=main>
+    {{#if alert}}
+        <aside class=alert>{{alert}}</aside>
+    {{/if}}
 {{~> page}}
-</main>
+</section></main>
+<footer class=top-header>
+    <nav>
+        <a href="@" class=top-header-link>User Invite Tree</a>
+    </nav>
+</footer>
 <script src=-assets/script.js></script>

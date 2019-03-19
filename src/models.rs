@@ -2,13 +2,14 @@ use rocket_contrib::databases::diesel::PgConnection;
 use diesel::prelude::*;
 use diesel::result::Error as DieselError;
 use chrono::NaiveDateTime;
-use crate::schema::{users, posts, stars};
+use crate::schema::{users, posts, stars, invite_tokens};
 use crate::password::{password_hash, password_verify, PasswordResult};
 use serde::Serialize;
 use crate::base128::Base128;
 use uuid::Uuid;
 use std::cmp::{min, max};
 use ordered_float::OrderedFloat;
+use std::collections::HashMap;
 
 #[derive(Queryable, Serialize)]
 pub struct Post {
@@ -32,6 +33,7 @@ pub struct User {
     pub username: String,
     pub password_hash: Vec<u8>,
     pub created_at: NaiveDateTime,
+    pub invited_by: Option<i32>,
 }
 
 pub struct NewPost<'a> {
@@ -56,6 +58,13 @@ pub struct PostInfo {
     pub starred_by_me: bool,
 }
 
+#[derive(Queryable)]
+pub struct InviteToken {
+    pub uuid: Base128,
+    pub created_at: NaiveDateTime,
+    pub invited_by: i32,
+}
+
 #[derive(Insertable)]
 #[table_name="stars"]
 pub struct NewStar {
@@ -66,6 +75,12 @@ pub struct NewStar {
 pub struct UserAuth<'a> {
     pub username: &'a str,
     pub password: &'a str,
+}
+
+pub struct NewUser<'a> {
+    pub username: &'a str,
+    pub password: &'a str,
+    pub invited_by: Option<i32>,
 }
 
 #[derive(Insertable)]
@@ -191,21 +206,23 @@ impl MoreInterestingConn {
         use self::users::dsl::*;
         users.filter(username.eq(username_param)).get_result(&self.0)
     }
-    pub fn register_user(&self, new_user: &UserAuth) -> Result<User, DieselError> {
+    pub fn register_user(&self, new_user: &NewUser) -> Result<User, DieselError> {
         #[derive(Insertable)]
         #[table_name="users"]
-        struct NewUser<'a> {
+        struct CreateUser<'a> {
             username: &'a str,
             password_hash: &'a [u8],
+            invited_by: Option<i32>,
         }
         if new_user.username.as_bytes()[0] == b'-' {
             panic!("usernames may not start with hyphens");
         }
         let password_hash = password_hash(new_user.password);
         diesel::insert_into(users::table)
-            .values(NewUser {
+            .values(CreateUser {
                 username: new_user.username,
                 password_hash: &password_hash[..],
+                invited_by: new_user.invited_by,
             })
             .get_result(&self.0)
     }
@@ -216,6 +233,38 @@ impl MoreInterestingConn {
         } else {
             None
         }
+    }
+    pub fn create_invite_token(&self, invited_by: i32) -> Result<InviteToken, DieselError> {
+        #[derive(Insertable)]
+        #[table_name="invite_tokens"]
+        struct CreateInviteToken {
+            invited_by: i32,
+        }
+        diesel::insert_into(invite_tokens::table)
+            .values(CreateInviteToken {
+                invited_by
+            })
+            .get_result(&self.0)
+    }
+    pub fn check_invite_token_exists(&self, uuid_value: Base128) -> bool {
+        use self::invite_tokens::dsl::*;
+        use diesel::{select, dsl::exists};
+        let uuid_value = Into::<Uuid>::into(uuid_value);
+        select(exists(invite_tokens.find(uuid_value))).get_result(&self.0).unwrap_or(false)
+    }
+    pub fn consume_invite_token(&self, uuid_value: Base128) -> Result<InviteToken, DieselError> {
+        use self::invite_tokens::dsl::*;
+        use diesel::delete;
+        let uuid_value = Into::<Uuid>::into(uuid_value);
+        diesel::delete(invite_tokens.find(uuid_value)).get_result(&self.0)
+    }
+    pub fn get_invite_tree(&self) -> HashMap<i32, Vec<User>> {
+        use self::users::dsl::*;
+        let mut ret_val: HashMap<i32, Vec<User>> = HashMap::new();
+        for user in users.get_results::<User>(&self.0).unwrap_or(Vec::new()).into_iter() {
+            ret_val.entry(user.invited_by.unwrap_or(0)).or_default().push(user)
+        }
+        ret_val
     }
 }
 

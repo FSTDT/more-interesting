@@ -17,20 +17,30 @@ html {
     -webkit-text-size-adjust: 100%;
     background: #f9f9fa;
     color:  #0c0c0d;
+    height: 100%;
+    overflow-x: hidden;
+    overflow-y: scroll;
 }
 
-nav, main, footer {
+nav, .main {
     max-width: 980px;
     margin: 0 auto;
     padding: 1em;
+}
+
+.main-outer {
+    flex-grow: 1;
 }
 
 nav {
     padding: 0.5em;
 }
 
-body {
+html, body {
     margin: 0;
+    display: flex;
+    flex-direction: column;
+    flex-grow: 1;
 }
 
 article,
@@ -154,7 +164,8 @@ optgroup,
 select,
 textarea,
 :link.button,
-:visited.button {
+:visited.button,
+.details-menu-summary {
     font-family: -apple-system,BlinkMacSystemFont,Segoe UI,Helvetica,Arial,sans-serif,Apple Color Emoji,Segoe UI Emoji,Segoe UI Symbol;
     font-size: 100%;
     line-height: 1.15;
@@ -176,7 +187,8 @@ html [type="button"],
 html [type="submit"],
 select,
 :link.button,
-:visited.button {
+:visited.button,
+.details-menu-summary {
     border-top-color: #ededf0;
     border-left-color: #ededf0;
     border-bottom-color: #737373;
@@ -192,17 +204,23 @@ button:active,
 html [type="button"]:active,
 html [type="submit"]:active,
 select:active,
-.button:active {
+.button:active,
+.details-menu-summary:active,
+details[open] .details-menu-summary {
     border-bottom-color: #ededf0;
     border-right-color: #ededf0;
     border-left-color: #737373;
     border-top-color: #737373;
+    position: relative;
+    top: 1px;
+    left: 1px;
     box-shadow: -1px -1px 0 #0c0c0d, 1px 0 0 #fff, 1px -1px 0 #0c0c0d, 1px 1px 0 #fff, -1px 0px #0c0c0d, -1px 1px 0 #fff;
 }
 
 button,
 :link.button,
-:visited.button {
+:visited.button,
+.details-menu-outer {
     display: inline-block;
 }
 
@@ -334,7 +352,8 @@ article {
 
 .article-header-inner {
     background: #f9f9fa;
-    padding: 4px 8px;
+    padding: 8px 8px;
+    outline-offset: -8px;
 }
 
 .top-header {
@@ -348,4 +367,94 @@ article {
 }
 .top-header-aside {
     float: right;
+}
+
+.alert {
+    background: #fff;
+    color: #0c0c0d;
+    box-shadow: 3px 3px 0 #0c0c0d;
+    border: solid 1px #0f1126;
+    padding: 4px 8px;
+    margin: 4px 0;
+}
+
+details-menu {
+    vertical-align: text-top;
+}
+
+.details-menu-summary::-webkit-details-marker {
+    display: none;
+}
+.details-menu-summary {
+    list-style: none;
+    cursor: default;
+    z-index: 200;
+    position: relative;
+}
+.details-menu-summary::after {
+    content: " ▾";
+}
+.js details[open] .details-menu-summary {
+    z-index: 100;
+}
+details[open] .details-menu-summary::before {
+    position: fixed;
+    content: ".";
+    color: transparent;
+    top: 0; bottom: 0;
+    left: 0; right: 0;
+}
+
+.details-menu-inner {
+    background: #f9f9fa;
+    color: #0c0c0d;
+    border: solid 1px #737373;
+    border-top-color: #ededf0;
+    border-left-color: #ededf0;
+    box-shadow: -1px -1px 0 #fff, 1px 0 0 #0c0c0d, 1px -1px 0 #fff, 1px 1px 0 #0c0c0d, -1px 0px #fff, -1px 1px 0 #0c0c0d;
+    padding: 4px 0;
+    position: absolute;
+    z-index: 300;
+}
+
+/*
+All of the styles here are important.
+Do not combine this class with other classes.
+Do not use important in anything other than classes like this one,
+where we need to override button and link styles to
+get anything reasonable-looking.
+*/
+.details-menu-item {
+    background: transparent !important;
+    color: #0c0c0d !important;
+    box-shadow: none !important;
+    border: none !important;
+    outline: none !important;
+    text-decoration: none !important;
+    display: block !important;
+    white-space: nowrap !important;
+    padding: 4px 8px !important;
+    width: auto !important;
+    -webkit-appearance: none !important;
+    text-align: left !important;
+    line-height: 1.62 !important;
+}
+button.details-menu-item {
+    width: 100% !important;
+}
+.details-menu-item:focus {
+    background: #45a1ff !important;
+}
+
+.tree, .subtree {
+    margin: 0;
+    padding: 0;
+}
+.tree li, .subtree li {
+    list-style-type: none;
+}
+.subtree li {
+    border-left: solid 1px #0f1126;
+    padding-left: 4px;
+    margin-left: 4px;
 }
