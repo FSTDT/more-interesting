@@ -234,6 +234,13 @@ impl MoreInterestingConn {
             None
         }
     }
+    pub fn change_user_password(&self, user_id_value: i32, password: &str) -> Result<(), DieselError> {
+        use self::users::dsl::*;
+        let password_hash_value = crate::password::password_hash(password);
+        diesel::update(users.find(user_id_value)).set(password_hash.eq(password_hash_value))
+            .execute(&self.0)
+            .map(|k| { assert_eq!(k, 1); })
+    }
     pub fn create_invite_token(&self, invited_by: i32) -> Result<InviteToken, DieselError> {
         #[derive(Insertable)]
         #[table_name="invite_tokens"]

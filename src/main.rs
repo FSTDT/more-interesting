@@ -296,11 +296,35 @@ fn invite_tree(conn: MoreInterestingConn, user: Option<User>) -> impl Responder<
     })
 }
 
+
+#[derive(FromForm)]
+struct ChangePasswordForm {
+    old_password: String,
+    new_password: String,
+}
+
+#[post("/-change-password", data = "<form>")]
+fn change_password(conn: MoreInterestingConn, user: User, form: Form<ChangePasswordForm>) -> Result<impl Responder<'static>, Status> {
+    if form.new_password == "" {
+        return Err(Status::BadRequest);
+    }
+    if conn.authenticate_user(&UserAuth {
+        username: &user.username,
+        password: &form.old_password,
+    }).is_none() {
+        return Err(Status::BadRequest);
+    }
+    match conn.change_user_password(user.id, &form.new_password) {
+        Ok(()) => Ok(Flash::success(Redirect::to(uri!(get_settings)), "Done!")),
+        Err(_) => Err(Status::BadRequest),
+    }
+}
+
 fn main() {
     rocket::ignite()
         .attach(MoreInterestingConn::fairing())
         .attach(Template::fairing())
-        .mount("/", routes![index, login_form, login, logout, create_form, create, setup, get_comments, add_star, rm_star, consume_invite, get_settings, create_invite, invite_tree])
+        .mount("/", routes![index, login_form, login, logout, create_form, create, setup, get_comments, add_star, rm_star, consume_invite, get_settings, create_invite, invite_tree, change_password])
         .mount("/-assets", StaticFiles::from("assets"))
         .launch();
 }

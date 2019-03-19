@@ -1,7 +1,18 @@
 {{#*inline "page"}}
     <h2>Settings</h2>
-    <form action=-create-invite method=post>
-        <button>Invite someone to this instance</button>
-    </form>
+    <details-menu-bar>
+        <button formaction=-create-invite formmethod=post>Invite someone to this instance</button>
+        <details class=details-dialog-outer>
+            <summary class=details-dialog-summary>Change password</summary>
+            <details-dialog>
+                <form action=-change-password method=post>
+                    <label>Make sure you know your old password <input name=old_password autofocus type=password></label>
+                    <label>New Password <input name=new_password type=password></label>
+                    <button>Submit</button>
+                    <details-dialog-close><a href="" class=button>Cancel</a></details-dialog-close>
+                </form>
+            </details-dialog>
+        </details>
+    </details-menu-bar>
 {{/inline}}
 {{~> (parent)~}}

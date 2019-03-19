@@ -5,7 +5,7 @@
 <header class=top-header>
     <nav>
         <a class=top-header-link href="/">Home</a>
-        <details-menu class=top-header-aside role=menubar>
+        <details-menu-bar class=top-header-aside role=menubar>
             {{#if username}}
                 <details class="details-menu-outer" role=menuitem>
                     <summary class="details-menu-summary" aria-haspopup=menu>+</summary>
@@ -24,7 +24,7 @@
             {{else}}
                 <a class=button href="-login" role=menuitem>LOG IN</a>
             {{/if}}
-        </details-menu>
+        </details-menu-bar>
     </nav>
 </header>
 <main class=main-outer><section class=main>
@@ -38,4 +38,5 @@
         <a href="@" class=top-header-link>User Invite Tree</a>
     </nav>
 </footer>
-<script src=-assets/script.js></script>
+<script src=-assets/details-menu-bar.js></script>
+<script src=-assets/details-dialog.js></script>
