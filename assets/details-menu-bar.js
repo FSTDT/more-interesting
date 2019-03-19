@@ -3,10 +3,10 @@
 
     let currentlyOpen = null;
 
-    class DetailsMenu extends HTMLElement {
+    class DetailsMenuBar extends HTMLElement {
         constructor() {
             super();
-            let details = this.querySelectorAll("details");
+            let details = this.querySelectorAll(".details-menu-outer");
             for (let d of details) {
                 d.addEventListener("keydown", this._eventKeydown.bind(d));
                 d.addEventListener("mouseover", this._eventMouseOver.bind(d));
@@ -232,7 +232,7 @@
         }
     }
 
-    customElements.define('details-menu', DetailsMenu);
+    customElements.define('details-menu-bar', DetailsMenuBar);
 
     function firstVisibleSibling(el) {
         while (el && !el.offsetHeight) {
