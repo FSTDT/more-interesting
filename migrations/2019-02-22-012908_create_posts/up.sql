@@ -12,7 +12,14 @@ CREATE TABLE users (
   trust_level INTEGER NOT NULL DEFAULT 0,
   username VARCHAR NOT NULL,
   password_hash BYTEA NOT NULL,
-  created_at TIMESTAMP NOT NULL DEFAULT NOW()
+  created_at TIMESTAMP NOT NULL DEFAULT NOW(),
+  invited_by INTEGER NULL DEFAULT NULL REFERENCES users(id)
+);
+
+CREATE TABLE invite_tokens (
+  uuid UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  created_at TIMESTAMP NOT NULL DEFAULT NOW(),
+  invited_by INTEGER NOT NULL REFERENCES users(id)
 );
 
 CREATE TABLE posts (

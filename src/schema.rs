@@ -1,4 +1,12 @@
 table! {
+    invite_tokens (uuid) {
+        uuid -> Uuid,
+        created_at -> Timestamp,
+        invited_by -> Int4,
+    }
+}
+
+table! {
     posts (id) {
         id -> Int4,
         uuid -> Uuid,
@@ -29,14 +37,17 @@ table! {
         username -> Varchar,
         password_hash -> Bytea,
         created_at -> Timestamp,
+        invited_by -> Nullable<Int4>,
     }
 }
 
+joinable!(invite_tokens -> users (invited_by));
 joinable!(posts -> users (submitted_by));
 joinable!(stars -> posts (post_id));
 joinable!(stars -> users (user_id));
 
 allow_tables_to_appear_in_same_query!(
+    invite_tokens,
     posts,
     stars,
     users,
