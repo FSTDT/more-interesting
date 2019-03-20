@@ -45,6 +45,26 @@ struct TemplateContext {
 
 fn default<T: Default>() -> T { T::default() }
 
+trait ResultTo {
+    type Ok;
+    /// This function is exactly like `ok()`, except it writes a warning to the log.
+    fn into_option(self) -> Option<T>;
+}
+
+impl<T, E: std::fmt::Debug> ResultTo for Result<T, E> {
+    type Ok = T;
+
+    fn into_option(self) -> Option<T> {
+        match self {
+            Ok(t) => Some(t),
+            Err(e) => {
+                warn!("database lookup failed: {:?}", e);
+                None
+            }
+        }
+    }
+}
+
 /*
 Note on the URL scheme: we cram a lot of stuff into the top-level URL scheme.
 It helps keep the URLs short and easy-to-remember.
@@ -63,13 +83,13 @@ struct AddStarForm {
 }
 
 #[post("/-add-star", data = "<post>")]
-fn add_star(conn: MoreInterestingConn, user: User, post: Form<AddStarForm>) -> impl Responder<'static> {
-    let post = conn.get_post_info_by_uuid(user.id, post.post).unwrap();
+fn add_star(conn: MoreInterestingConn, user: User, post: Form<AddStarForm>) -> Option<impl Responder<'static>> {
+    let post = conn.get_post_info_by_uuid(user.id, post.post).into_option()?;
     conn.add_star(&NewStar {
         user_id: user.id,
         post_id: post.id
     });
-    Redirect::to(uri!(index))
+    Some(Redirect::to(uri!(index)))
 }
 
 #[derive(FromForm)]
@@ -78,13 +98,13 @@ struct RmStarForm {
 }
 
 #[post("/-rm-star", data = "<post>", rank=1)]
-fn rm_star(conn: MoreInterestingConn, user: User, post: Form<RmStarForm>) -> impl Responder<'static> {
-    let post = conn.get_post_info_by_uuid(user.id, post.post).unwrap();
+fn rm_star(conn: MoreInterestingConn, user: User, post: Form<RmStarForm>) -> Option<impl Responder<'static>> {
+    let post = conn.get_post_info_by_uuid(user.id, post.post).into_option()?;
     conn.rm_star(&NewStar {
         user_id: user.id,
         post_id: post.id
     });
-    Redirect::to(uri!(index))
+    Some(Redirect::to(uri!(index)))
 }
 
 #[get("/")]
@@ -92,7 +112,7 @@ fn index(conn: MoreInterestingConn, user: Option<User>, flash: Option<FlashMessa
     let (username, user_id) = user.map(|u| (u.username, u.id)).unwrap_or((String::new(), 0));
     Template::render("index", &TemplateContext {
         title: Cow::Borrowed("home"),
-        posts: conn.get_recent_posts_with_starred_bit(user_id).unwrap(),
+        posts: conn.get_recent_posts_with_starred_bit(user_id).expect("getting hot posts should always work"),
         parent: "layout",
         alert: flash.map(|f| f.msg().to_owned()),
         username,
@@ -117,15 +137,18 @@ struct NewPostForm {
 }
 
 #[post("/-submit", data = "<post>")]
-fn create(user: User, conn: MoreInterestingConn, post: Form<NewPostForm>) -> impl Responder<'static> {
+fn create(user: User, conn: MoreInterestingConn, post: Form<NewPostForm>) -> Result<impl Responder<'static>, Status> {
     let NewPostForm { title, url } = &*post;
     match conn.create_post(&models::NewPost {
         title: &title,
         url: url.as_ref().map(|s| &s[..]),
         submitted_by: user.id,
     }) {
-        Ok(_) => Redirect::to(uri!(index)),
-        Err(e) => panic!("{:?}", e),
+        Ok(_) => Ok(Redirect::to(uri!(index))),
+        Err(e) => {
+            warn!("{:?}", e);
+            Err(Status::InternalServerError)
+        },
     }
 }
 
@@ -152,9 +175,11 @@ fn login(conn: MoreInterestingConn, post: Form<UserForm>, mut cookies: Cookies) 
     }) {
         Some(user) => {
             cookies.add_private(Cookie::new("user_id", user.id.to_string()));
-            Redirect::to(uri!(index))
+            Flash::success(Redirect::to(uri!(index)), "Congrats, you're in!")
         },
-        None => Redirect::to(uri!(login)),
+        None => {
+            Flash::error(Redirect::to(uri!(index)), "Incorrect username or password")
+        },
     }
 }
 
@@ -213,7 +238,7 @@ fn setup(conn: MoreInterestingConn) -> impl Responder<'static> {
                 username: &username[..],
                 password: &password[..],
                 invited_by: None,
-            }).unwrap();
+            }).expect("registering the initial user should always succeed");
             "setup"
         } else {
             "cannot run without MORE_INTERESTING_INIT_USERNAME and MORE_INTERESTING_INIT_PASSWORD env variables"
