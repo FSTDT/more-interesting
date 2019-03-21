@@ -492,3 +492,7 @@ details-dialog {
     max-width: 90vw;
     width: 448px;
 }
+
+.inline-form {
+    display: inline;
+}

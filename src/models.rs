@@ -214,9 +214,6 @@ impl MoreInterestingConn {
             password_hash: &'a [u8],
             invited_by: Option<i32>,
         }
-        if new_user.username.as_bytes()[0] == b'-' {
-            panic!("usernames may not start with hyphens");
-        }
         let password_hash = password_hash(new_user.password);
         diesel::insert_into(users::table)
             .values(CreateUser {

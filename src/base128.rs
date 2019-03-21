@@ -111,7 +111,7 @@ pub const DIGITS: [char; 128] = [
     'Ỳ',
     'Ǹ',
     '.',
-    '-',
+    ';',
     '+',
     'Ẃ',
     'Ṕ',
@@ -385,6 +385,9 @@ mod tests {
     quickcheck!{
         fn prop_round_trip(num: u128) -> bool {
             num == decode(&encode(num)).unwrap()
+        }
+        fn does_not_contain_hyphen(num: u128) -> bool {
+            !encode(num).contains('-')
         }
     }
 }
