@@ -11,7 +11,7 @@ CREATE TABLE users (
   -- but MI is designed for smaller communities
   trust_level INTEGER NOT NULL DEFAULT 0,
   username VARCHAR NOT NULL,
-  CHECK (username ~ '^[^\#\@\s]+$' AND username <> ''),
+  CHECK (username ~ '^[^#@\s]+$' AND username <> ''),
   password_hash BYTEA NOT NULL,
   created_at TIMESTAMP NOT NULL DEFAULT NOW(),
   invited_by INTEGER NULL DEFAULT NULL REFERENCES users(id)

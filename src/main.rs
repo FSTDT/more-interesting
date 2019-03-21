@@ -6,6 +6,8 @@ extern crate rocket;
 extern crate diesel;
 #[macro_use]
 extern crate rocket_contrib;
+#[macro_use]
+extern crate log;
 
 mod schema;
 mod models;
@@ -48,7 +50,7 @@ fn default<T: Default>() -> T { T::default() }
 trait ResultTo {
     type Ok;
     /// This function is exactly like `ok()`, except it writes a warning to the log.
-    fn into_option(self) -> Option<T>;
+    fn into_option(self) -> Option<Self::Ok>;
 }
 
 impl<T, E: std::fmt::Debug> ResultTo for Result<T, E> {
@@ -346,6 +348,7 @@ fn change_password(conn: MoreInterestingConn, user: User, form: Form<ChangePassw
 }
 
 fn main() {
+    env_logger::init();
     rocket::ignite()
         .attach(MoreInterestingConn::fairing())
         .attach(Template::fairing())

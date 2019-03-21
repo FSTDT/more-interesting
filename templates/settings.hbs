@@ -1,7 +1,9 @@
 {{#*inline "page"}}
     <h2>Settings</h2>
     <details-menu-bar>
-        <button formaction=-create-invite formmethod=post>Invite someone to this instance</button>
+        <form class=inline-form action=-create-invite method=post>
+            <button>Invite someone to this instance</button>
+        </form>
         <details class=details-dialog-outer>
             <summary class=details-dialog-summary>Change password</summary>
             <details-dialog>
