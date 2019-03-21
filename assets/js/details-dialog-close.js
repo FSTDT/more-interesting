@@ -26,7 +26,7 @@
         _clickEvent(e) {
             let p = e.target.parentElement;
             while (p) {
-                if (p instanceof HTMLDetailsElement) {
+                if ('open' in p) {
                     p.open = false;
                     e.stopPropagation();
                     e.preventDefault();

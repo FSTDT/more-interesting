@@ -7,15 +7,15 @@
         <a class=top-header-link href="/">Home</a>
         <details-menu-bar class=top-header-aside role=menubar>
             {{#if username}}
-                <details class="details-menu-outer" role=menuitem>
-                    <summary class="details-menu-summary" aria-haspopup=menu>+</summary>
-                    <form class="details-menu-inner" role=menu>
+                <details class="details-menu-outer backwards" role=menuitem>
+                    <summary class="details-menu-summary backwards" aria-haspopup=menu>+</summary>
+                    <form class="details-menu-inner backwards" role=menu>
                         <a class=details-menu-item href="-submit" role=menuitem>Create Post</a>
                     </form>
                 </details>
-                <details class="details-menu-outer" role=menuitem>
-                    <summary class="details-menu-summary" aria-haspopup=menu>{{username}}</summary>
-                    <form class="details-menu-inner" role=menu>
+                <details class="details-menu-outer backwards" role=menuitem>
+                    <summary class="details-menu-summary backwards" aria-haspopup=menu>{{username}}</summary>
+                    <form class="details-menu-inner backwards" role=menu>
                         <a class=details-menu-item href="-settings" role=menuitem>Settings</a>
                         <a class=details-menu-item href="@{{username}}" role=menuitem>Your profile</a>
                         <button class=details-menu-item formaction=-logout formmethod=post role=menuitem>Sign Out</button>
