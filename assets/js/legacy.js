@@ -1,0 +1,6 @@
+import '@webcomponents/webcomponentsjs/webcomponents-bundle.js'
+import ExtraPolyfills from './extra-polyfills.js'
+import HTMLDetailsElement from './details-element-polyfill.js'
+import DetailsDialogElement from './details-dialog.js'
+import DetailsDialogCloseElement from './details-dialog-close.js'
+import DetailsMenuBarElement from './details-menu-bar.js'

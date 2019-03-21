@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<meta name=viewport content=width=device-width>
+<meta name=viewport content="width=device-width">
 <link rel=stylesheet href=-assets/style.css>
 <title>{{title}}</title>
 <header class=top-header>
@@ -38,5 +38,14 @@
         <a href="@" class=top-header-link>User Invite Tree</a>
     </nav>
 </footer>
-<script src=-assets/details-menu-bar.js></script>
-<script src=-assets/details-dialog.js></script>
+<script>
+    var s = document.createElement("script");
+    if (window.HTMLDetailsElement && window.customElements) {
+        s.src = "-assets/dist/modern.min.js";
+    } else {
+        s.src = "-assets/dist/legacy.min.js";
+    }
+    s.defer = true;
+    s.async = true;
+    document.body.appendChild(s);
+</script>

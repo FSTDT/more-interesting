@@ -39,7 +39,7 @@
         const details = event.currentTarget;
         if (!(details instanceof Element)) return;
 
-        if (event.key === 'Escape') {
+        if (event.key === 'Escape' || event.key === "Esc") {
             toggleDetails(details, false);
             event.stopPropagation();
         } else if (event.key === 'Tab') {
@@ -220,34 +220,11 @@
 
     }
 
-    class DetailsDialogCloseElement extends HTMLElement {
-        constructor() {
-            super();
-            this.addEventListener("click", this._clickEvent);
-        }
-        _clickEvent(e) {
-            let p = e.target.parentElement;
-            while (p) {
-                if (p instanceof HTMLDetailsElement) {
-                    p.open = false;
-                    e.stopPropagation();
-                    e.preventDefault();
-                    return;
-                }
-                p = p.parentElement;
-            }
-        }
-    }
-
     var _default = DetailsDialogElement;
     _exports.default = _default;
 
     if (!window.customElements.get('details-dialog')) {
         window.DetailsDialogElement = DetailsDialogElement;
         window.customElements.define('details-dialog', DetailsDialogElement);
-    }
-    if (!window.customElements.get('details-dialog-close')) {
-        window.DetailsDialogCloseElement = DetailsDialogCloseElement;
-        window.customElements.define('details-dialog-close', DetailsDialogCloseElement);
     }
 });

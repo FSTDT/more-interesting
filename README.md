@@ -6,6 +6,19 @@ on the link sharing network paradigm.
 
 A lot of this stuff isn't implemented, yet.
 
+## Browser support
+
+I test in the following browsers.
+
+* Current Mozilla Firefox
+* Current Microsoft Edge
+* Windows Internet Explorer 11
+* Lynx
+
+Bug fixes will be accepted for other browsers, if the browser has a large market share,
+or the workarounds aren't too onerous.
+
+
 ## Will-be features
 
 ### Transparency

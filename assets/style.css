@@ -392,6 +392,10 @@ details-dialog {
 .details-dialog-summary::-webkit-details-marker {
     display: none;
 }
+.details-menu-summary::before,
+.details-dialog-summary::before {
+    display: none;
+}
 .details-menu-summary {
     list-style: none;
     cursor: default;
@@ -405,6 +409,7 @@ details-dialog {
     z-index: 100;
 }
 details[open] .details-menu-summary::before {
+    display: block;
     position: fixed;
     content: ".";
     color: transparent;
@@ -418,6 +423,7 @@ details[open] .details-menu-summary::before {
 }
 
 details[open] .details-dialog-summary::before {
+    display: block;
     position: fixed;
     content: ".";
     color: transparent;
