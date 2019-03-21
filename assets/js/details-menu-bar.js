@@ -1,9 +1,50 @@
-(function() {
+(function (global, factory) {
+    if (typeof define === "function" && define.amd) {
+        define(["exports"], factory);
+    } else if (typeof exports !== "undefined") {
+        factory(exports);
+    } else {
+        var mod = {
+            exports: {}
+        };
+        factory(mod.exports);
+        global.index = mod.exports;
+    }
+})(this, function (_exports) {
     "use strict";
+
+    Object.defineProperty(_exports, "__esModule", {
+        value: true
+    });
+    _exports.default = void 0;
+
+    function firstVisibleSibling(el) {
+        while (el && !el.offsetHeight) {
+            el = el.nextElementSibling;
+        }
+        return el;
+    }
+
+    function lastVisibleSibling(el) {
+        while (el && !el.offsetHeight) {
+            el = el.previousElementSibling;
+        }
+        return el;
+    }
+
+    function firstVisibleChild(el) {
+        return firstVisibleSibling(el.firstElementChild);
+    }
+
+    function lastVisibleChild(el) {
+        return lastVisibleSibling(el.lastElementChild);
+    }
+
+    document.querySelector("body").classList.add("js");
 
     let currentlyOpen = null;
 
-    class DetailsMenuBar extends HTMLElement {
+    class DetailsMenuBarElement extends HTMLElement {
         constructor() {
             super();
             let details = this.querySelectorAll(".details-menu-outer");
@@ -24,12 +65,14 @@
             let switchTo = null;
             switch (e.key.toLowerCase()) {
                 case "escape":
+                case "esc":
                     // Escape closes the menu. GitHub and WAI both do this.
                     this.open = false;
                     e.preventDefault();
                     e.stopPropagation();
                     break;
                 case "arrowdown":
+                case "down":
                     if (e.target.className === "details-menu-summary" && !this.open) {
                         // Arrow down when a menu button is selected: open the menu.
                         // WAI does this, GitHub does not.
@@ -52,6 +95,7 @@
                     e.stopPropagation();
                     break;
                 case "arrowup":
+                case "up":
                     if (e.target.className === "details-menu-summary" && !this.open) {
                         // Arrow up when a menu button is selected: open the menu.
                         // WAI does this, GitHub does not.
@@ -74,6 +118,7 @@
                     e.stopPropagation();
                     break;
                 case "arrowleft":
+                case "left":
                     if (this.open) {
                         // left arrow: switch to previous menu, or switch to last
                         // this only occurs when the menu is already opened,
@@ -87,6 +132,7 @@
                     }
                     break;
                 case "arrowright":
+                case "right":
                     if (this.open) {
                         // right arrow: switch to next menu, or switch to first
                         // this only occurs when the menu is already opened,
@@ -134,7 +180,9 @@
                     // enter, return, and space have the default browser behavior,
                     // but they also close the menu
                     // this behavior is identical between both the WAI example, and GitHub's
-                    this.open = false;
+                    setTimeout(function() {
+                        this.open = false;
+                    }, 100);
                     break;
                 case "home":
                     if (this.open) {
@@ -232,30 +280,11 @@
         }
     }
 
-    customElements.define('details-menu-bar', DetailsMenuBar);
+    var _default = DetailsMenuBarElement;
+    _exports.default = _default;
 
-    function firstVisibleSibling(el) {
-        while (el && !el.offsetHeight) {
-            el = el.nextElementSibling;
-        }
-        return el;
+    if (!window.customElements.get('details-menu-bar')) {
+        window.DetailsMenuBarElement = DetailsMenuBarElement;
+        window.customElements.define('details-menu-bar', DetailsMenuBarElement);
     }
-
-    function lastVisibleSibling(el) {
-        while (el && !el.offsetHeight) {
-            el = el.previousElementSibling;
-        }
-        return el;
-    }
-
-    function firstVisibleChild(el) {
-        return firstVisibleSibling(el.firstElementChild);
-    }
-
-    function lastVisibleChild(el) {
-        return lastVisibleSibling(el.lastElementChild);
-    }
-
-    document.querySelector("body").classList.add("js");
-
-})();
+});

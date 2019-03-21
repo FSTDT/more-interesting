@@ -23,7 +23,8 @@ matrix:
         - MORE_INTERESTING_INIT_PASSWORD=ready2go
       before_install:
         - nvm install 10
-        - cd test/webdriver && npm ci && cd ..
+        - cd test/webdriver && npm ci && cd ../..
+        - cd assets && npm install && npm run webpack && cd ..
       install:
         - which diesel || cargo install diesel_cli
         - which chromedriver || (wget https://chromedriver.storage.googleapis.com/2.46/chromedriver_linux64.zip && unzip chromedriver_linux64.zip -d /home/travis/.cargo/bin)
@@ -33,7 +34,7 @@ matrix:
         - cargo build
         - cargo run &
         - sleep 5
-        - pwd && cd webdriver && npm test && cd ..
+        - pwd && cd test/webdriver && npm test && cd ../..
 
 branches:
   only:
