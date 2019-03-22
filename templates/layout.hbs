@@ -39,8 +39,13 @@
     </nav>
 </footer>
 <script>
+    const a = async () => {};
+    let b = a;
+    window.moreInterestingIsAsyncAvailable = b;
+</script>
+<script>
     var s = document.createElement("script");
-    if (window.HTMLDetailsElement && window.customElements) {
+    if (window.HTMLDetailsElement && window.URLSearchParams && window.customElements && window.moreInterestingIsAsyncAvailable && window.fetch) {
         s.src = "-assets/dist/modern.min.js";
     } else {
         s.src = "-assets/dist/legacy.min.js";

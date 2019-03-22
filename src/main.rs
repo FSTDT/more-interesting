@@ -348,7 +348,7 @@ fn change_password(conn: MoreInterestingConn, user: User, form: Form<ChangePassw
 }
 
 fn main() {
-    env_logger::init();
+    //env_logger::init();
     rocket::ignite()
         .attach(MoreInterestingConn::fairing())
         .attach(Template::fairing())
