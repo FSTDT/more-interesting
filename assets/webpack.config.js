@@ -4,7 +4,7 @@ module.exports = [{
     },
     devtool: "source-map",
     name: 'modern',
-    entry: './js/modern.js',
+    entry: './js/modern.mjs',
     mode: 'production'
     // note: this mode does not, and CANNOT, use Babel.
     // Babel would translate the ES6 classes into plain ES5 constructors,
@@ -15,17 +15,20 @@ module.exports = [{
     },
     devtool: "source-map",
     name: 'legacy',
-    entry: './js/legacy.js',
+    entry: './js/legacy.mjs',
     mode: 'production',
     module: {
         rules: [
             {
                 test: /\.m?js$/,
-                exclude: /(node_modules|bower_components)/,
                 use: {
                     loader: 'babel-loader',
                     options: {
-                        presets: ['@babel/preset-env']
+                        presets: [['@babel/preset-env', {
+                            targets: {
+                                "ie": "11"
+                            }
+                        }]]
                     }
                 }
             }

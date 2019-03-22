@@ -255,6 +255,9 @@ In other words, I don't want `#1` to get auto-linked, so comment `#1` should onl
 
 ## Running locally
 
+First, you need to bundle the JavaScript. If you have Node, you can just use `run-webpack`.
+For development, I use `run-pax`, since it's faster, but it doesn't run Babel so it can't be used with IE11.
+
 Run it with Cargo with these env vars set:
 
 * `MORE_INTERESTING_INIT_USERNAME`
