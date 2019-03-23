@@ -14,6 +14,7 @@ mod models;
 mod password;
 mod session;
 mod base128;
+mod prettify;
 
 use rocket::request::{Form, FlashMessage};
 use rocket::response::{Responder, Redirect, Flash};
