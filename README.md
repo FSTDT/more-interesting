@@ -216,7 +216,7 @@ More Interesting should do the same thing. A quick sketch of what the comment fo
     |                                                                       |
     | URL's are automatically linked, following the GitHub-flavor MD rules  |
     | <URL> is a usable workaround if your URL is too complex, but note that|
-    | the angle brackets will still be shown! We also include GitHub's WWW  |
+    | the angle brackets will still be shown! It also includes GitHub's WWW |
     | special case, like www.example.com, <www.example.com>,                |
     | http://example.com, and <http://example.com> will all work.           |
     |                                                                       | 
