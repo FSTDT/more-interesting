@@ -27,7 +27,7 @@ use rocket_contrib::serve::StaticFiles;
 use rocket_contrib::templates::Template;
 use serde::Serialize;
 use std::borrow::Cow;
-use crate::models::{PostInfo, NewStar, NewUser};
+use crate::models::{PostInfo, NewStar, NewUser, ReplyInfo, NewPost, NewReply};
 use base128::Base128;
 use rocket::Config;
 use url::Url;
@@ -39,6 +39,7 @@ use v_htmlescape::escape;
 struct TemplateContext {
     title: Cow<'static, str>,
     posts: Vec<PostInfo>,
+    comments: Vec<ReplyInfo>,
     username: String,
     parent: &'static str,
     alert: Option<String>,
@@ -210,11 +211,15 @@ fn get_comments(conn: MoreInterestingConn, user: Option<User>, uuid: Base128) ->
     // Make sure that these two values are consistent.
     assert!((user_id == 0) ^ (username != ""));
     if let Ok(post_info) = conn.get_post_info_by_uuid(user_id, uuid) {
-        Ok(Template::render("index", &TemplateContext {
+        let comments = conn.get_replies_from_post(post_info.id, user_id).unwrap_or_else(|e| {
+            warn!("Failed to get comments: {:?}", e);
+            Vec::new()
+        });
+        Ok(Template::render("comments", &TemplateContext {
             title: Cow::Borrowed("home"),
             posts: vec![post_info],
             parent: "layout",
-            username,
+            comments, username,
             ..default()
         }))
     } else if conn.check_invite_token_exists(uuid) && user_id == 0 {
@@ -227,6 +232,32 @@ fn get_comments(conn: MoreInterestingConn, user: Option<User>, uuid: Base128) ->
     } else {
         Err(Status::NotFound)
     }
+}
+
+#[derive(FromForm)]
+struct ReplyForm {
+    text: String,
+    post: Base128,
+}
+
+#[post("/-comment", data = "<reply>")]
+fn post_comment(conn: MoreInterestingConn, user: User, reply: Form<ReplyForm>) -> Option<impl Responder<'static>> {
+    let post_info = conn.get_post_info_by_uuid(user.id, reply.post).into_option()?;
+    conn.reply_to_post(NewReply {
+        post_id: post_info.id,
+        text: &reply.text,
+        created_by: user.id,
+    }).into_option()?;
+    let comments = conn.get_replies_from_post(post_info.id, user.id).into_option()?;
+    Some(Template::render("comments", &TemplateContext {
+        title: Cow::Borrowed("home"),
+        posts: vec![post_info],
+        parent: "layout",
+        username: user.username,
+        alert: Some("Your comment has been successfully posted!".to_owned()),
+        comments,
+        ..default()
+    }))
 }
 
 #[get("/-setup")]
@@ -353,7 +384,7 @@ fn main() {
     rocket::ignite()
         .attach(MoreInterestingConn::fairing())
         .attach(Template::fairing())
-        .mount("/", routes![index, login_form, login, logout, create_form, create, setup, get_comments, add_star, rm_star, consume_invite, get_settings, create_invite, invite_tree, change_password])
+        .mount("/", routes![index, login_form, login, logout, create_form, create, setup, get_comments, add_star, rm_star, consume_invite, get_settings, create_invite, invite_tree, change_password, post_comment])
         .mount("/-assets", StaticFiles::from("assets"))
         .launch();
 }
