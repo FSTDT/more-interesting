@@ -1,0 +1,39 @@
+{{#*inline "page"}}
+    <ajax-form><form method="post">
+        {{#each posts}}
+            <article>
+                <header class=article-header>
+                    {{#if this.url}}
+                        <a class=article-header-inner href="{{this.url}}">{{this.title}}</a>
+                    {{else}}
+                        <a class=article-header-inner href={{this.uuid}}>{{this.title}}</a>
+                    {{/if}}
+                </header>
+                <button name=post value={{this.uuid}} title="{{#if this.starred_by_me}}Remove star{{else}}Add star{{/if}}" formaction={{#if this.starred_by_me}}-rm-star{{else}}-add-star{{/if}}>
+                    <img width=12 height=12 src=-assets/{{#if this.starred_by_me}}star_active.svg{{else}}star.svg{{/if}}>
+                </button>
+                <!-- flagging is not yet implemented -->
+                <button name=post value={{this.uuid}} formaction="-add-flag" title="Add flag">
+                    <img width=12 height=12 src=-assets/flag.svg>
+                </button>
+                submitted by <a href="@{{this.submitted_by_username}}">{{this.submitted_by_username}}</a>
+            </article>
+        {{/each}}
+    </form></ajax-form>
+    {{#each comments}}
+        <aside>
+            <hr>
+            {{{this.html}}}
+            <footer>
+                posted by <a href="@{{this.created_by_username}}">{{this.created_by_username}}</a>
+            </footer>
+        </aside>
+    {{/each}}
+    <form action="-comment" method=post>
+        <hr>
+        <textarea name=text></textarea>
+        <input type=hidden name=post value="{{posts.0.uuid}}">
+        <button>Submit</button>
+    </form>
+{{/inline}}
+{{~> (parent)~}}

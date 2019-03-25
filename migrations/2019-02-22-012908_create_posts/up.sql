@@ -35,6 +35,7 @@ CREATE TABLE posts (
   visible BOOLEAN NOT NULL DEFAULT 't',
   initial_stellar_time INTEGER NOT NULL DEFAULT 0,
   score INTEGER NOT NULL DEFAULT 0,
+  reply_count INTEGER NOT NULL DEFAULT 0,
   authored_by_submitter BOOLEAN NOT NULL DEFAULT 'f',
   created_at TIMESTAMP NOT NULL DEFAULT NOW(),
   submitted_by INTEGER NOT NULL REFERENCES users(id)
@@ -47,7 +48,26 @@ CREATE TABLE stars (
   PRIMARY KEY (user_id, post_id)
 );
 
+CREATE TABLE replies (
+  id SERIAL PRIMARY KEY,
+  text VARCHAR NOT NULL,
+  html VARCHAR NOT NULL,
+  visible BOOLEAN NOT NULL DEFAULT 't',
+  post_id INTEGER NOT NULL REFERENCES posts(id),
+  created_at TIMESTAMP NOT NULL DEFAULT NOW(),
+  created_by INTEGER NOT NULL REFERENCES users(id)
+);
+
+CREATE TABLE reply_stars (
+  user_id INTEGER NOT NULL REFERENCES users(id),
+  reply_id INTEGER NOT NULL REFERENCES replies(id),
+  created_at TIMESTAMP NOT NULL DEFAULT NOW(),
+  PRIMARY KEY (user_id, reply_id)
+);
+
 CREATE INDEX idx_stars_user ON stars (user_id);
 CREATE INDEX idx_stars_post ON stars (post_id);
+CREATE INDEX idx_reply_stars_user ON reply_stars (user_id);
+CREATE INDEX idx_reply_stars_reply ON reply_stars (reply_id);
 CREATE UNIQUE INDEX idx_users_username ON users (username);
 CREATE UNIQUE INDEX idx_posts_uuid ON posts (uuid);

@@ -1,3 +1,7 @@
+DROP TABLE reply_stars;
+
+DROP TABLE replies;
+
 DROP TABLE stars;
 
 DROP TABLE posts;
