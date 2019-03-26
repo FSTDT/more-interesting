@@ -69,6 +69,21 @@ impl<T, E: std::fmt::Debug> ResultTo for Result<T, E> {
     }
 }
 
+#[derive(Clone, Copy, FromForm)]
+struct MaybeRedirect {
+    redirect: Option<Base128>,
+}
+
+impl MaybeRedirect {
+    pub fn maybe_redirect(self) -> Result<impl Responder<'static>, Status> {
+        match self.redirect {
+            Some(b) if b == Base128::zero() => Ok(Redirect::to(uri!(index))),
+            Some(b) => Ok(Redirect::to(uri!(get_comments: b))),
+            None => Err(Status::Created)
+        }
+    }
+}
+
 /*
 Note on the URL scheme: we cram a lot of stuff into the top-level URL scheme.
 It helps keep the URLs short and easy-to-remember.
@@ -86,14 +101,14 @@ struct AddStarForm {
     post: Base128,
 }
 
-#[post("/-add-star", data = "<post>")]
-fn add_star(conn: MoreInterestingConn, user: User, post: Form<AddStarForm>) -> Option<impl Responder<'static>> {
-    let post = conn.get_post_info_by_uuid(user.id, post.post).into_option()?;
+#[post("/-add-star?<redirect..>", data = "<post>")]
+fn add_star(conn: MoreInterestingConn, user: User, redirect: Form<MaybeRedirect>, post: Form<AddStarForm>) -> Result<impl Responder<'static>, Status> {
+    let post = conn.get_post_info_by_uuid(user.id, post.post).map_err(|_| Status::NotFound)?;
     conn.add_star(&NewStar {
         user_id: user.id,
         post_id: post.id
     });
-    Some(Redirect::to(uri!(index)))
+    redirect.maybe_redirect()
 }
 
 #[derive(FromForm)]
@@ -101,14 +116,14 @@ struct RmStarForm {
     post: Base128,
 }
 
-#[post("/-rm-star", data = "<post>")]
-fn rm_star(conn: MoreInterestingConn, user: User, post: Form<RmStarForm>) -> Option<impl Responder<'static>> {
-    let post = conn.get_post_info_by_uuid(user.id, post.post).into_option()?;
+#[post("/-rm-star?<redirect..>", data = "<post>")]
+fn rm_star(conn: MoreInterestingConn, user: User, redirect: Form<MaybeRedirect>, post: Form<AddStarForm>) -> Result<impl Responder<'static>, Status> {
+    let post = conn.get_post_info_by_uuid(user.id, post.post).map_err(|_| Status::NotFound)?;
     conn.rm_star(&NewStar {
         user_id: user.id,
         post_id: post.id
     });
-    Some(Redirect::to(uri!(index)))
+    redirect.maybe_redirect()
 }
 
 #[derive(FromForm)]
@@ -116,13 +131,13 @@ struct AddStarCommentForm {
     comment: i32,
 }
 
-#[post("/-add-star-comment", data = "<comment>")]
-fn add_star_comment(conn: MoreInterestingConn, user: User, comment: Form<AddStarCommentForm>) -> Option<impl Responder<'static>> {
+#[post("/-add-star-comment?<redirect..>", data = "<comment>")]
+fn add_star_comment(conn: MoreInterestingConn, user: User, redirect: Form<MaybeRedirect>, comment: Form<RmStarCommentForm>) -> Result<impl Responder<'static>, Status> {
     conn.add_star_comment(&NewStarComment {
         user_id: user.id,
         comment_id: comment.comment,
     });
-    Some(Redirect::to(uri!(index)))
+    redirect.maybe_redirect()
 }
 
 #[derive(FromForm)]
@@ -130,13 +145,13 @@ struct RmStarCommentForm {
     comment: i32,
 }
 
-#[post("/-rm-star-comment", data = "<comment>")]
-fn rm_star_comment(conn: MoreInterestingConn, user: User, comment: Form<RmStarCommentForm>) -> Option<impl Responder<'static>> {
+#[post("/-rm-star-comment?<redirect..>", data = "<comment>")]
+fn rm_star_comment(conn: MoreInterestingConn, user: User, redirect: Form<MaybeRedirect>, comment: Form<RmStarCommentForm>) -> Result<impl Responder<'static>, Status> {
     conn.rm_star_comment(&NewStarComment {
         user_id: user.id,
         comment_id: comment.comment,
     });
-    Some(Redirect::to(uri!(index)))
+    redirect.maybe_redirect()
 }
 
 #[get("/")]
@@ -276,16 +291,7 @@ fn post_comment(conn: MoreInterestingConn, user: User, comment: Form<CommentForm
         text: &comment.text,
         created_by: user.id,
     }).into_option()?;
-    let comments = conn.get_comments_from_post(post_info.id, user.id).into_option()?;
-    Some(Template::render("comments", &TemplateContext {
-        title: Cow::Borrowed("home"),
-        posts: vec![post_info],
-        parent: "layout",
-        username: user.username,
-        alert: Some("Your comment has been successfully posted!".to_owned()),
-        comments,
-        ..default()
-    }))
+    Some(Redirect::to(uri!(get_comments: comment.post)))
 }
 
 #[get("/-setup")]

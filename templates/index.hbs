@@ -9,11 +9,11 @@
                 <a class=article-header-inner href={{this.uuid}}>{{this.title}}</a>
             {{/if}}
         </header>
-        <button name=post value={{this.uuid}} title="{{#if this.starred_by_me}}Remove star{{else}}Add star{{/if}}" formaction={{#if this.starred_by_me}}-rm-star{{else}}-add-star{{/if}}>
+        <button name=post value={{this.uuid}} title="{{#if this.starred_by_me}}Remove star{{else}}Add star{{/if}}" formaction="{{#if this.starred_by_me}}-rm-star{{else}}-add-star{{/if}}?to=0">
             <img width=12 height=12 src=-assets/{{#if this.starred_by_me}}star_active.svg{{else}}star.svg{{/if}}>
         </button>
         <!-- flagging is not yet implemented -->
-        <button name=post value={{this.uuid}} formaction="-add-flag" title="Add flag">
+        <button name=post value={{this.uuid}} formaction="-add-flag?to=0" title="Add flag">
             <img width=12 height=12 src=-assets/flag.svg>
         </button>
         submitted by <a href="@{{this.submitted_by_username}}">{{this.submitted_by_username}}</a> |

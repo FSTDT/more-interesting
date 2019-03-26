@@ -192,10 +192,8 @@ select,
 :visited.button,
 .details-dialog-summary,
 .details-menu-summary {
-    border-top-color: #ededf0;
-    border-left-color: #ededf0;
-    border-bottom-color: #737373;
-    box-shadow: -1px -1px 0 #fff, 1px 0 0 #0c0c0d, 1px -1px 0 #fff, 1px 1px 0 #0c0c0d, -1px 0px #fff, -1px 1px 0 #0c0c0d;
+    border: solid 2px #737373;
+    border-image: url("outset.svg") 2;
     width: auto;
     outline-offset: -5px;
     padding: 4px 8px;
@@ -211,14 +209,11 @@ select:active,
 .details-menu-summary:active,
 details[open] .details-menu-summary,
 .details-dialog-summary:active {
-    border-bottom-color: #ededf0;
-    border-right-color: #ededf0;
-    border-left-color: #737373;
-    border-top-color: #737373;
+    border: solid 2px #737373;
+    border-image: url("inset.svg") 2;
     position: relative;
     top: 1px;
     left: 1px;
-    box-shadow: -1px -1px 0 #0c0c0d, 1px 0 0 #fff, 1px -1px 0 #0c0c0d, 1px 1px 0 #fff, -1px 0px #0c0c0d, -1px 1px 0 #fff;
 }
 
 button,
@@ -343,15 +338,10 @@ template {
     color: #d70022;
 }
 
-article, .alert {
+article, .alert, aside {
     display: block;
-    /*border: solid 1px #737373;
-    box-shadow: 0 -5px 0 #fff, 0 -10px 0 #00f;*/
-    border-top: solid 1px #fff;
-    border-left: solid 1px #737373;
-    border-right: solid 1px #fff;
-    border-bottom: solid 1px #737373;
-    box-shadow: 0 -1px 0 #737373, -1px 0 0 #fff, 1px 0 0 #737373, 0 1px 0 #fff;
+    border: solid 1px #737373;
+    border-image: url("inset.svg") 2;
     background: #f9f9fa;
     margin: 24px 0;
     padding: 8px 8px;
@@ -523,4 +513,8 @@ details-dialog {
 
 .inline-form {
     display: inline;
+}
+
+p {
+    margin-top: 0;
 }

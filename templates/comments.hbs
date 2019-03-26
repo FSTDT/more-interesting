@@ -9,11 +9,11 @@
                         <a class=article-header-inner href={{this.uuid}}>{{this.title}}</a>
                     {{/if}}
                 </header>
-                <button name=post value={{this.uuid}} title="{{#if this.starred_by_me}}Remove star{{else}}Add star{{/if}}" formaction={{#if this.starred_by_me}}-rm-star{{else}}-add-star{{/if}}>
+                <button name=post value={{this.uuid}} title="{{#if this.starred_by_me}}Remove star{{else}}Add star{{/if}}" formaction="{{#if this.starred_by_me}}-rm-star{{else}}-add-star{{/if}}?to={{this.uuid}}">
                     <img width=12 height=12 src=-assets/{{#if this.starred_by_me}}star_active.svg{{else}}star.svg{{/if}}>
                 </button>
                 <!-- flagging is not yet implemented -->
-                <button name=post value={{this.uuid}} formaction="-add-flag" title="Add flag">
+                <button name=post value={{this.uuid}} formaction="-add-flag?to={{this.uuid}}" title="Add flag">
                     <img width=12 height=12 src=-assets/flag.svg>
                 </button>
                 submitted by <a href="@{{this.submitted_by_username}}">{{this.submitted_by_username}}</a>
@@ -25,16 +25,15 @@
             <aside>
                 {{{this.html}}}
                 <footer>
-                    <button name=comment value={{this.id}} title="{{#if this.starred_by_me}}Remove star{{else}}Add star{{/if}}" formaction={{#if this.starred_by_me}}-rm-star-comment{{else}}-add-star-comment{{/if}}>
+                    <button name=comment value={{this.id}} title="{{#if this.starred_by_me}}Remove star{{else}}Add star{{/if}}" formaction="{{#if this.starred_by_me}}-rm-star-comment{{else}}-add-star-comment{{/if}}?to={{posts.0.uuid}}">
                         <img width=12 height=12 src=-assets/{{#if this.starred_by_me}}star_active.svg{{else}}star.svg{{/if}}>
                     </button>
                     <!-- flagging is not yet implemented -->
-                    <button name=comment value={{this.id}} formaction="-add-flag-comment" title="Add flag">
+                    <button name=comment value={{this.id}} formaction="-add-flag-comment?to={{posts.0.uuid}}" title="Add flag">
                         <img width=12 height=12 src=-assets/flag.svg>
                     </button>
                     posted by <a href="@{{this.created_by_username}}">{{this.created_by_username}}</a>
                 </footer>
-                <hr>
             </aside>
         {{/each}}
     </form></ajax-form>

@@ -13,7 +13,11 @@ export class AjaxFormElement extends HTMLElement {
     _setImage(t, state) {
         let img = t.querySelector("img");
         let suff;
-        if (t.formAction.endsWith("-comment")) {
+        let a = t.formAction.split('/');
+        let v = a[a.length - 1];
+        a = v.split('?');
+        v = a[0];
+        if (v.endsWith("-comment")) {
             suff = "-comment";
         } else {
             suff = "";
@@ -50,6 +54,8 @@ export class AjaxFormElement extends HTMLElement {
             const img = t.querySelector("img");
             let a = t.formAction.split('/');
             let v = a[a.length - 1];
+            a = v.split('?');
+            v = a[0];
             const body = new URLSearchParams();
             if (v.endsWith("-comment")) {
                 body.append("comment", t.value);

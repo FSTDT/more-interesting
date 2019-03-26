@@ -186,6 +186,9 @@ impl Base128 {
     pub fn from_uuid(u: Uuid) -> Base128 {
         Self::from(u)
     }
+    pub fn zero() -> Base128 {
+        Base128 { data: 0 }
+    }
 }
 
 impl FromSql<PgUuid, Pg> for Base128 {
@@ -273,6 +276,34 @@ impl<'a> FromFormValue<'a> for Base128 {
     fn from_form_value(param: &'a RawStr) -> Result<Self, Self::Error> {
         let data = decode(&param.percent_decode()?)?;
         Ok(Base128{ data })
+    }
+}
+
+impl rocket::http::uri::UriDisplay<rocket::http::uri::Query> for Base128 {
+    fn fmt(&self, f: &mut rocket::http::uri::Formatter<rocket::http::uri::Query>) -> fmt::Result {
+        f.write_named_value("post", &self.to_string())
+    }
+}
+
+impl rocket::http::uri::UriDisplay<rocket::http::uri::Path> for Base128 {
+    fn fmt(&self, f: &mut rocket::http::uri::Formatter<rocket::http::uri::Path>) -> fmt::Result {
+        f.write_value(&self.to_string())
+    }
+}
+
+impl<'a> rocket::http::uri::FromUriParam<rocket::http::uri::Query, (&'a str)> for Base128 {
+    type Target = Base128;
+
+    fn from_uri_param((page): (&'a str)) -> Base128 {
+        Base128::from_str(page).unwrap_or(Base128{data: 0})
+    }
+}
+
+impl<'a> rocket::http::uri::FromUriParam<rocket::http::uri::Path, (Base128)> for Base128 {
+    type Target = Base128;
+
+    fn from_uri_param((page): (Base128)) -> Base128 {
+        page
     }
 }
 
