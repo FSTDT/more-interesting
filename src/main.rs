@@ -27,7 +27,7 @@ use rocket_contrib::serve::StaticFiles;
 use rocket_contrib::templates::Template;
 use serde::Serialize;
 use std::borrow::Cow;
-use crate::models::{PostInfo, NewStar, NewUser, CommentInfo, NewPost, NewComment};
+use crate::models::{PostInfo, NewStar, NewUser, CommentInfo, NewPost, NewComment, NewStarComment};
 use base128::Base128;
 use rocket::Config;
 use url::Url;
@@ -101,12 +101,40 @@ struct RmStarForm {
     post: Base128,
 }
 
-#[post("/-rm-star", data = "<post>", rank=1)]
+#[post("/-rm-star", data = "<post>")]
 fn rm_star(conn: MoreInterestingConn, user: User, post: Form<RmStarForm>) -> Option<impl Responder<'static>> {
     let post = conn.get_post_info_by_uuid(user.id, post.post).into_option()?;
     conn.rm_star(&NewStar {
         user_id: user.id,
         post_id: post.id
+    });
+    Some(Redirect::to(uri!(index)))
+}
+
+#[derive(FromForm)]
+struct AddStarCommentForm {
+    comment: i32,
+}
+
+#[post("/-add-star-comment", data = "<comment>")]
+fn add_star_comment(conn: MoreInterestingConn, user: User, comment: Form<AddStarCommentForm>) -> Option<impl Responder<'static>> {
+    conn.add_star_comment(&NewStarComment {
+        user_id: user.id,
+        comment_id: comment.comment,
+    });
+    Some(Redirect::to(uri!(index)))
+}
+
+#[derive(FromForm)]
+struct RmStarCommentForm {
+    comment: i32,
+}
+
+#[post("/-rm-star-comment", data = "<comment>")]
+fn rm_star_comment(conn: MoreInterestingConn, user: User, comment: Form<RmStarCommentForm>) -> Option<impl Responder<'static>> {
+    conn.rm_star_comment(&NewStarComment {
+        user_id: user.id,
+        comment_id: comment.comment,
     });
     Some(Redirect::to(uri!(index)))
 }
@@ -384,7 +412,7 @@ fn main() {
     rocket::ignite()
         .attach(MoreInterestingConn::fairing())
         .attach(Template::fairing())
-        .mount("/", routes![index, login_form, login, logout, create_form, create, setup, get_comments, add_star, rm_star, consume_invite, get_settings, create_invite, invite_tree, change_password, post_comment])
+        .mount("/", routes![index, login_form, login, logout, create_form, create, setup, get_comments, add_star, rm_star, consume_invite, get_settings, create_invite, invite_tree, change_password, post_comment, add_star_comment, rm_star_comment])
         .mount("/-assets", StaticFiles::from("assets"))
         .launch();
 }

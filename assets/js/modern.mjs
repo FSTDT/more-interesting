@@ -1,4 +1,4 @@
 import DetailsDialogElement from 'details-dialog-element'
-import DetailsDialogCloseElement from './details-dialog-close.js'
-import DetailsMenuBarElement from './details-menu-bar.js'
-import AjaxFormElement from './ajax-form.js'
+import DetailsDialogCloseElement from './details-dialog-close.mjs'
+import DetailsMenuBarElement from './details-menu-bar.mjs'
+import AjaxFormElement from './ajax-form.mjs'

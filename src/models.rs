@@ -104,6 +104,13 @@ pub struct NewStar {
     pub post_id: i32,
 }
 
+#[derive(Insertable)]
+#[table_name="comment_stars"]
+pub struct NewStarComment {
+    pub user_id: i32,
+    pub comment_id: i32,
+}
+
 pub struct UserAuth<'a> {
     pub username: &'a str,
     pub password: &'a str,
@@ -220,6 +227,22 @@ impl MoreInterestingConn {
             .unwrap_or(0);
         // affected rows will be 1 if deleted, or 0 otherwise
         self.update_score_on_post(new_star.post_id, -(affected_rows as i32));
+    }
+    pub fn add_star_comment(&self, new_star: &NewStarComment) {
+        let affected_rows = diesel::insert_into(comment_stars::table)
+            .values(new_star)
+            .execute(&self.0)
+            .unwrap_or(0);
+    }
+    pub fn rm_star_comment(&self, new_star: &NewStarComment) {
+        use self::comment_stars::dsl::*;
+        let affected_rows = diesel::delete(
+            comment_stars
+                .filter(user_id.eq(new_star.user_id))
+                .filter(comment_id.eq(new_star.comment_id))
+        )
+            .execute(&self.0)
+            .unwrap_or(0);
     }
     fn update_score_on_post(&self, post_id_value: i32, count_value: i32) {
         use self::posts::dsl::*;

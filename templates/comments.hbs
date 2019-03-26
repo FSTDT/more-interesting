@@ -20,17 +20,25 @@
             </article>
         {{/each}}
     </form></ajax-form>
-    {{#each comments}}
-        <aside>
-            <hr>
-            {{{this.html}}}
-            <footer>
-                posted by <a href="@{{this.created_by_username}}">{{this.created_by_username}}</a>
-            </footer>
-        </aside>
-    {{/each}}
+    <ajax-form><form method=post>
+        {{#each comments}}
+            <aside>
+                {{{this.html}}}
+                <footer>
+                    <button name=comment value={{this.id}} title="{{#if this.starred_by_me}}Remove star{{else}}Add star{{/if}}" formaction={{#if this.starred_by_me}}-rm-star-comment{{else}}-add-star-comment{{/if}}>
+                        <img width=12 height=12 src=-assets/{{#if this.starred_by_me}}star_active.svg{{else}}star.svg{{/if}}>
+                    </button>
+                    <!-- flagging is not yet implemented -->
+                    <button name=comment value={{this.id}} formaction="-add-flag-comment" title="Add flag">
+                        <img width=12 height=12 src=-assets/flag.svg>
+                    </button>
+                    posted by <a href="@{{this.created_by_username}}">{{this.created_by_username}}</a>
+                </footer>
+                <hr>
+            </aside>
+        {{/each}}
+    </form></ajax-form>
     <form action="-comment" method=post>
-        <hr>
         <textarea name=text></textarea>
         <input type=hidden name=post value="{{posts.0.uuid}}">
         <button>Submit</button>
