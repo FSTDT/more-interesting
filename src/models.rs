@@ -2,7 +2,7 @@ use rocket_contrib::databases::diesel::PgConnection;
 use diesel::prelude::*;
 use diesel::result::Error as DieselError;
 use chrono::NaiveDateTime;
-use crate::schema::{users, posts, stars, invite_tokens, replies, reply_stars};
+use crate::schema::{users, posts, stars, invite_tokens, comments, comment_stars};
 use crate::password::{password_hash, password_verify, PasswordResult};
 use serde::Serialize;
 use crate::base128::Base128;
@@ -20,7 +20,7 @@ pub struct Post {
     pub visible: bool,
     pub initial_stellar_time: i32,
     pub score: i32,
-    pub reply_count: i32,
+    pub comment_count: i32,
     pub authored_by_submitter: bool,
     pub created_at: NaiveDateTime,
     pub submitted_by: i32,
@@ -52,7 +52,7 @@ pub struct PostInfo {
     pub visible: bool,
     pub hotness: f64,
     pub score: i32,
-    pub reply_count: i32,
+    pub comment_count: i32,
     pub authored_by_submitter: bool,
     pub created_at: NaiveDateTime,
     pub submitted_by: i32,
@@ -61,7 +61,7 @@ pub struct PostInfo {
 }
 
 #[derive(Queryable)]
-pub struct Reply {
+pub struct Comment {
     pub id: i32,
     pub text: String,
     pub html: String,
@@ -71,14 +71,14 @@ pub struct Reply {
     pub created_by: i32,
 }
 
-pub struct NewReply<'a> {
+pub struct NewComment<'a> {
     pub post_id: i32,
     pub text: &'a str,
     pub created_by: i32,
 }
 
 #[derive(Serialize)]
-pub struct ReplyInfo {
+pub struct CommentInfo {
     pub id: i32,
     pub text: String,
     pub html: String,
@@ -143,7 +143,7 @@ impl MoreInterestingConn {
                 self::posts::dsl::visible,
                 self::posts::dsl::initial_stellar_time,
                 self::posts::dsl::score,
-                self::posts::dsl::reply_count,
+                self::posts::dsl::comment_count,
                 self::posts::dsl::authored_by_submitter,
                 self::posts::dsl::created_at,
                 self::posts::dsl::submitted_by,
@@ -175,7 +175,7 @@ impl MoreInterestingConn {
                 self::posts::dsl::visible,
                 self::posts::dsl::initial_stellar_time,
                 self::posts::dsl::score,
-                self::posts::dsl::reply_count,
+                self::posts::dsl::comment_count,
                 self::posts::dsl::authored_by_submitter,
                 self::posts::dsl::created_at,
                 self::posts::dsl::submitted_by,
@@ -227,9 +227,9 @@ impl MoreInterestingConn {
             .execute(&self.0)
             .expect("if adding a star worked, then so should updating the post");
     }
-    fn update_reply_count_on_post(&self, post_id_value: i32, count_value: i32) -> Result<(), DieselError> {
+    fn update_comment_count_on_post(&self, post_id_value: i32, count_value: i32) -> Result<(), DieselError> {
         use self::posts::dsl::*;
-        diesel::update(posts.find(post_id_value)).set(reply_count.eq(reply_count + count_value))
+        diesel::update(posts.find(post_id_value)).set(comment_count.eq(comment_count + count_value))
             .execute(&self.0)
             .map(|_| ())
     }
@@ -310,10 +310,10 @@ impl MoreInterestingConn {
         }
         ret_val
     }
-    pub fn reply_to_post(&self, new_post: NewReply) -> Result<Reply, DieselError> {
+    pub fn comment_on_post(&self, new_post: NewComment) -> Result<Comment, DieselError> {
         #[derive(Insertable)]
-        #[table_name="replies"]
-        struct CreateReply<'a> {
+        #[table_name="comments"]
+        struct CreateComment<'a> {
             text: &'a str,
             html: &'a str,
             post_id: i32,
@@ -332,9 +332,9 @@ impl MoreInterestingConn {
             }
         }
         let html_and_stuff = crate::prettify::prettify(new_post.text, &mut Data(self));
-        self.update_reply_count_on_post(new_post.post_id, 1)?;
-        diesel::insert_into(replies::table)
-            .values(CreateReply{
+        self.update_comment_count_on_post(new_post.post_id, 1)?;
+        diesel::insert_into(comments::table)
+            .values(CreateComment{
                 text: new_post.text,
                 html: &html_and_stuff.string,
                 post_id: new_post.post_id,
@@ -342,48 +342,48 @@ impl MoreInterestingConn {
             })
             .get_result(&self.0)
     }
-    pub fn get_replies_from_post(&self, post_id_param: i32, user_id_param: i32) -> Result<Vec<ReplyInfo>, DieselError> {
-        use self::replies::dsl::*;
-        use self::reply_stars::dsl::*;
+    pub fn get_comments_from_post(&self, post_id_param: i32, user_id_param: i32) -> Result<Vec<CommentInfo>, DieselError> {
+        use self::comments::dsl::*;
+        use self::comment_stars::dsl::*;
         use self::users::dsl::*;
-        let mut all: Vec<ReplyInfo> = replies
-            .left_outer_join(reply_stars.on(reply_id.eq(self::replies::dsl::id).and(user_id.eq(user_id_param))))
+        let mut all: Vec<CommentInfo> = comments
+            .left_outer_join(comment_stars.on(comment_id.eq(self::comments::dsl::id).and(user_id.eq(user_id_param))))
             .inner_join(users)
             .select((
-                self::replies::dsl::id,
-                self::replies::dsl::text,
-                self::replies::dsl::html,
-                self::replies::dsl::visible,
-                self::replies::dsl::post_id,
-                self::replies::dsl::created_at,
-                self::replies::dsl::created_by,
-                self::reply_stars::dsl::reply_id.nullable(),
+                self::comments::dsl::id,
+                self::comments::dsl::text,
+                self::comments::dsl::html,
+                self::comments::dsl::visible,
+                self::comments::dsl::post_id,
+                self::comments::dsl::created_at,
+                self::comments::dsl::created_by,
+                self::comment_stars::dsl::comment_id.nullable(),
                 self::users::dsl::username,
             ))
             .filter(visible.eq(true))
-            .order_by(self::replies::dsl::created_at)
+            .order_by(self::comments::dsl::created_at)
             .limit(400)
             .get_results::<(i32, String, String, bool, i32, NaiveDateTime, i32, Option<i32>, String)>(&self.0)?
             .into_iter()
-            .map(|t| tuple_to_reply_info(t))
+            .map(|t| tuple_to_comment_info(t))
             .collect();
         Ok(all)
     }
 }
 
-fn tuple_to_post_info((id, uuid, title, url, visible, initial_stellar_time, score, reply_count, authored_by_submitter, created_at, submitted_by, starred_post_id, submitted_by_username): (i32, Base128, String, Option<String>, bool, i32, i32, i32, bool, NaiveDateTime, i32, Option<i32>, String), current_stellar_time: i32) -> PostInfo {
+fn tuple_to_post_info((id, uuid, title, url, visible, initial_stellar_time, score, comment_count, authored_by_submitter, created_at, submitted_by, starred_post_id, submitted_by_username): (i32, Base128, String, Option<String>, bool, i32, i32, i32, bool, NaiveDateTime, i32, Option<i32>, String), current_stellar_time: i32) -> PostInfo {
     PostInfo {
         id, uuid, title, url, visible, score, authored_by_submitter, created_at,
-        submitted_by, submitted_by_username, reply_count,
+        submitted_by, submitted_by_username, comment_count,
         starred_by_me: starred_post_id.is_some(),
         hotness: compute_hotness(initial_stellar_time, current_stellar_time, score, authored_by_submitter)
     }
 }
 
-fn tuple_to_reply_info((id, text, html, visible, post_id, created_at, created_by, starred_reply_id, created_by_username): (i32, String, String, bool, i32, NaiveDateTime, i32, Option<i32>, String)) -> ReplyInfo {
-    ReplyInfo {
+fn tuple_to_comment_info((id, text, html, visible, post_id, created_at, created_by, starred_comment_id, created_by_username): (i32, String, String, bool, i32, NaiveDateTime, i32, Option<i32>, String)) -> CommentInfo {
+    CommentInfo {
         id, text, html, visible, post_id, created_at, created_by, created_by_username,
-        starred_by_me: starred_reply_id.is_some(),
+        starred_by_me: starred_comment_id.is_some(),
     }
 }
 

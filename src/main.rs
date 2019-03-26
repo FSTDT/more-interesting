@@ -27,7 +27,7 @@ use rocket_contrib::serve::StaticFiles;
 use rocket_contrib::templates::Template;
 use serde::Serialize;
 use std::borrow::Cow;
-use crate::models::{PostInfo, NewStar, NewUser, ReplyInfo, NewPost, NewReply};
+use crate::models::{PostInfo, NewStar, NewUser, CommentInfo, NewPost, NewComment};
 use base128::Base128;
 use rocket::Config;
 use url::Url;
@@ -39,7 +39,7 @@ use v_htmlescape::escape;
 struct TemplateContext {
     title: Cow<'static, str>,
     posts: Vec<PostInfo>,
-    comments: Vec<ReplyInfo>,
+    comments: Vec<CommentInfo>,
     username: String,
     parent: &'static str,
     alert: Option<String>,
@@ -211,7 +211,7 @@ fn get_comments(conn: MoreInterestingConn, user: Option<User>, uuid: Base128) ->
     // Make sure that these two values are consistent.
     assert!((user_id == 0) ^ (username != ""));
     if let Ok(post_info) = conn.get_post_info_by_uuid(user_id, uuid) {
-        let comments = conn.get_replies_from_post(post_info.id, user_id).unwrap_or_else(|e| {
+        let comments = conn.get_comments_from_post(post_info.id, user_id).unwrap_or_else(|e| {
             warn!("Failed to get comments: {:?}", e);
             Vec::new()
         });
@@ -235,20 +235,20 @@ fn get_comments(conn: MoreInterestingConn, user: Option<User>, uuid: Base128) ->
 }
 
 #[derive(FromForm)]
-struct ReplyForm {
+struct CommentForm {
     text: String,
     post: Base128,
 }
 
-#[post("/-comment", data = "<reply>")]
-fn post_comment(conn: MoreInterestingConn, user: User, reply: Form<ReplyForm>) -> Option<impl Responder<'static>> {
-    let post_info = conn.get_post_info_by_uuid(user.id, reply.post).into_option()?;
-    conn.reply_to_post(NewReply {
+#[post("/-comment", data = "<comment>")]
+fn post_comment(conn: MoreInterestingConn, user: User, comment: Form<CommentForm>) -> Option<impl Responder<'static>> {
+    let post_info = conn.get_post_info_by_uuid(user.id, comment.post).into_option()?;
+    conn.comment_on_post(NewComment {
         post_id: post_info.id,
-        text: &reply.text,
+        text: &comment.text,
         created_by: user.id,
     }).into_option()?;
-    let comments = conn.get_replies_from_post(post_info.id, user.id).into_option()?;
+    let comments = conn.get_comments_from_post(post_info.id, user.id).into_option()?;
     Some(Template::render("comments", &TemplateContext {
         title: Cow::Borrowed("home"),
         posts: vec![post_info],

@@ -1,4 +1,24 @@
 table! {
+    comment_stars (user_id, comment_id) {
+        user_id -> Int4,
+        comment_id -> Int4,
+        created_at -> Timestamp,
+    }
+}
+
+table! {
+    comments (id) {
+        id -> Int4,
+        text -> Varchar,
+        html -> Varchar,
+        visible -> Bool,
+        post_id -> Int4,
+        created_at -> Timestamp,
+        created_by -> Int4,
+    }
+}
+
+table! {
     invite_tokens (uuid) {
         uuid -> Uuid,
         created_at -> Timestamp,
@@ -15,30 +35,10 @@ table! {
         visible -> Bool,
         initial_stellar_time -> Int4,
         score -> Int4,
-        reply_count -> Int4,
+        comment_count -> Int4,
         authored_by_submitter -> Bool,
         created_at -> Timestamp,
         submitted_by -> Int4,
-    }
-}
-
-table! {
-    replies (id) {
-        id -> Int4,
-        text -> Varchar,
-        html -> Varchar,
-        visible -> Bool,
-        post_id -> Int4,
-        created_at -> Timestamp,
-        created_by -> Int4,
-    }
-}
-
-table! {
-    reply_stars (user_id, reply_id) {
-        user_id -> Int4,
-        reply_id -> Int4,
-        created_at -> Timestamp,
     }
 }
 
@@ -62,20 +62,20 @@ table! {
     }
 }
 
+joinable!(comment_stars -> comments (comment_id));
+joinable!(comment_stars -> users (user_id));
+joinable!(comments -> posts (post_id));
+joinable!(comments -> users (created_by));
 joinable!(invite_tokens -> users (invited_by));
 joinable!(posts -> users (submitted_by));
-joinable!(replies -> posts (post_id));
-joinable!(replies -> users (created_by));
-joinable!(reply_stars -> replies (reply_id));
-joinable!(reply_stars -> users (user_id));
 joinable!(stars -> posts (post_id));
 joinable!(stars -> users (user_id));
 
 allow_tables_to_appear_in_same_query!(
+    comment_stars,
+    comments,
     invite_tokens,
     posts,
-    replies,
-    reply_stars,
     stars,
     users,
 );
