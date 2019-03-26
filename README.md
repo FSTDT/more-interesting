@@ -201,7 +201,7 @@ Twitter did it right. Nobody ever has to ask how to hashtag something, or how to
 And since the syntax is so minimal, you're unlikely to trigger it by mistake.
 Power of plain text in action.
 
-More Interesting should do the same thing. A quick sketch of what the comment form should look like:
+More Interesting should do the same thing. A quick sketch of what the reply form should look like:
 
     -------------------------------------------------------------------------
     | Write my comment here                                                 |

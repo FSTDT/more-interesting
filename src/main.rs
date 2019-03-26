@@ -27,7 +27,7 @@ use rocket_contrib::serve::StaticFiles;
 use rocket_contrib::templates::Template;
 use serde::Serialize;
 use std::borrow::Cow;
-use crate::models::{PostInfo, NewStar, NewUser, ReplyInfo, NewPost, NewReply};
+use crate::models::{PostInfo, NewStar, NewUser, CommentInfo, NewPost, NewComment, NewStarComment};
 use base128::Base128;
 use rocket::Config;
 use url::Url;
@@ -39,7 +39,7 @@ use v_htmlescape::escape;
 struct TemplateContext {
     title: Cow<'static, str>,
     posts: Vec<PostInfo>,
-    comments: Vec<ReplyInfo>,
+    comments: Vec<CommentInfo>,
     username: String,
     parent: &'static str,
     alert: Option<String>,
@@ -69,6 +69,21 @@ impl<T, E: std::fmt::Debug> ResultTo for Result<T, E> {
     }
 }
 
+#[derive(Clone, Copy, FromForm)]
+struct MaybeRedirect {
+    redirect: Option<Base128>,
+}
+
+impl MaybeRedirect {
+    pub fn maybe_redirect(self) -> Result<impl Responder<'static>, Status> {
+        match self.redirect {
+            Some(b) if b == Base128::zero() => Ok(Redirect::to(uri!(index))),
+            Some(b) => Ok(Redirect::to(uri!(get_comments: b))),
+            None => Err(Status::Created)
+        }
+    }
+}
+
 /*
 Note on the URL scheme: we cram a lot of stuff into the top-level URL scheme.
 It helps keep the URLs short and easy-to-remember.
@@ -86,14 +101,14 @@ struct AddStarForm {
     post: Base128,
 }
 
-#[post("/-add-star", data = "<post>")]
-fn add_star(conn: MoreInterestingConn, user: User, post: Form<AddStarForm>) -> Option<impl Responder<'static>> {
-    let post = conn.get_post_info_by_uuid(user.id, post.post).into_option()?;
+#[post("/-add-star?<redirect..>", data = "<post>")]
+fn add_star(conn: MoreInterestingConn, user: User, redirect: Form<MaybeRedirect>, post: Form<AddStarForm>) -> Result<impl Responder<'static>, Status> {
+    let post = conn.get_post_info_by_uuid(user.id, post.post).map_err(|_| Status::NotFound)?;
     conn.add_star(&NewStar {
         user_id: user.id,
         post_id: post.id
     });
-    Some(Redirect::to(uri!(index)))
+    redirect.maybe_redirect()
 }
 
 #[derive(FromForm)]
@@ -101,14 +116,42 @@ struct RmStarForm {
     post: Base128,
 }
 
-#[post("/-rm-star", data = "<post>", rank=1)]
-fn rm_star(conn: MoreInterestingConn, user: User, post: Form<RmStarForm>) -> Option<impl Responder<'static>> {
-    let post = conn.get_post_info_by_uuid(user.id, post.post).into_option()?;
+#[post("/-rm-star?<redirect..>", data = "<post>")]
+fn rm_star(conn: MoreInterestingConn, user: User, redirect: Form<MaybeRedirect>, post: Form<AddStarForm>) -> Result<impl Responder<'static>, Status> {
+    let post = conn.get_post_info_by_uuid(user.id, post.post).map_err(|_| Status::NotFound)?;
     conn.rm_star(&NewStar {
         user_id: user.id,
         post_id: post.id
     });
-    Some(Redirect::to(uri!(index)))
+    redirect.maybe_redirect()
+}
+
+#[derive(FromForm)]
+struct AddStarCommentForm {
+    comment: i32,
+}
+
+#[post("/-add-star-comment?<redirect..>", data = "<comment>")]
+fn add_star_comment(conn: MoreInterestingConn, user: User, redirect: Form<MaybeRedirect>, comment: Form<RmStarCommentForm>) -> Result<impl Responder<'static>, Status> {
+    conn.add_star_comment(&NewStarComment {
+        user_id: user.id,
+        comment_id: comment.comment,
+    });
+    redirect.maybe_redirect()
+}
+
+#[derive(FromForm)]
+struct RmStarCommentForm {
+    comment: i32,
+}
+
+#[post("/-rm-star-comment?<redirect..>", data = "<comment>")]
+fn rm_star_comment(conn: MoreInterestingConn, user: User, redirect: Form<MaybeRedirect>, comment: Form<RmStarCommentForm>) -> Result<impl Responder<'static>, Status> {
+    conn.rm_star_comment(&NewStarComment {
+        user_id: user.id,
+        comment_id: comment.comment,
+    });
+    redirect.maybe_redirect()
 }
 
 #[get("/")]
@@ -211,7 +254,7 @@ fn get_comments(conn: MoreInterestingConn, user: Option<User>, uuid: Base128) ->
     // Make sure that these two values are consistent.
     assert!((user_id == 0) ^ (username != ""));
     if let Ok(post_info) = conn.get_post_info_by_uuid(user_id, uuid) {
-        let comments = conn.get_replies_from_post(post_info.id, user_id).unwrap_or_else(|e| {
+        let comments = conn.get_comments_from_post(post_info.id, user_id).unwrap_or_else(|e| {
             warn!("Failed to get comments: {:?}", e);
             Vec::new()
         });
@@ -235,29 +278,20 @@ fn get_comments(conn: MoreInterestingConn, user: Option<User>, uuid: Base128) ->
 }
 
 #[derive(FromForm)]
-struct ReplyForm {
+struct CommentForm {
     text: String,
     post: Base128,
 }
 
-#[post("/-comment", data = "<reply>")]
-fn post_comment(conn: MoreInterestingConn, user: User, reply: Form<ReplyForm>) -> Option<impl Responder<'static>> {
-    let post_info = conn.get_post_info_by_uuid(user.id, reply.post).into_option()?;
-    conn.reply_to_post(NewReply {
+#[post("/-comment", data = "<comment>")]
+fn post_comment(conn: MoreInterestingConn, user: User, comment: Form<CommentForm>) -> Option<impl Responder<'static>> {
+    let post_info = conn.get_post_info_by_uuid(user.id, comment.post).into_option()?;
+    conn.comment_on_post(NewComment {
         post_id: post_info.id,
-        text: &reply.text,
+        text: &comment.text,
         created_by: user.id,
     }).into_option()?;
-    let comments = conn.get_replies_from_post(post_info.id, user.id).into_option()?;
-    Some(Template::render("comments", &TemplateContext {
-        title: Cow::Borrowed("home"),
-        posts: vec![post_info],
-        parent: "layout",
-        username: user.username,
-        alert: Some("Your comment has been successfully posted!".to_owned()),
-        comments,
-        ..default()
-    }))
+    Some(Redirect::to(uri!(get_comments: comment.post)))
 }
 
 #[get("/-setup")]
@@ -384,7 +418,7 @@ fn main() {
     rocket::ignite()
         .attach(MoreInterestingConn::fairing())
         .attach(Template::fairing())
-        .mount("/", routes![index, login_form, login, logout, create_form, create, setup, get_comments, add_star, rm_star, consume_invite, get_settings, create_invite, invite_tree, change_password, post_comment])
+        .mount("/", routes![index, login_form, login, logout, create_form, create, setup, get_comments, add_star, rm_star, consume_invite, get_settings, create_invite, invite_tree, change_password, post_comment, add_star_comment, rm_star_comment])
         .mount("/-assets", StaticFiles::from("assets"))
         .launch();
 }

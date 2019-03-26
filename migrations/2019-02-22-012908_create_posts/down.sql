@@ -1,6 +1,6 @@
-DROP TABLE reply_stars;
+DROP TABLE comment_stars;
 
-DROP TABLE replies;
+DROP TABLE "comments";
 
 DROP TABLE stars;
 
