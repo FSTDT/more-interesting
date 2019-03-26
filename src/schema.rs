@@ -20,7 +20,7 @@ table! {
 
 table! {
     invite_tokens (uuid) {
-        uuid -> Uuid,
+        uuid -> Int8,
         created_at -> Timestamp,
         invited_by -> Int4,
     }
@@ -29,7 +29,7 @@ table! {
 table! {
     posts (id) {
         id -> Int4,
-        uuid -> Uuid,
+        uuid -> Int8,
         title -> Varchar,
         url -> Nullable<Varchar>,
         visible -> Bool,

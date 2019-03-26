@@ -192,7 +192,7 @@ select,
 :visited.button,
 .details-dialog-summary,
 .details-menu-summary {
-    border: solid 2px #737373;
+    border: solid 2px #ccc;
     border-image: url("outset.svg") 2;
     width: auto;
     outline-offset: -5px;
@@ -209,7 +209,7 @@ select:active,
 .details-menu-summary:active,
 details[open] .details-menu-summary,
 .details-dialog-summary:active {
-    border: solid 2px #737373;
+    border: solid 2px #ccc;
     border-image: url("inset.svg") 2;
     position: relative;
     top: 1px;
@@ -340,7 +340,7 @@ template {
 
 article, .alert, aside {
     display: block;
-    border: solid 1px #737373;
+    border: solid 1px #ccc;
     border-image: url("inset.svg") 2;
     background: #f9f9fa;
     margin: 24px 0;

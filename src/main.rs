@@ -13,7 +13,7 @@ mod schema;
 mod models;
 mod password;
 mod session;
-mod base128;
+mod base32;
 mod prettify;
 
 use rocket::request::{Form, FlashMessage};
@@ -28,10 +28,9 @@ use rocket_contrib::templates::Template;
 use serde::Serialize;
 use std::borrow::Cow;
 use crate::models::{PostInfo, NewStar, NewUser, CommentInfo, NewPost, NewComment, NewStarComment};
-use base128::Base128;
+use base32::Base32;
 use rocket::Config;
 use url::Url;
-use rocket::http::uri::Origin;
 use std::collections::HashMap;
 use v_htmlescape::escape;
 
@@ -43,7 +42,7 @@ struct TemplateContext {
     username: String,
     parent: &'static str,
     alert: Option<String>,
-    invite_token: Option<Base128>,
+    invite_token: Option<Base32>,
     raw_html: String,
 }
 
@@ -71,13 +70,13 @@ impl<T, E: std::fmt::Debug> ResultTo for Result<T, E> {
 
 #[derive(Clone, Copy, FromForm)]
 struct MaybeRedirect {
-    redirect: Option<Base128>,
+    redirect: Option<Base32>,
 }
 
 impl MaybeRedirect {
     pub fn maybe_redirect(self) -> Result<impl Responder<'static>, Status> {
         match self.redirect {
-            Some(b) if b == Base128::zero() => Ok(Redirect::to(uri!(index))),
+            Some(b) if b == Base32::zero() => Ok(Redirect::to(uri!(index))),
             Some(b) => Ok(Redirect::to(uri!(get_comments: b))),
             None => Err(Status::Created)
         }
@@ -98,7 +97,7 @@ potential post IDs.
 
 #[derive(FromForm)]
 struct AddStarForm {
-    post: Base128,
+    post: Base32,
 }
 
 #[post("/-add-star?<redirect..>", data = "<post>")]
@@ -113,11 +112,11 @@ fn add_star(conn: MoreInterestingConn, user: User, redirect: Form<MaybeRedirect>
 
 #[derive(FromForm)]
 struct RmStarForm {
-    post: Base128,
+    post: Base32,
 }
 
 #[post("/-rm-star?<redirect..>", data = "<post>")]
-fn rm_star(conn: MoreInterestingConn, user: User, redirect: Form<MaybeRedirect>, post: Form<AddStarForm>) -> Result<impl Responder<'static>, Status> {
+fn rm_star(conn: MoreInterestingConn, user: User, redirect: Form<MaybeRedirect>, post: Form<RmStarForm>) -> Result<impl Responder<'static>, Status> {
     let post = conn.get_post_info_by_uuid(user.id, post.post).map_err(|_| Status::NotFound)?;
     conn.rm_star(&NewStar {
         user_id: user.id,
@@ -132,7 +131,7 @@ struct AddStarCommentForm {
 }
 
 #[post("/-add-star-comment?<redirect..>", data = "<comment>")]
-fn add_star_comment(conn: MoreInterestingConn, user: User, redirect: Form<MaybeRedirect>, comment: Form<RmStarCommentForm>) -> Result<impl Responder<'static>, Status> {
+fn add_star_comment(conn: MoreInterestingConn, user: User, redirect: Form<MaybeRedirect>, comment: Form<AddStarCommentForm>) -> Result<impl Responder<'static>, Status> {
     conn.add_star_comment(&NewStarComment {
         user_id: user.id,
         comment_id: comment.comment,
@@ -186,7 +185,7 @@ struct NewPostForm {
 #[post("/-submit", data = "<post>")]
 fn create(user: User, conn: MoreInterestingConn, post: Form<NewPostForm>) -> Result<impl Responder<'static>, Status> {
     let NewPostForm { title, url } = &*post;
-    match conn.create_post(&models::NewPost {
+    match conn.create_post(&NewPost {
         title: &title,
         url: url.as_ref().map(|s| &s[..]),
         submitted_by: user.id,
@@ -239,7 +238,7 @@ fn logout(mut cookies: Cookies) -> impl Responder<'static> {
 }
 
 #[get("/<uuid>")]
-fn get_comments(conn: MoreInterestingConn, user: Option<User>, uuid: Base128) -> Result<impl Responder<'static>, Status> {
+fn get_comments(conn: MoreInterestingConn, user: Option<User>, uuid: Base32) -> Result<impl Responder<'static>, Status> {
     let (username, user_id) = user.map(|u| (u.username, u.id)).unwrap_or((String::new(), 0));
     // username != "" should indicate that the user is logged in.
     // user_id == 0 should indicate that the user is not logged in.
@@ -280,7 +279,7 @@ fn get_comments(conn: MoreInterestingConn, user: Option<User>, uuid: Base128) ->
 #[derive(FromForm)]
 struct CommentForm {
     text: String,
-    post: Base128,
+    post: Base32,
 }
 
 #[post("/-comment", data = "<comment>")]
@@ -318,7 +317,7 @@ fn setup(conn: MoreInterestingConn) -> impl Responder<'static> {
 struct ConsumeInviteForm {
     username: String,
     password: String,
-    invite_token: Base128,
+    invite_token: Base32,
 }
 
 #[post("/-consume-invite", data = "<form>")]
@@ -337,7 +336,7 @@ fn consume_invite(conn: MoreInterestingConn, form: Form<ConsumeInviteForm>, mut 
 }
 
 #[get("/-settings")]
-fn get_settings(conn: MoreInterestingConn, user: User, flash: Option<FlashMessage>) -> impl Responder<'static> {
+fn get_settings(_conn: MoreInterestingConn, user: User, flash: Option<FlashMessage>) -> impl Responder<'static> {
     Template::render("settings", &TemplateContext {
         title: Cow::Borrowed("settings"),
         parent: "layout",
@@ -348,7 +347,7 @@ fn get_settings(conn: MoreInterestingConn, user: User, flash: Option<FlashMessag
 }
 
 #[post("/-create-invite")]
-fn create_invite<'a>(conn: MoreInterestingConn, user: User, origin: &'a Origin<'a>) -> impl Responder<'static> {
+fn create_invite<'a>(conn: MoreInterestingConn, user: User) -> impl Responder<'static> {
     match conn.create_invite_token(user.id) {
         Ok(invite_token) => {
             let config = Config::active().unwrap_or_else(|_| Config::development());

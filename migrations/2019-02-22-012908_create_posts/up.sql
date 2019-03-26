@@ -18,7 +18,7 @@ CREATE TABLE users (
 );
 
 CREATE TABLE invite_tokens (
-  uuid UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  uuid BIGINT PRIMARY KEY,
   created_at TIMESTAMP NOT NULL DEFAULT NOW(),
   invited_by INTEGER NOT NULL REFERENCES users(id)
 );
@@ -29,7 +29,7 @@ CREATE TABLE posts (
   id SERIAL PRIMARY KEY,
   -- This UUID is what should actually be exposed through the URL and web interface.
   -- Since it's random, users can't guess the URLs of hidden posts.
-  uuid UUID NOT NULL DEFAULT gen_random_uuid(),
+  uuid BIGINT NOT NULL,
   title VARCHAR NOT NULL,
   url VARCHAR NULL,
   visible BOOLEAN NOT NULL DEFAULT 't',
