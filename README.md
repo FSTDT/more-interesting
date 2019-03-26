@@ -253,6 +253,12 @@ In practice, I expect the same conventions as on Twitter and Hacker News will be
 Also, the system should use global IDs for comments, and it should ensure that the comment exists before linking to it.
 In other words, I don't want `#1` to get auto-linked, so comment `#1` should only be the first comment ever made, not the first one in the thread.
 
+### Revoking sessions, and enhanced login
+
+It doesn't support it yet, but it's going to support full-blown device keying.
+So in the settings page, there'll be a list of previously seen devices, and you'll be able to individually revoke their sessions,
+like Discourse, Google, and stuff do.
+
 ## Running locally
 
 First, you need to bundle the JavaScript. If you have Node, you can just use `run-webpack`.
