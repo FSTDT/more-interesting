@@ -38,6 +38,7 @@ use v_htmlescape::escape;
 struct TemplateContext {
     title: Cow<'static, str>,
     posts: Vec<PostInfo>,
+    starred_by: Vec<String>,
     comments: Vec<CommentInfo>,
     username: String,
     parent: &'static str,
@@ -257,10 +258,12 @@ fn get_comments(conn: MoreInterestingConn, user: Option<User>, uuid: Base32) -> 
             warn!("Failed to get comments: {:?}", e);
             Vec::new()
         });
+        let post_id = post_info.id;
         Ok(Template::render("comments", &TemplateContext {
             title: Cow::Borrowed("home"),
             posts: vec![post_info],
             parent: "layout",
+            starred_by: conn.get_post_starred_by(post_id, user_id).unwrap_or(Vec::new()),
             comments, username,
             ..default()
         }))

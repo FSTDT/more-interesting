@@ -12,6 +12,7 @@ export class AjaxFormElement extends HTMLElement {
     }
     _setImage(t, state) {
         let img = t.querySelector("img");
+        let span = t.querySelector("span");
         let suff;
         let a = t.formAction.split('/');
         let v = a[a.length - 1];
@@ -27,11 +28,17 @@ export class AjaxFormElement extends HTMLElement {
                 img.src = "-assets/star_active.svg";
                 t.title = "Remove star";
                 t.formAction = '/-rm-star' + suff;
+                if (span) {
+                    span.textContent = Number(span.textContent) + 1;
+                }
                 break;
             case "star":
                 img.src = "-assets/star.svg";
                 t.title = "Add star";
                 t.formAction = '/-add-star' + suff;
+                if (span) {
+                    span.textContent = Number(span.textContent) - 1;
+                }
                 break;
             case "flag_active":
                 img.src = "-assets/flag_active.svg";
@@ -47,7 +54,7 @@ export class AjaxFormElement extends HTMLElement {
     }
     _clickEvent(e) {
         let t = e.target;
-        if (t instanceof HTMLImageElement) {
+        if (t instanceof HTMLImageElement || t instanceof HTMLSpanElement) {
             t = t.parentElement;
         }
         if (t instanceof HTMLButtonElement) {
