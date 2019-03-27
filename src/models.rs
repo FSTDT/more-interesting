@@ -5,16 +5,15 @@ use chrono::NaiveDateTime;
 use crate::schema::{users, posts, stars, invite_tokens, comments, comment_stars};
 use crate::password::{password_hash, password_verify, PasswordResult};
 use serde::Serialize;
-use crate::base128::Base128;
-use uuid::Uuid;
-use std::cmp::{min, max};
+use crate::base32::Base32;
+use std::cmp::max;
 use ordered_float::OrderedFloat;
 use std::collections::HashMap;
 
 #[derive(Queryable, Serialize)]
 pub struct Post {
     pub id: i32,
-    pub uuid: Base128,
+    pub uuid: Base32,
     pub title: String,
     pub url: Option<String>,
     pub visible: bool,
@@ -46,7 +45,7 @@ pub struct NewPost<'a> {
 #[derive(Serialize)]
 pub struct PostInfo {
     pub id: i32,
-    pub uuid: Base128,
+    pub uuid: Base32,
     pub title: String,
     pub url: Option<String>,
     pub visible: bool,
@@ -88,11 +87,12 @@ pub struct CommentInfo {
     pub created_by: i32,
     pub created_by_username: String,
     pub starred_by_me: bool,
+    pub starred_by: Vec<String>,
 }
 
 #[derive(Queryable)]
 pub struct InviteToken {
-    pub uuid: Base128,
+    pub uuid: Base32,
     pub created_at: NaiveDateTime,
     pub invited_by: i32,
 }
@@ -120,15 +120,6 @@ pub struct NewUser<'a> {
     pub username: &'a str,
     pub password: &'a str,
     pub invited_by: Option<i32>,
-}
-
-#[derive(Insertable)]
-#[table_name="posts"]
-struct CreatePost<'a> {
-    title: &'a str,
-    url: Option<&'a str>,
-    submitted_by: i32,
-    initial_stellar_time: i32,
 }
 
 #[database("more_interesting")]
@@ -160,14 +151,14 @@ impl MoreInterestingConn {
             .filter(visible.eq(true))
             .order_by(initial_stellar_time)
             .limit(400)
-            .get_results::<(i32, Base128, String, Option<String>, bool, i32, i32, i32, bool, NaiveDateTime, i32, Option<i32>, String)>(&self.0)?
+            .get_results::<(i32, Base32, String, Option<String>, bool, i32, i32, i32, bool, NaiveDateTime, i32, Option<i32>, String)>(&self.0)?
             .into_iter()
             .map(|t| tuple_to_post_info(t, self.get_current_stellar_time()))
             .collect();
         all.sort_by_key(|info| OrderedFloat(-info.hotness));
         Ok(all)
     }
-    pub fn get_post_info_by_uuid(&self, user_id_param: i32, uuid_param: Base128) -> Result<PostInfo, DieselError> {
+    pub fn get_post_info_by_uuid(&self, user_id_param: i32, uuid_param: Base32) -> Result<PostInfo, DieselError> {
         use self::posts::dsl::*;
         use self::stars::dsl::*;
         use self::users::dsl::*;
@@ -190,8 +181,8 @@ impl MoreInterestingConn {
                 self::users::dsl::username,
             ))
             .filter(visible.eq(true))
-            .filter(uuid.eq(uuid_param.into_uuid()))
-            .first::<(i32, Base128, String, Option<String>, bool, i32, i32, i32, bool, NaiveDateTime, i32, Option<i32>, String)>(&self.0)?, self.get_current_stellar_time()))
+            .filter(uuid.eq(uuid_param.into_i64()))
+            .first::<(i32, Base32, String, Option<String>, bool, i32, i32, i32, bool, NaiveDateTime, i32, Option<i32>, String)>(&self.0)?, self.get_current_stellar_time()))
     }
     pub fn get_current_stellar_time(&self) -> i32 {
         use self::stars::dsl::*;
@@ -199,10 +190,20 @@ impl MoreInterestingConn {
         stars.count().get_result(&self.0).unwrap_or(0) as i32
     }
     pub fn create_post(&self, new_post: &NewPost) -> Result<Post, DieselError> {
+        #[derive(Insertable)]
+        #[table_name="posts"]
+        struct CreatePost<'a> {
+            title: &'a str,
+            uuid: i64,
+            url: Option<&'a str>,
+            submitted_by: i32,
+            initial_stellar_time: i32,
+        }
         diesel::insert_into(posts::table)
             .values(CreatePost {
                 title: new_post.title,
                 url: new_post.url,
+                uuid: rand::random(),
                 submitted_by: new_post.submitted_by,
                 initial_stellar_time: self.get_current_stellar_time(),
             })
@@ -229,14 +230,14 @@ impl MoreInterestingConn {
         self.update_score_on_post(new_star.post_id, -(affected_rows as i32));
     }
     pub fn add_star_comment(&self, new_star: &NewStarComment) {
-        let affected_rows = diesel::insert_into(comment_stars::table)
+        diesel::insert_into(comment_stars::table)
             .values(new_star)
             .execute(&self.0)
             .unwrap_or(0);
     }
     pub fn rm_star_comment(&self, new_star: &NewStarComment) {
         use self::comment_stars::dsl::*;
-        let affected_rows = diesel::delete(
+        diesel::delete(
             comment_stars
                 .filter(user_id.eq(new_star.user_id))
                 .filter(comment_id.eq(new_star.comment_id))
@@ -306,23 +307,24 @@ impl MoreInterestingConn {
         #[table_name="invite_tokens"]
         struct CreateInviteToken {
             invited_by: i32,
+            uuid: i64,
         }
         diesel::insert_into(invite_tokens::table)
             .values(CreateInviteToken {
+                uuid: rand::random(),
                 invited_by
             })
             .get_result(&self.0)
     }
-    pub fn check_invite_token_exists(&self, uuid_value: Base128) -> bool {
+    pub fn check_invite_token_exists(&self, uuid_value: Base32) -> bool {
         use self::invite_tokens::dsl::*;
         use diesel::{select, dsl::exists};
-        let uuid_value = Into::<Uuid>::into(uuid_value);
+        let uuid_value = uuid_value.into_i64();
         select(exists(invite_tokens.find(uuid_value))).get_result(&self.0).unwrap_or(false)
     }
-    pub fn consume_invite_token(&self, uuid_value: Base128) -> Result<InviteToken, DieselError> {
+    pub fn consume_invite_token(&self, uuid_value: Base32) -> Result<InviteToken, DieselError> {
         use self::invite_tokens::dsl::*;
-        use diesel::delete;
-        let uuid_value = Into::<Uuid>::into(uuid_value);
+        let uuid_value = uuid_value.into_i64();
         diesel::delete(invite_tokens.find(uuid_value)).get_result(&self.0)
     }
     pub fn get_invite_tree(&self) -> HashMap<i32, Vec<User>> {
@@ -369,7 +371,7 @@ impl MoreInterestingConn {
         use self::comments::dsl::*;
         use self::comment_stars::dsl::*;
         use self::users::dsl::*;
-        let mut all: Vec<CommentInfo> = comments
+        let all: Vec<CommentInfo> = comments
             .left_outer_join(comment_stars.on(comment_id.eq(self::comments::dsl::id).and(user_id.eq(user_id_param))))
             .inner_join(users)
             .select((
@@ -384,17 +386,50 @@ impl MoreInterestingConn {
                 self::users::dsl::username,
             ))
             .filter(visible.eq(true))
+            .filter(self::comments::dsl::post_id.eq(post_id_param))
             .order_by(self::comments::dsl::created_at)
             .limit(400)
             .get_results::<(i32, String, String, bool, i32, NaiveDateTime, i32, Option<i32>, String)>(&self.0)?
             .into_iter()
-            .map(|t| tuple_to_comment_info(t))
+            .map(|t| tuple_to_comment_info(self, t))
+            .collect();
+        Ok(all)
+    }
+    pub fn get_post_starred_by(&self, post_id_param: i32) -> Result<Vec<String>, DieselError> {
+        use self::stars::dsl::*;
+        use self::users::dsl::*;
+        let all: Vec<String> = stars
+            .inner_join(users)
+            .select((
+                self::users::dsl::username,
+            ))
+            .filter(self::stars::dsl::post_id.eq(post_id_param))
+            .limit(400)
+            .get_results::<(String,)>(&self.0)?
+            .into_iter()
+            .map(|(t,)| t)
+            .collect();
+        Ok(all)
+    }
+    pub fn get_comment_starred_by(&self, comment_id_param: i32) -> Result<Vec<String>, DieselError> {
+        use self::comment_stars::dsl::*;
+        use self::users::dsl::*;
+        let all: Vec<String> = comment_stars
+            .inner_join(users)
+            .select((
+                self::users::dsl::username,
+            ))
+            .filter(self::comment_stars::dsl::comment_id.eq(comment_id_param))
+            .limit(400)
+            .get_results::<(String,)>(&self.0)?
+            .into_iter()
+            .map(|(t,)| t)
             .collect();
         Ok(all)
     }
 }
 
-fn tuple_to_post_info((id, uuid, title, url, visible, initial_stellar_time, score, comment_count, authored_by_submitter, created_at, submitted_by, starred_post_id, submitted_by_username): (i32, Base128, String, Option<String>, bool, i32, i32, i32, bool, NaiveDateTime, i32, Option<i32>, String), current_stellar_time: i32) -> PostInfo {
+fn tuple_to_post_info((id, uuid, title, url, visible, initial_stellar_time, score, comment_count, authored_by_submitter, created_at, submitted_by, starred_post_id, submitted_by_username): (i32, Base32, String, Option<String>, bool, i32, i32, i32, bool, NaiveDateTime, i32, Option<i32>, String), current_stellar_time: i32) -> PostInfo {
     PostInfo {
         id, uuid, title, url, visible, score, authored_by_submitter, created_at,
         submitted_by, submitted_by_username, comment_count,
@@ -403,9 +438,10 @@ fn tuple_to_post_info((id, uuid, title, url, visible, initial_stellar_time, scor
     }
 }
 
-fn tuple_to_comment_info((id, text, html, visible, post_id, created_at, created_by, starred_comment_id, created_by_username): (i32, String, String, bool, i32, NaiveDateTime, i32, Option<i32>, String)) -> CommentInfo {
+fn tuple_to_comment_info(conn: &MoreInterestingConn, (id, text, html, visible, post_id, created_at, created_by, starred_comment_id, created_by_username): (i32, String, String, bool, i32, NaiveDateTime, i32, Option<i32>, String)) -> CommentInfo {
     CommentInfo {
         id, text, html, visible, post_id, created_at, created_by, created_by_username,
+        starred_by: conn.get_comment_starred_by(id).unwrap_or(Vec::new()),
         starred_by_me: starred_comment_id.is_some(),
     }
 }

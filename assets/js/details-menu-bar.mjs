@@ -53,7 +53,7 @@ export class DetailsMenuBarElement extends HTMLElement {
                 break;
             case "arrowdown":
             case "down":
-                if (e.target.className === "details-menu-summary" && !this.open) {
+                if (e.target.className.indexOf("details-menu-summary") !== -1 && !this.open) {
                     // Arrow down when a menu button is selected: open the menu.
                     // WAI does this, GitHub does not.
                     // The most likely scenario where a user expecting GitHub's behavior would accidentally
@@ -76,7 +76,7 @@ export class DetailsMenuBarElement extends HTMLElement {
                 break;
             case "arrowup":
             case "up":
-                if (e.target.className === "details-menu-summary" && !this.open) {
+                if (e.target.className.indexOf("details-menu-summary") !== -1 && !this.open) {
                     // Arrow up when a menu button is selected: open the menu.
                     // WAI does this, GitHub does not.
                     // The most likely scenario where a user expecting GitHub's behavior would accidentally
@@ -252,11 +252,12 @@ export class DetailsMenuBarElement extends HTMLElement {
         }
         this.querySelector("summary").setAttribute("aria-expanded", this.open ? "true" : "false");
         this.querySelector(".details-menu-inner").setAttribute("aria-hidden", this.open ? "false" : "true");
-        if (this.open) {
-            currentlyOpen = this;
-        } else {
-            this.querySelector("summary").focus();
-        }
+        setTimeout( () => {
+            if (this.open) {
+                currentlyOpen = this;
+                this.querySelector("summary").focus();
+            }
+        });
     }
 }
 

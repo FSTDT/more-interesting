@@ -23,7 +23,7 @@ html {
 }
 
 nav, .main {
-    max-width: 980px;
+    max-width: 700px;
     margin: 0 auto;
     padding: 1em;
 }
@@ -192,7 +192,7 @@ select,
 :visited.button,
 .details-dialog-summary,
 .details-menu-summary {
-    border: solid 2px #737373;
+    border: solid 2px #ccc;
     border-image: url("outset.svg") 2;
     width: auto;
     outline-offset: -5px;
@@ -209,7 +209,7 @@ select:active,
 .details-menu-summary:active,
 details[open] .details-menu-summary,
 .details-dialog-summary:active {
-    border: solid 2px #737373;
+    border: solid 2px #ccc;
     border-image: url("inset.svg") 2;
     position: relative;
     top: 1px;
@@ -338,10 +338,9 @@ template {
     color: #d70022;
 }
 
-article, .alert, aside {
+article, aside {
     display: block;
-    border: solid 1px #737373;
-    border-image: url("inset.svg") 2;
+    border: solid 1px #0c0c0d;
     background: #f9f9fa;
     margin: 24px 0;
     padding: 8px 8px;
