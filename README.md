@@ -259,6 +259,10 @@ It doesn't support it yet, but it's going to support full-blown device keying.
 So in the settings page, there'll be a list of previously seen devices, and you'll be able to individually revoke their sessions,
 like Discourse, Google, and stuff do.
 
+### Usability
+
+* Correctly handle [rogue double-clickers](https://blog.codinghorror.com/double-click-must-die/)
+
 ## Running locally
 
 First, you need to bundle the JavaScript. If you have Node, you can just use `run-webpack`.
