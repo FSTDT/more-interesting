@@ -395,7 +395,7 @@ impl MoreInterestingConn {
             .collect();
         Ok(all)
     }
-    pub fn get_post_starred_by(&self, post_id_param: i32, user_id_param: i32) -> Result<Vec<String>, DieselError> {
+    pub fn get_post_starred_by(&self, post_id_param: i32) -> Result<Vec<String>, DieselError> {
         use self::stars::dsl::*;
         use self::users::dsl::*;
         let all: Vec<String> = stars
@@ -404,7 +404,6 @@ impl MoreInterestingConn {
                 self::users::dsl::username,
             ))
             .filter(self::stars::dsl::post_id.eq(post_id_param))
-            .filter(self::stars::dsl::user_id.ne(user_id_param))
             .limit(400)
             .get_results::<(String,)>(&self.0)?
             .into_iter()
@@ -412,7 +411,7 @@ impl MoreInterestingConn {
             .collect();
         Ok(all)
     }
-    pub fn get_comment_starred_by(&self, comment_id_param: i32, user_id_param: i32) -> Result<Vec<String>, DieselError> {
+    pub fn get_comment_starred_by(&self, comment_id_param: i32) -> Result<Vec<String>, DieselError> {
         use self::comment_stars::dsl::*;
         use self::users::dsl::*;
         let all: Vec<String> = comment_stars
@@ -421,7 +420,6 @@ impl MoreInterestingConn {
                 self::users::dsl::username,
             ))
             .filter(self::comment_stars::dsl::comment_id.eq(comment_id_param))
-            .filter(self::comment_stars::dsl::user_id.ne(user_id_param))
             .limit(400)
             .get_results::<(String,)>(&self.0)?
             .into_iter()
@@ -443,7 +441,7 @@ fn tuple_to_post_info((id, uuid, title, url, visible, initial_stellar_time, scor
 fn tuple_to_comment_info(conn: &MoreInterestingConn, (id, text, html, visible, post_id, created_at, created_by, starred_comment_id, created_by_username): (i32, String, String, bool, i32, NaiveDateTime, i32, Option<i32>, String)) -> CommentInfo {
     CommentInfo {
         id, text, html, visible, post_id, created_at, created_by, created_by_username,
-        starred_by: conn.get_comment_starred_by(id, starred_comment_id.unwrap_or(0)).unwrap_or(Vec::new()),
+        starred_by: conn.get_comment_starred_by(id).unwrap_or(Vec::new()),
         starred_by_me: starred_comment_id.is_some(),
     }
 }

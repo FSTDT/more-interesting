@@ -20,13 +20,11 @@
                 </button>
             </div>
             {{#if starred_by}}
-                <footer>
                 starred by
                 {{#each starred_by}}
                     <a href="@{{this}}">{{this}}</a>
                     {{#unless @last}},{{/unless}}
                 {{/each}}
-                </footer>
             {{/if}}
         </article>
     </form></ajax-form>
@@ -38,7 +36,7 @@
                     posted by <a href="@{{this.created_by_username}}">{{this.created_by_username}}</a>
                     <div class=top-header-aside>
                         <button name=comment value={{this.id}} title="{{#if this.starred_by_me}}Remove star{{else}}Add star{{/if}}" formaction="{{#if this.starred_by_me}}-rm-star-comment{{else}}-add-star-comment{{/if}}?to={{posts.0.uuid}}">
-                        <span>0</span>
+                        <span>{{count this.starred_by}}</span>
                         <img width=12 height=12 src=-assets/{{#if this.starred_by_me}}star_active.svg{{else}}star.svg{{/if}}>
                         </button>
                         <!-- flagging is not yet implemented -->
@@ -47,13 +45,11 @@
                         </button>
                     </div>
                     {{#if this.starred_by}}
-                        <footer>
                         starred by
                         {{#each this.starred_by}}
                             <a href="@{{this}}">{{this}}</a>
                             {{#unless @last}},{{/unless}}
                         {{/each}}
-                        </footer>
                     {{/if}}
                 </footer>
             </aside>

@@ -338,10 +338,9 @@ template {
     color: #d70022;
 }
 
-article, .alert, aside {
+article, aside {
     display: block;
-    border: solid 1px #ccc;
-    border-image: url("inset.svg") 2;
+    border: solid 1px #0c0c0d;
     background: #f9f9fa;
     margin: 24px 0;
     padding: 8px 8px;

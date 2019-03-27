@@ -24,7 +24,7 @@ use models::User;
 use models::UserAuth;
 use rocket::http::Status;
 use rocket_contrib::serve::StaticFiles;
-use rocket_contrib::templates::Template;
+use rocket_contrib::templates::{Template, handlebars};
 use serde::Serialize;
 use std::borrow::Cow;
 use crate::models::{PostInfo, NewStar, NewUser, CommentInfo, NewPost, NewComment, NewStarComment};
@@ -33,6 +33,7 @@ use rocket::Config;
 use url::Url;
 use std::collections::HashMap;
 use v_htmlescape::escape;
+use handlebars::{Helper, Handlebars, Context, RenderContext, Output, HelperResult};
 
 #[derive(Serialize, Default)]
 struct TemplateContext {
@@ -263,7 +264,7 @@ fn get_comments(conn: MoreInterestingConn, user: Option<User>, uuid: Base32) -> 
             title: Cow::Borrowed("home"),
             posts: vec![post_info],
             parent: "layout",
-            starred_by: conn.get_post_starred_by(post_id, user_id).unwrap_or(Vec::new()),
+            starred_by: conn.get_post_starred_by(post_id).unwrap_or(Vec::new()),
             comments, username,
             ..default()
         }))
@@ -415,12 +416,30 @@ fn change_password(conn: MoreInterestingConn, user: User, form: Form<ChangePassw
     }
 }
 
+fn count_helper(
+    h: &Helper,
+    _: &Handlebars,
+    _: &Context,
+    _: &mut RenderContext,
+    out: &mut Output
+) -> HelperResult {
+    if let Some(param) = h.param(0) {
+        if let serde_json::Value::Array(param) = param.value() {
+            out.write(&param.len().to_string()) ?;
+        }
+    }
+
+    Ok(())
+}
+
 fn main() {
     //env_logger::init();
     rocket::ignite()
         .attach(MoreInterestingConn::fairing())
-        .attach(Template::fairing())
         .mount("/", routes![index, login_form, login, logout, create_form, create, setup, get_comments, add_star, rm_star, consume_invite, get_settings, create_invite, invite_tree, change_password, post_comment, add_star_comment, rm_star_comment])
         .mount("/-assets", StaticFiles::from("assets"))
+        .attach(Template::custom(|engines| {
+            engines.handlebars.register_helper("count", Box::new(count_helper));
+        }))
         .launch();
 }
