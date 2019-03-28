@@ -1,0 +1,47 @@
+{
+  "name": "More Interesting",
+  "description": "A link sharing community app",
+  "repository": "https://github.com/notridde/more-interesting",
+  "keywords": ["rust", "rocket", "discussion"],
+
+  "success_url": "/-setup",
+  "env": {
+    "MORE_INTERESTING_INIT_USERNAME": {
+      "description": "Username for the root account",
+      "value": "root"
+    },
+    "MORE_INTERESTING_INIT_PASSWORD": {
+      "description": "Password for the root account",
+      "value": ""
+    },
+    "ROCKET_PUBLIC_URL": {
+      "description": "Where this website will be running (probably https://<app name>.herokuapp.com)"
+    },
+    "ROCKET_SECRET_KEY": {
+      "description": "A secret key for verifying the integrity of cookies",
+      "generator": "secret"
+    }
+  },
+  "formation": {
+    "web": {
+      "quantity": 1
+    }
+  },
+  "addons": [
+    "heroku-postgresql:hobby-dev"
+  ],
+  "buildpacks": [
+    {
+      "url": "https://github.com/emk/heroku-buildpack-rust.git"
+    },
+    {
+      "url": "https://github.com/heroku/heroku-buildpack-nginx.git"
+    },
+    {
+      "url": "https://github.com/sgrif/heroku-buildpack-diesel"
+    }
+  ],
+  "scripts": {
+    "postdeploy": "MIX_ENV=prod mix ecto.migrate"
+  }
+}
