@@ -1,3 +1,8 @@
 /target
 **/*.rs.bk
 /.idea
+node_modules
+/assets/dist
+# The root package.json has no real dependencies,
+# so the lockfile is not needed.
+/package-lock.json
