@@ -6,11 +6,11 @@
 
   "success_url": "/-setup",
   "env": {
-    "MORE_INTERESTING_INIT_USERNAME": {
+    "ROCKET_INIT_USERNAME": {
       "description": "Username for the root account",
       "value": "root"
     },
-    "MORE_INTERESTING_INIT_PASSWORD": {
+    "ROCKET_INIT_PASSWORD": {
       "description": "Password for the root account",
       "value": ""
     },

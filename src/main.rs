@@ -299,22 +299,19 @@ fn post_comment(conn: MoreInterestingConn, user: User, comment: Form<CommentForm
 
 #[get("/-setup")]
 fn setup(conn: MoreInterestingConn) -> impl Responder<'static> {
-    if conn.has_users().unwrap_or(true) {
-        "setup"
-    } else {
-        let username = std::env::var("MORE_INTERESTING_INIT_USERNAME").ok();
-        let password = std::env::var("MORE_INTERESTING_INIT_PASSWORD").ok();
+    if !conn.has_users().unwrap_or(true) {
+        let config = Config::active().unwrap_or_else(|_| Config::development());
+        let username = config.get_str("init_username").ok();
+        let password = config.get_str("init_password").ok();
         if let (Some(username), Some(password)) = (username, password) {
             conn.register_user(&NewUser {
                 username: &username[..],
                 password: &password[..],
                 invited_by: None,
             }).expect("registering the initial user should always succeed");
-            "setup"
-        } else {
-            "cannot run without MORE_INTERESTING_INIT_USERNAME and MORE_INTERESTING_INIT_PASSWORD env variables"
         }
     }
+    Flash::success(Redirect::to(uri!(login_form)), format!("Ready."))
 }
 
 #[derive(FromForm)]

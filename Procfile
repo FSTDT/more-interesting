@@ -1,1 +1,1 @@
-web: ROCKET_PORT=$PORT ROCKET_ENV=prod ./target/release/more-interesting
+web: bin/diesel migration run && && ./run-webpack.sh && bin/start-nginx ./target/release/more-interesting

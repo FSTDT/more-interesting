@@ -8,3 +8,5 @@ more_interesting = { url = "postgres://postgres:Postgres1234@localhost/more_inte
 [development]
 secret_key = "+n4YMZHfGEIyejl0qD9QDlUi1x/uqExtTskUUObXVcI="
 public_url = "http://localhost"
+init_username = "root"
+init_password = "ready2go"
