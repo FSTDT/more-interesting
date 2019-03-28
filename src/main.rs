@@ -352,7 +352,11 @@ fn create_invite<'a>(conn: MoreInterestingConn, user: User) -> impl Responder<'s
     match conn.create_invite_token(user.id) {
         Ok(invite_token) => {
             let config = Config::active().unwrap_or_else(|_| Config::development());
-            let public_url = Url::parse(config.get_str("public_url").unwrap_or("http://localhost")).expect("public_url configuration must be valid");
+            let mut public_url = config.get_str("public_url").unwrap_or("http://localhost").to_owned();
+            if !public_url.starts_with("http:") && !public_url.starts_with("https:") {
+                public_url = "https://".to_owned() + &public_url;
+            }
+            let public_url = Url::parse(&public_url).expect("public_url configuration must be valid");
             let created_invite_url = public_url.join(&invite_token.uuid.to_string()).expect("base128 is a valid relative URL");
             Flash::success(Redirect::to(uri!(get_settings)), format!("To invite them, send them this link: {}", created_invite_url))
         }
