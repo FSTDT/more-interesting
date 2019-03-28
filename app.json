@@ -39,9 +39,12 @@
     },
     {
       "url": "https://github.com/sgrif/heroku-buildpack-diesel"
+    },
+    {
+      "url": "https://github.com/heroku/heroku-buildpack-nodejs"
     }
   ],
   "scripts": {
-    "postdeploy": "MIX_ENV=prod mix ecto.migrate"
+    "postdeploy": "bin/diesel database setup"
   }
 }
