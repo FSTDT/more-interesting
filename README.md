@@ -265,6 +265,10 @@ Run it with Cargo with these env vars set:
 
 Then go to `http://localhost:3001/-setup`
 
+## Running on Heroku
+
+[![Deploy on Heroku](https://www.herokucdn.com/deploy/button.svg)](https://heroku.com/deploy)
+
 ## License
 
 For now, I'm going with the same license terms as Rust itself:
