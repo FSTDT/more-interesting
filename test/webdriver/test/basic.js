@@ -16,7 +16,7 @@ describe("testing javascript in the browser", function() {
             .setChromeOptions(new chrome.Options().headless().windowSize(screen))
             .setFirefoxOptions(new firefox.Options().headless().windowSize(screen))
             .build();
-        await this.browser.get("http://localhost:3001/-login");
+        await this.browser.get("http://localhost:3001/login");
         await this.browser.wait(until.elementLocated(By.css('input[type="password"]')));
         var username = await this.browser.findElement(By.css('input'));
         await username.sendKeys("root");
@@ -32,8 +32,8 @@ describe("testing javascript in the browser", function() {
     });
 
     it("first link on submit page should be Home", async function() {
-        await this.browser.get("http://localhost:3001/-submit");
-        await this.browser.wait(until.urlIs("http://localhost:3001/-submit"));
+        await this.browser.get("http://localhost:3001/submit");
+        await this.browser.wait(until.urlIs("http://localhost:3001/submit"));
         var headline = await this.browser.findElement(By.css('a'));
         var text = await headline.getText();
         return assert.equal(text, "Home");
@@ -42,10 +42,10 @@ describe("testing javascript in the browser", function() {
     it("log out button should go away when you log out", async function() {
         var user_menu = await this.browser.findElements(By.css('.details-menu-summary'));
         await user_menu[1].click();
-        var logout_button = await this.browser.findElement(By.css('button[formaction="-logout"]'));
+        var logout_button = await this.browser.findElement(By.css('form[action="logout"] button'));
         await logout_button.click();
         await this.browser.wait(until.urlIs("http://localhost:3001/"));
-        logout_button = await this.browser.findElements(By.css('button[formaction="-logout"]'));
+        logout_button = await this.browser.findElements(By.css('form[action="logout"] button'));
         return assert(!logout_button.length);
     });
 });
