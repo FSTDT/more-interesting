@@ -94,9 +94,10 @@ It helps keep the URLs short and easy-to-remember.
 * `http://example.instance/@notriddle` is the URL of notriddle's profile.
 * `http://example.instance/85f844c8` is the URL of a post.
 * `http://example.instance/-add-star` is an internal URL.
+* `http://example.instance/assets` is where the static files are
 
-The leading hyphen on a lot of these URLs is there to distinguish between reserved words and
-potential post IDs.
+The leading hyphen was previously required to distinguish internal URLs from post IDs,
+but since post IDs are now restricted to vowel-free base32, that shouldn't be necessary any more.
 */
 
 #[derive(FromForm)]
@@ -441,7 +442,7 @@ fn main() {
         .attach(MoreInterestingConn::fairing())
         .attach(PidFileFairing)
         .mount("/", routes![index, login_form, login, logout, create_form, create, setup, get_comments, add_star, rm_star, consume_invite, get_settings, create_invite, invite_tree, change_password, post_comment, add_star_comment, rm_star_comment])
-        .mount("/-assets", StaticFiles::from("assets"))
+        .mount("/assets", StaticFiles::from("assets"))
         .attach(Template::custom(|engines| {
             engines.handlebars.register_helper("count", Box::new(count_helper));
         }))

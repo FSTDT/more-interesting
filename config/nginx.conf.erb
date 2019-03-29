@@ -44,10 +44,10 @@ http {
 		server_name _;
 		keepalive_timeout 5;
 
-		location ~ ^/-assets/ {
+		location ~ ^/assets/ {
 			add_header X-Content-Type-Options nosniff;
 			add_header Cache-Control public;
-			root assets;
+			root ./;
 			expires max;
 		}
 
