@@ -94,25 +94,36 @@ It helps keep the URLs short and easy-to-remember.
 
 * `http://example.instance/@notriddle` is the URL of notriddle's profile.
 * `http://example.instance/85f844c8` is the URL of a post.
-* `http://example.instance/-add-star` is an internal URL.
+* `http://example.instance/add-star` is an internal URL.
 * `http://example.instance/assets` is where the static files are
-
-The leading hyphen was previously required to distinguish internal URLs from post IDs,
-but since post IDs are now restricted to vowel-free base32, that shouldn't be necessary any more.
 */
 
 #[derive(FromForm)]
-struct AddStarForm {
-    post: Base32,
+struct VoteForm {
+    rm_star: Option<Base32>,
+    add_star: Option<Base32>,
 }
 
-#[post("/-add-star?<redirect..>", data = "<post>")]
-fn add_star(conn: MoreInterestingConn, user: User, redirect: Form<MaybeRedirect>, post: Form<AddStarForm>) -> Result<impl Responder<'static>, Status> {
-    let post = conn.get_post_info_by_uuid(user.id, post.post).map_err(|_| Status::NotFound)?;
-    if conn.add_star(&NewStar {
-        user_id: user.id,
-        post_id: post.id
-    }) {
+#[post("/vote?<redirect..>", data = "<post>")]
+fn vote(conn: MoreInterestingConn, user: User, redirect: Form<MaybeRedirect>, post: Form<VoteForm>) -> Result<impl Responder<'static>, Status> {
+    let result = match (post.add_star, post.rm_star) {
+        (Some(post), None) => {
+            let post = conn.get_post_info_by_uuid(user.id, post).map_err(|_| Status::NotFound)?;
+            conn.add_star(&NewStar {
+                user_id: user.id,
+                post_id: post.id,
+            })
+        }
+        (None, Some(post)) => {
+            let post = conn.get_post_info_by_uuid(user.id, post).map_err(|_| Status::NotFound)?;
+            conn.rm_star(&NewStar {
+                user_id: user.id,
+                post_id: post.id,
+            })
+        }
+        _ => false,
+    };
+    if result {
         redirect.maybe_redirect()
     } else {
         Err(Status::BadRequest)
@@ -120,51 +131,25 @@ fn add_star(conn: MoreInterestingConn, user: User, redirect: Form<MaybeRedirect>
 }
 
 #[derive(FromForm)]
-struct RmStarForm {
-    post: Base32,
+struct VoteCommentForm {
+    add_star_comment: Option<i32>,
+    rm_star_comment: Option<i32>,
 }
 
-#[post("/-rm-star?<redirect..>", data = "<post>")]
-fn rm_star(conn: MoreInterestingConn, user: User, redirect: Form<MaybeRedirect>, post: Form<RmStarForm>) -> Result<impl Responder<'static>, Status> {
-    let post = conn.get_post_info_by_uuid(user.id, post.post).map_err(|_| Status::NotFound)?;
-    if conn.rm_star(&NewStar {
-        user_id: user.id,
-        post_id: post.id
-    }) {
-        redirect.maybe_redirect()
-    } else {
-        Err(Status::BadRequest)
-    }
-}
-
-#[derive(FromForm)]
-struct AddStarCommentForm {
-    comment: i32,
-}
-
-#[post("/-add-star-comment?<redirect..>", data = "<comment>")]
-fn add_star_comment(conn: MoreInterestingConn, user: User, redirect: Form<MaybeRedirect>, comment: Form<AddStarCommentForm>) -> Result<impl Responder<'static>, Status> {
-    if conn.add_star_comment(&NewStarComment {
-        user_id: user.id,
-        comment_id: comment.comment,
-    }) {
-        redirect.maybe_redirect()
-    } else {
-        Err(Status::BadRequest)
-    }
-}
-
-#[derive(FromForm)]
-struct RmStarCommentForm {
-    comment: i32,
-}
-
-#[post("/-rm-star-comment?<redirect..>", data = "<comment>")]
-fn rm_star_comment(conn: MoreInterestingConn, user: User, redirect: Form<MaybeRedirect>, comment: Form<RmStarCommentForm>) -> Result<impl Responder<'static>, Status> {
-    if conn.rm_star_comment(&NewStarComment {
-        user_id: user.id,
-        comment_id: comment.comment,
-    }) {
+#[post("/vote-comment?<redirect..>", data = "<comment>")]
+fn vote_comment(conn: MoreInterestingConn, user: User, redirect: Form<MaybeRedirect>, comment: Form<VoteCommentForm>) -> Result<impl Responder<'static>, Status> {
+    let result = match (comment.add_star_comment, comment.rm_star_comment) {
+        (Some(comment), None) => conn.add_star_comment(&NewStarComment{
+            user_id: user.id,
+            comment_id: comment,
+        }),
+        (None, Some(comment)) => conn.rm_star_comment(&NewStarComment{
+            user_id: user.id,
+            comment_id: comment,
+        }),
+        _ => false,
+    };
+    if result {
         redirect.maybe_redirect()
     } else {
         Err(Status::BadRequest)
@@ -184,7 +169,7 @@ fn index(conn: MoreInterestingConn, user: Option<User>, flash: Option<FlashMessa
     })
 }
 
-#[get("/-submit")]
+#[get("/submit")]
 fn create_form(user: User) -> impl Responder<'static> {
     Template::render("submit", &TemplateContext {
         title: Cow::Borrowed("submit"),
@@ -200,7 +185,7 @@ struct NewPostForm {
     url: Option<String>,
 }
 
-#[post("/-submit", data = "<post>")]
+#[post("/submit", data = "<post>")]
 fn create(user: User, conn: MoreInterestingConn, post: Form<NewPostForm>) -> Result<impl Responder<'static>, Status> {
     let NewPostForm { title, url } = &*post;
     let url = url.as_ref().map(|u| {
@@ -223,7 +208,7 @@ fn create(user: User, conn: MoreInterestingConn, post: Form<NewPostForm>) -> Res
     }
 }
 
-#[get("/-login")]
+#[get("/login")]
 fn login_form() -> impl Responder<'static> {
     Template::render("login", &TemplateContext {
         title: Cow::Borrowed("log in"),
@@ -238,7 +223,7 @@ struct UserForm {
     password: String,
 }
 
-#[post("/-login", data = "<post>")]
+#[post("/login", data = "<post>")]
 fn login(conn: MoreInterestingConn, post: Form<UserForm>, mut cookies: Cookies) -> impl Responder<'static> {
     match conn.authenticate_user(&UserAuth {
         username: &post.username,
@@ -254,7 +239,7 @@ fn login(conn: MoreInterestingConn, post: Form<UserForm>, mut cookies: Cookies) 
     }
 }
 
-#[post("/-logout")]
+#[post("/logout")]
 fn logout(mut cookies: Cookies) -> impl Responder<'static> {
     if let Some(cookie) = cookies.get_private("user_id") {
         cookies.remove_private(cookie);
@@ -309,7 +294,7 @@ struct CommentForm {
     post: Base32,
 }
 
-#[post("/-comment", data = "<comment>")]
+#[post("/comment", data = "<comment>")]
 fn post_comment(conn: MoreInterestingConn, user: User, comment: Form<CommentForm>) -> Option<impl Responder<'static>> {
     let post_info = conn.get_post_info_by_uuid(user.id, comment.post).into_option()?;
     conn.comment_on_post(NewComment {
@@ -327,7 +312,7 @@ struct ConsumeInviteForm {
     invite_token: Base32,
 }
 
-#[post("/-consume-invite", data = "<form>")]
+#[post("/consume-invite", data = "<form>")]
 fn consume_invite(conn: MoreInterestingConn, form: Form<ConsumeInviteForm>, mut cookies: Cookies) -> Result<impl Responder<'static>, Status> {
     if let Ok(invite_token) = conn.consume_invite_token(form.invite_token) {
         if let Ok(user) = conn.register_user(&NewUser {
@@ -342,7 +327,7 @@ fn consume_invite(conn: MoreInterestingConn, form: Form<ConsumeInviteForm>, mut 
     Err(Status::BadRequest)
 }
 
-#[get("/-settings")]
+#[get("/settings")]
 fn get_settings(_conn: MoreInterestingConn, user: User, flash: Option<FlashMessage>) -> impl Responder<'static> {
     Template::render("settings", &TemplateContext {
         title: Cow::Borrowed("settings"),
@@ -353,7 +338,7 @@ fn get_settings(_conn: MoreInterestingConn, user: User, flash: Option<FlashMessa
     })
 }
 
-#[post("/-create-invite")]
+#[post("/create-invite")]
 fn create_invite<'a>(conn: MoreInterestingConn, user: User, public_url: State<PublicUrl>) -> impl Responder<'static> {
     match conn.create_invite_token(user.id) {
         Ok(invite_token) => {
@@ -401,7 +386,7 @@ struct ChangePasswordForm {
     new_password: String,
 }
 
-#[post("/-change-password", data = "<form>")]
+#[post("/change-password", data = "<form>")]
 fn change_password(conn: MoreInterestingConn, user: User, form: Form<ChangePasswordForm>) -> Result<impl Responder<'static>, Status> {
     if form.new_password == "" {
         return Err(Status::BadRequest);
@@ -464,7 +449,7 @@ fn main() {
             }
             Ok(rocket)
         }))
-        .mount("/", routes![index, login_form, login, logout, create_form, create, get_comments, add_star, rm_star, consume_invite, get_settings, create_invite, invite_tree, change_password, post_comment, add_star_comment, rm_star_comment])
+        .mount("/", routes![index, login_form, login, logout, create_form, create, get_comments, vote, consume_invite, get_settings, create_invite, invite_tree, change_password, post_comment, vote_comment])
         .mount("/assets", StaticFiles::from("assets"))
         .attach(Template::custom(|engines| {
             engines.handlebars.register_helper("count", Box::new(count_helper));

@@ -1,17 +1,17 @@
 {{#*inline "page"}}
     <h2>Settings</h2>
     <details-menu-bar>
-        <form class=inline-form action=-create-invite method=post>
+        <form class=inline-form action=create-invite method=post>
             <button>Invite someone to this instance</button>
         </form>
         <details class=details-dialog-outer>
             <summary class=details-dialog-summary>Change password</summary>
             <details-dialog>
-                <form action=-change-password method=post>
+                <form action=change-password method=post>
                     <label>Make sure you know your old password <input name=old_password autofocus type=password></label>
                     <label>New Password <input name=new_password type=password></label>
                     <button>Submit</button>
-                    <details-dialog-close><a href="-settings" class=button>Cancel</a></details-dialog-close>
+                    <details-dialog-close><a href="settings" class=button>Cancel</a></details-dialog-close>
                 </form>
             </details-dialog>
         </details>

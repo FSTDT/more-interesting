@@ -1,7 +1,7 @@
 {{#*inline "page"}}
-<ajax-form><form method="post">
+<ajax-form>
 {{#each posts}}
-    <article>
+    <article><form action="vote?redirect=2" method=POST>
         <header class=article-header>
             {{#if this.url}}
                 <a class=article-header-inner href="{{this.url}}">{{this.title}}</a>
@@ -12,17 +12,17 @@
         submitted by <a href="@{{this.submitted_by_username}}">{{this.submitted_by_username}}</a> |
         <a href={{this.uuid}}>{{this.comment_count}} comments</a>
         <div class=top-header-aside>
-            <button name=post value={{this.uuid}} title="{{#if this.starred_by_me}}Remove star{{else}}Add star{{/if}}" formaction="{{#if this.starred_by_me}}-rm-star{{else}}-add-star{{/if}}?to=0">
+            <button name="{{#if this.starred_by_me}}rm_star{{else}}add_star{{/if}}" value={{this.uuid}} title="{{#if this.starred_by_me}}Remove star{{else}}Add star{{/if}}">
                 <span>{{this.score}}</span>
-                <img width=12 height=12 src=assets/{{#if this.starred_by_me}}star_active.svg{{else}}star.svg{{/if}}>
+                <img width=12 height=12 src=assets/{{#if this.starred_by_me}}star_active.svg{{else}}star.svg{{/if}} alt="{{#if this.starred_by_me}}Remove star{{else}}Add star{{/if}}">
             </button>
             <!-- flagging is not yet implemented -->
-            <button name=post value={{this.uuid}} formaction="-add-flag?to=0" title="Add flag">
-                <img width=12 height=12 src=assets/flag.svg>
+            <button name=add_flag value={{this.uuid}} title="Add flag">
+                <img width=12 height=12 src=assets/flag.svg alt="Add flag">
             </button>
         </div>
-    </article>
+    </form></article>
 {{/each}}
-</form></ajax-form>
+</ajax-form>
 {{/inline}}
 {{~> (parent)~}}
