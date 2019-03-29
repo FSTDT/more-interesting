@@ -1,6 +1,6 @@
 <!DOCTYPE html>
 <meta name=viewport content="width=device-width">
-<link rel=stylesheet href=assets/style.css>
+<link rel=stylesheet href="assets/style.css?2">
 <title>{{title}}</title>
 <header class=top-header>
     <nav>
@@ -15,24 +15,24 @@
                 </details>
                 <details class="details-menu-outer backwards" role=menuitem>
                     <summary class="details-menu-summary backwards" aria-haspopup=menu>{{username}}</summary>
-                    <form class="details-menu-inner backwards" role=menu>
-                        <a class=details-menu-item href="-settings" role=menuitem>Settings</a>
+                    <form class="details-menu-inner backwards" role=menu action=logout method=POST>
+                        <a class=details-menu-item href=settings role=menuitem>Settings</a>
                         <a class=details-menu-item href="@{{username}}" role=menuitem>Your profile</a>
-                        <button class=details-menu-item formaction=-logout formmethod=post role=menuitem>Sign Out</button>
+                        <button class=details-menu-item role=menuitem>Sign Out</button>
                     </form>
                 </details>
             {{else}}
-                <a class=button href="-login" role=menuitem>LOG IN</a>
+                <a class=button href=login role=menuitem>LOG IN</a>
             {{/if}}
         </details-menu-bar>
     </nav>
 </header>
-<main class=main-outer><section class=main>
+<main class=main-outer><div class=main>
     {{#if alert}}
-        <aside class=alert>{{alert}}</aside>
+        <div class=alert role=alert>{{alert}}</div>
     {{/if}}
 {{~> page}}
-</section></main>
+</div></main>
 <footer class=top-header>
     <nav>
         <a href="@" class=top-header-link>User Invite Tree</a>
@@ -46,9 +46,9 @@
 <script>
     var s = document.createElement("script");
     if (window.HTMLDetailsElement && window.URLSearchParams && window.customElements && window.moreInterestingIsAsyncAvailable && window.fetch) {
-        s.src = "assets/dist/modern.min.js";
+        s.src = "assets/dist/modern.min.js?2";
     } else {
-        s.src = "assets/dist/legacy.min.js";
+        s.src = "assets/dist/legacy.min.js?2";
     }
     s.defer = true;
     s.async = true;
