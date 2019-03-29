@@ -109,11 +109,14 @@ struct AddStarForm {
 #[post("/-add-star?<redirect..>", data = "<post>")]
 fn add_star(conn: MoreInterestingConn, user: User, redirect: Form<MaybeRedirect>, post: Form<AddStarForm>) -> Result<impl Responder<'static>, Status> {
     let post = conn.get_post_info_by_uuid(user.id, post.post).map_err(|_| Status::NotFound)?;
-    conn.add_star(&NewStar {
+    if conn.add_star(&NewStar {
         user_id: user.id,
         post_id: post.id
-    });
-    redirect.maybe_redirect()
+    }) {
+        redirect.maybe_redirect()
+    } else {
+        Err(Status::BadRequest)
+    }
 }
 
 #[derive(FromForm)]
@@ -124,11 +127,14 @@ struct RmStarForm {
 #[post("/-rm-star?<redirect..>", data = "<post>")]
 fn rm_star(conn: MoreInterestingConn, user: User, redirect: Form<MaybeRedirect>, post: Form<RmStarForm>) -> Result<impl Responder<'static>, Status> {
     let post = conn.get_post_info_by_uuid(user.id, post.post).map_err(|_| Status::NotFound)?;
-    conn.rm_star(&NewStar {
+    if conn.rm_star(&NewStar {
         user_id: user.id,
         post_id: post.id
-    });
-    redirect.maybe_redirect()
+    }) {
+        redirect.maybe_redirect()
+    } else {
+        Err(Status::BadRequest)
+    }
 }
 
 #[derive(FromForm)]
@@ -138,11 +144,14 @@ struct AddStarCommentForm {
 
 #[post("/-add-star-comment?<redirect..>", data = "<comment>")]
 fn add_star_comment(conn: MoreInterestingConn, user: User, redirect: Form<MaybeRedirect>, comment: Form<AddStarCommentForm>) -> Result<impl Responder<'static>, Status> {
-    conn.add_star_comment(&NewStarComment {
+    if conn.add_star_comment(&NewStarComment {
         user_id: user.id,
         comment_id: comment.comment,
-    });
-    redirect.maybe_redirect()
+    }) {
+        redirect.maybe_redirect()
+    } else {
+        Err(Status::BadRequest)
+    }
 }
 
 #[derive(FromForm)]
@@ -152,11 +161,14 @@ struct RmStarCommentForm {
 
 #[post("/-rm-star-comment?<redirect..>", data = "<comment>")]
 fn rm_star_comment(conn: MoreInterestingConn, user: User, redirect: Form<MaybeRedirect>, comment: Form<RmStarCommentForm>) -> Result<impl Responder<'static>, Status> {
-    conn.rm_star_comment(&NewStarComment {
+    if conn.rm_star_comment(&NewStarComment {
         user_id: user.id,
         comment_id: comment.comment,
-    });
-    redirect.maybe_redirect()
+    }) {
+        redirect.maybe_redirect()
+    } else {
+        Err(Status::BadRequest)
+    }
 }
 
 #[get("/")]

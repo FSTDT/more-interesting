@@ -209,15 +209,16 @@ impl MoreInterestingConn {
             })
             .get_result(&self.0)
     }
-    pub fn add_star(&self, new_star: &NewStar) {
+    pub fn add_star(&self, new_star: &NewStar) -> bool {
         let affected_rows = diesel::insert_into(stars::table)
             .values(new_star)
             .execute(&self.0)
             .unwrap_or(0);
         // affected rows will be 1 if inserted, or 0 otherwise
         self.update_score_on_post(new_star.post_id, affected_rows as i32);
+        affected_rows == 1
     }
-    pub fn rm_star(&self, new_star: &NewStar) {
+    pub fn rm_star(&self, new_star: &NewStar) -> bool {
         use self::stars::dsl::*;
         let affected_rows = diesel::delete(
             stars
@@ -228,22 +229,25 @@ impl MoreInterestingConn {
             .unwrap_or(0);
         // affected rows will be 1 if deleted, or 0 otherwise
         self.update_score_on_post(new_star.post_id, -(affected_rows as i32));
+        affected_rows == 1
     }
-    pub fn add_star_comment(&self, new_star: &NewStarComment) {
-        diesel::insert_into(comment_stars::table)
+    pub fn add_star_comment(&self, new_star: &NewStarComment) -> bool {
+        let affected_rows = diesel::insert_into(comment_stars::table)
             .values(new_star)
             .execute(&self.0)
             .unwrap_or(0);
+        affected_rows == 1
     }
-    pub fn rm_star_comment(&self, new_star: &NewStarComment) {
+    pub fn rm_star_comment(&self, new_star: &NewStarComment) -> bool {
         use self::comment_stars::dsl::*;
-        diesel::delete(
+        let affected_rows = diesel::delete(
             comment_stars
                 .filter(user_id.eq(new_star.user_id))
                 .filter(comment_id.eq(new_star.comment_id))
         )
             .execute(&self.0)
             .unwrap_or(0);
+        affected_rows == 1
     }
     fn update_score_on_post(&self, post_id_value: i32, count_value: i32) {
         use self::posts::dsl::*;
