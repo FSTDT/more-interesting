@@ -1,6 +1,5 @@
 {{#*inline "page"}}
     <ajax-form>
-    <form action="vote?redirect={{posts.0.uuid}}" method=POST>
         <article>
             <header class=article-header>
                 {{#if posts.0.url}}
@@ -10,16 +9,6 @@
                 {{/if}}
             </header>
             submitted by <a href="@{{posts.0.submitted_by_username}}">{{posts.0.submitted_by_username}}</a>
-            <div class=top-header-aside>
-                <button name="{{#if posts.0.starred_by_me}}rm_star{{else}}add_star{{/if}}" value={{posts.0.uuid}} title="{{#if posts.0.starred_by_me}}Remove star{{else}}Add star{{/if}}">
-                <span>{{posts.0.score}}</span>
-                <img width=12 height=12 src=assets/{{#if posts.0.starred_by_me}}star_active.svg{{else}}star.svg{{/if}} alt="{{#if posts.0.starred_by_me}}Remove star{{else}}Add star{{/if}}">
-                </button>
-                <!-- flagging is not yet implemented -->
-                <button name=post value={{posts.0.uuid}} title="Add flag">
-                <img width=12 height=12 src=assets/flag.svg alt="Add flag">
-                </button>
-            </div>
             {{#if starred_by}}
                 starred by
                 {{#each starred_by}}
@@ -27,26 +16,22 @@
                     {{#unless @last}},{{/unless}}
                 {{/each}}
             {{/if}}
+            <form class=module-aside action="vote?redirect={{posts.0.uuid}}" method=POST>
+                <button name="{{#if posts.0.starred_by_me}}rm_star{{else}}add_star{{/if}}" value={{posts.0.uuid}} title="{{#if posts.0.starred_by_me}}Remove star{{else}}Add star{{/if}}">
+                    <span>{{posts.0.score}}</span>
+                    <img width=12 height=12 src=assets/{{#if posts.0.starred_by_me}}star_active.svg{{else}}star.svg{{/if}} alt="{{#if posts.0.starred_by_me}}Remove star{{else}}Add star{{/if}}">
+                </button>
+                <!-- flagging is not yet implemented -->
+                <button name=post value={{posts.0.uuid}} title="Add flag">
+                    <img width=12 height=12 src=assets/flag.svg alt="Add flag">
+                </button>
+            </form>
         </article>
-    </form>
-    </ajax-form>
-    <ajax-form>
-    <form action="vote-comment?redirect={{posts.0.uuid}}" method=POST>
         {{#each comments}}
             <aside>
                 {{{this.html}}}
                 <footer>
                     posted by <a href="@{{this.created_by_username}}">{{this.created_by_username}}</a>
-                    <div class=top-header-aside>
-                        <button name="{{#if this.starred_by_me}}rm_star_comment{{else}}add_star_comment{{/if}}" value={{this.id}} title="{{#if this.starred_by_me}}Remove star{{else}}Add star{{/if}}">
-                        <span>{{count this.starred_by}}</span>
-                        <img width=12 height=12 src=assets/{{#if this.starred_by_me}}star_active.svg{{else}}star.svg{{/if}} alt="{{#if this.starred_by_me}}Remove star{{else}}Add star{{/if}}">
-                        </button>
-                        <!-- flagging is not yet implemented -->
-                        <button name=add_flag_comment value={{this.id}} title="Add flag">
-                        <img width=12 height=12 src=assets/flag.svg alt="Add flag">
-                        </button>
-                    </div>
                     {{#if this.starred_by}}
                         starred by
                         {{#each this.starred_by}}
@@ -54,10 +39,19 @@
                             {{#unless @last}},{{/unless}}
                         {{/each}}
                     {{/if}}
+                    <form class=module-aside action="vote-comment?redirect={{posts.0.uuid}}" method=POST>
+                    <button name="{{#if this.starred_by_me}}rm_star_comment{{else}}add_star_comment{{/if}}" value={{this.id}} title="{{#if this.starred_by_me}}Remove star{{else}}Add star{{/if}}">
+                        <span>{{count this.starred_by}}</span>
+                        <img width=12 height=12 src=assets/{{#if this.starred_by_me}}star_active.svg{{else}}star.svg{{/if}} alt="{{#if this.starred_by_me}}Remove star{{else}}Add star{{/if}}">
+                    </button>
+                    <!-- flagging is not yet implemented -->
+                    <button name=add_flag_comment value={{this.id}} title="Add flag">
+                        <img width=12 height=12 src=assets/flag.svg alt="Add flag">
+                    </button>
+                    </form>
                 </footer>
             </aside>
         {{/each}}
-    </form>
     </ajax-form>
     <form action="comment" method=POST>
         <h3>Post your comment</h3>

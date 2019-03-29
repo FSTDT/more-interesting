@@ -2,13 +2,8 @@ export class AjaxFormElement extends HTMLElement {
     constructor() {
         super();
         if (window.fetch) {
-            this.querySelector("form").addEventListener("submit", this._submitEvent.bind(this));
-            this.querySelector("form").addEventListener("click", this._clickEvent.bind(this));
+            this.addEventListener("click", this._clickEvent.bind(this));
         }
-    }
-    _submitEvent(e) {
-        e.preventDefault();
-        e.stopPropagation();
     }
     _setImage(t, state) {
         let img = t.querySelector("img");

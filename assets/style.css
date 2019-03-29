@@ -371,6 +371,12 @@ article, aside {
     float: right;
 }
 
+.module-aside {
+    float: right;
+    position: relative;
+    left: 4px;
+}
+
 details-dialog, .details-menu-inner {
     background: #f9f9fa;
     color: #0c0c0d;

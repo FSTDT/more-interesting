@@ -1,7 +1,7 @@
 {{#*inline "page"}}
 <ajax-form>
 {{#each posts}}
-    <article><form action="vote?redirect=2" method=POST>
+    <article>
         <header class=article-header>
             {{#if this.url}}
                 <a class=article-header-inner href="{{this.url}}">{{this.title}}</a>
@@ -11,7 +11,7 @@
         </header>
         submitted by <a href="@{{this.submitted_by_username}}">{{this.submitted_by_username}}</a> |
         <a href={{this.uuid}}>{{this.comment_count}} comments</a>
-        <div class=top-header-aside>
+        <form class=module-aside action="vote?redirect=2" method=POST>
             <button name="{{#if this.starred_by_me}}rm_star{{else}}add_star{{/if}}" value={{this.uuid}} title="{{#if this.starred_by_me}}Remove star{{else}}Add star{{/if}}">
                 <span>{{this.score}}</span>
                 <img width=12 height=12 src=assets/{{#if this.starred_by_me}}star_active.svg{{else}}star.svg{{/if}} alt="{{#if this.starred_by_me}}Remove star{{else}}Add star{{/if}}">
@@ -20,8 +20,8 @@
             <button name=add_flag value={{this.uuid}} title="Add flag">
                 <img width=12 height=12 src=assets/flag.svg alt="Add flag">
             </button>
-        </div>
-    </form></article>
+        </form>
+    </article>
 {{/each}}
 </ajax-form>
 {{/inline}}
