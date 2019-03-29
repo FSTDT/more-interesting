@@ -255,7 +255,9 @@ export class DetailsMenuBarElement extends HTMLElement {
         setTimeout( () => {
             if (this.open) {
                 currentlyOpen = this;
-                this.querySelector("summary").focus();
+                if (!this.querySelector(":focus")) {
+                    this.querySelector("summary").focus();
+                }
             }
         });
     }
