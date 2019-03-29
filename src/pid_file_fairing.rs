@@ -1,5 +1,4 @@
 use rocket::fairing::{self, Fairing};
-use rocket::Config;
 use std::fs::File;
 use std::process;
 use std::io::Write;
