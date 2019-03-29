@@ -16,8 +16,6 @@ describe("testing javascript in the browser", function() {
             .setChromeOptions(new chrome.Options().headless().windowSize(screen))
             .setFirefoxOptions(new firefox.Options().headless().windowSize(screen))
             .build();
-        await this.browser.get("http://localhost:3001/-setup");
-        await this.browser.wait(until.urlIs("http://localhost:3001/-setup"));
         await this.browser.get("http://localhost:3001/-login");
         await this.browser.wait(until.elementLocated(By.css('input[type="password"]')));
         var username = await this.browser.findElement(By.css('input'));
