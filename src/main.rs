@@ -203,6 +203,13 @@ struct NewPostForm {
 #[post("/-submit", data = "<post>")]
 fn create(user: User, conn: MoreInterestingConn, post: Form<NewPostForm>) -> Result<impl Responder<'static>, Status> {
     let NewPostForm { title, url } = &*post;
+    let url = url.as_ref().map(|u| {
+        if !u.contains(":") && !u.starts_with("//") {
+            format!("https://{}", u)
+        } else {
+            u.to_owned()
+        }
+    });
     match conn.create_post(&NewPost {
         title: &title,
         url: url.as_ref().map(|s| &s[..]),
