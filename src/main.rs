@@ -15,11 +15,12 @@ mod password;
 mod session;
 mod base32;
 mod prettify;
+mod pid_file_fairing;
 
 use rocket::request::{Form, FlashMessage};
 use rocket::response::{Responder, Redirect, Flash};
 use rocket::http::{Cookies, Cookie};
-use models::MoreInterestingConn;
+pub use models::MoreInterestingConn;
 use models::User;
 use models::UserAuth;
 use rocket::http::Status;
@@ -29,11 +30,13 @@ use serde::Serialize;
 use std::borrow::Cow;
 use crate::models::{PostInfo, NewStar, NewUser, CommentInfo, NewPost, NewComment, NewStarComment};
 use base32::Base32;
-use rocket::Config;
 use url::Url;
 use std::collections::HashMap;
 use v_htmlescape::escape;
 use handlebars::{Helper, Handlebars, Context, RenderContext, Output, HelperResult};
+use crate::pid_file_fairing::PidFileFairing;
+use rocket::fairing;
+use rocket::State;
 
 #[derive(Serialize, Default)]
 struct TemplateContext {
@@ -92,9 +95,10 @@ It helps keep the URLs short and easy-to-remember.
 * `http://example.instance/@notriddle` is the URL of notriddle's profile.
 * `http://example.instance/85f844c8` is the URL of a post.
 * `http://example.instance/-add-star` is an internal URL.
+* `http://example.instance/assets` is where the static files are
 
-The leading hyphen on a lot of these URLs is there to distinguish between reserved words and
-potential post IDs.
+The leading hyphen was previously required to distinguish internal URLs from post IDs,
+but since post IDs are now restricted to vowel-free base32, that shouldn't be necessary any more.
 */
 
 #[derive(FromForm)]
@@ -297,26 +301,6 @@ fn post_comment(conn: MoreInterestingConn, user: User, comment: Form<CommentForm
     Some(Redirect::to(uri!(get_comments: comment.post)))
 }
 
-#[get("/-setup")]
-fn setup(conn: MoreInterestingConn) -> impl Responder<'static> {
-    if conn.has_users().unwrap_or(true) {
-        "setup"
-    } else {
-        let username = std::env::var("MORE_INTERESTING_INIT_USERNAME").ok();
-        let password = std::env::var("MORE_INTERESTING_INIT_PASSWORD").ok();
-        if let (Some(username), Some(password)) = (username, password) {
-            conn.register_user(&NewUser {
-                username: &username[..],
-                password: &password[..],
-                invited_by: None,
-            }).expect("registering the initial user should always succeed");
-            "setup"
-        } else {
-            "cannot run without MORE_INTERESTING_INIT_USERNAME and MORE_INTERESTING_INIT_PASSWORD env variables"
-        }
-    }
-}
-
 #[derive(FromForm)]
 struct ConsumeInviteForm {
     username: String,
@@ -351,11 +335,10 @@ fn get_settings(_conn: MoreInterestingConn, user: User, flash: Option<FlashMessa
 }
 
 #[post("/-create-invite")]
-fn create_invite<'a>(conn: MoreInterestingConn, user: User) -> impl Responder<'static> {
+fn create_invite<'a>(conn: MoreInterestingConn, user: User, public_url: State<PublicUrl>) -> impl Responder<'static> {
     match conn.create_invite_token(user.id) {
         Ok(invite_token) => {
-            let config = Config::active().unwrap_or_else(|_| Config::development());
-            let public_url = Url::parse(config.get_str("public_url").unwrap_or("http://localhost")).expect("public_url configuration must be valid");
+            let public_url = &public_url.0;
             let created_invite_url = public_url.join(&invite_token.uuid.to_string()).expect("base128 is a valid relative URL");
             Flash::success(Redirect::to(uri!(get_settings)), format!("To invite them, send them this link: {}", created_invite_url))
         }
@@ -432,14 +415,41 @@ fn count_helper(
     Ok(())
 }
 
+struct PublicUrl(Url);
+
 fn main() {
     //env_logger::init();
     rocket::ignite()
         .attach(MoreInterestingConn::fairing())
-        .mount("/", routes![index, login_form, login, logout, create_form, create, setup, get_comments, add_star, rm_star, consume_invite, get_settings, create_invite, invite_tree, change_password, post_comment, add_star_comment, rm_star_comment])
-        .mount("/-assets", StaticFiles::from("assets"))
+        .attach(fairing::AdHoc::on_attach("public url", |rocket| {
+            let mut public_url = rocket.config().get_str("public_url").unwrap_or("http://localhost").to_owned();
+            if !public_url.starts_with("http:") && !public_url.starts_with("https:") {
+                public_url = "https://".to_owned() + &public_url;
+            }
+            let public_url = Url::parse(&public_url).expect("public_url configuration must be valid");
+            Ok(rocket.manage(PublicUrl(public_url)))
+        }))
+        .attach(fairing::AdHoc::on_attach("setup", |rocket| {
+            let conn = MoreInterestingConn::get_one(&rocket).unwrap();
+            if !conn.has_users().unwrap_or(true) {
+                let config = rocket.config();
+                let username = config.get_str("init_username").ok();
+                let password = config.get_str("init_password").ok();
+                if let (Some(username), Some(password)) = (username, password) {
+                    conn.register_user(&NewUser {
+                        username: &username[..],
+                        password: &password[..],
+                        invited_by: None,
+                    }).expect("registering the initial user should always succeed");
+                }
+            }
+            Ok(rocket)
+        }))
+        .mount("/", routes![index, login_form, login, logout, create_form, create, get_comments, add_star, rm_star, consume_invite, get_settings, create_invite, invite_tree, change_password, post_comment, add_star_comment, rm_star_comment])
+        .mount("/assets", StaticFiles::from("assets"))
         .attach(Template::custom(|engines| {
             engines.handlebars.register_helper("count", Box::new(count_helper));
         }))
+        .attach(PidFileFairing)
         .launch();
 }

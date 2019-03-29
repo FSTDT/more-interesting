@@ -1,0 +1,50 @@
+{
+  "name": "More Interesting",
+  "description": "A link sharing community app",
+  "repository": "https://github.com/notridde/more-interesting",
+  "keywords": ["rust", "rocket", "discussion"],
+
+  "success_url": "/-setup",
+  "env": {
+    "ROCKET_INIT_USERNAME": {
+      "description": "Username for the root account",
+      "value": "root"
+    },
+    "ROCKET_INIT_PASSWORD": {
+      "description": "Password for the root account",
+      "value": ""
+    },
+    "ROCKET_PUBLIC_URL": {
+      "description": "Where this website will be running (probably <app name>.herokuapp.com)"
+    },
+    "SECRET_KEY": {
+      "description": "A secret key for verifying the integrity of cookies",
+      "generator": "secret"
+    }
+  },
+  "formation": {
+    "web": {
+      "quantity": 1
+    }
+  },
+  "addons": [
+    "heroku-postgresql:hobby-dev"
+  ],
+  "buildpacks": [
+    {
+      "url": "https://github.com/emk/heroku-buildpack-rust.git"
+    },
+    {
+      "url": "https://github.com/heroku/heroku-buildpack-nginx.git"
+    },
+    {
+      "url": "https://github.com/sgrif/heroku-buildpack-diesel"
+    },
+    {
+      "url": "https://github.com/heroku/heroku-buildpack-nodejs"
+    }
+  ],
+  "scripts": {
+    "postdeploy": "bin/diesel database setup"
+  }
+}

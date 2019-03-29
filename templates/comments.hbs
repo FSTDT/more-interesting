@@ -12,11 +12,11 @@
             <div class=top-header-aside>
                 <button name=post value={{posts.0.uuid}} title="{{#if posts.0.starred_by_me}}Remove star{{else}}Add star{{/if}}" formaction="{{#if posts.0.starred_by_me}}-rm-star{{else}}-add-star{{/if}}?to={{posts.0.uuid}}">
                 <span>{{posts.0.score}}</span>
-                <img width=12 height=12 src=-assets/{{#if posts.0.starred_by_me}}star_active.svg{{else}}star.svg{{/if}}>
+                <img width=12 height=12 src=assets/{{#if posts.0.starred_by_me}}star_active.svg{{else}}star.svg{{/if}}>
                 </button>
                 <!-- flagging is not yet implemented -->
                 <button name=post value={{posts.0.uuid}} formaction="-add-flag?to={{posts.0.uuid}}" title="Add flag">
-                <img width=12 height=12 src=-assets/flag.svg>
+                <img width=12 height=12 src=assets/flag.svg>
                 </button>
             </div>
             {{#if starred_by}}
@@ -37,11 +37,11 @@
                     <div class=top-header-aside>
                         <button name=comment value={{this.id}} title="{{#if this.starred_by_me}}Remove star{{else}}Add star{{/if}}" formaction="{{#if this.starred_by_me}}-rm-star-comment{{else}}-add-star-comment{{/if}}?to={{posts.0.uuid}}">
                         <span>{{count this.starred_by}}</span>
-                        <img width=12 height=12 src=-assets/{{#if this.starred_by_me}}star_active.svg{{else}}star.svg{{/if}}>
+                        <img width=12 height=12 src=assets/{{#if this.starred_by_me}}star_active.svg{{else}}star.svg{{/if}}>
                         </button>
                         <!-- flagging is not yet implemented -->
                         <button name=comment value={{this.id}} formaction="-add-flag-comment?to={{posts.0.uuid}}" title="Add flag">
-                        <img width=12 height=12 src=-assets/flag.svg>
+                        <img width=12 height=12 src=assets/flag.svg>
                         </button>
                     </div>
                     {{#if this.starred_by}}
@@ -56,6 +56,7 @@
         {{/each}}
     </form></ajax-form>
     <form action="-comment" method=post>
+        <h3>Post your comment</h3>
         <textarea name=text></textarea>
         <input type=hidden name=post value="{{posts.0.uuid}}">
         <button>Submit</button>

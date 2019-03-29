@@ -14,11 +14,11 @@
         <div class=top-header-aside>
             <button name=post value={{this.uuid}} title="{{#if this.starred_by_me}}Remove star{{else}}Add star{{/if}}" formaction="{{#if this.starred_by_me}}-rm-star{{else}}-add-star{{/if}}?to=0">
                 <span>{{this.score}}</span>
-                <img width=12 height=12 src=-assets/{{#if this.starred_by_me}}star_active.svg{{else}}star.svg{{/if}}>
+                <img width=12 height=12 src=assets/{{#if this.starred_by_me}}star_active.svg{{else}}star.svg{{/if}}>
             </button>
             <!-- flagging is not yet implemented -->
             <button name=post value={{this.uuid}} formaction="-add-flag?to=0" title="Add flag">
-                <img width=12 height=12 src=-assets/flag.svg>
+                <img width=12 height=12 src=assets/flag.svg>
             </button>
         </div>
     </article>

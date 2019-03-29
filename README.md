@@ -268,12 +268,11 @@ like Discourse, Google, and stuff do.
 First, you need to bundle the JavaScript. If you have Node, you can just use `run-webpack`.
 For development, I use `run-pax`, since it's faster, but it doesn't run Babel so it can't be used with IE11.
 
-Run it with Cargo with these env vars set:
+Then go to `http://localhost:3001/-setup`. Check rocket.toml for your init username and password.
 
-* `MORE_INTERESTING_INIT_USERNAME`
-* `MORE_INTERESTING_INIT_PASSWORD`
+## Running on Heroku
 
-Then go to `http://localhost:3001/-setup`
+[![Deploy on Heroku](https://www.herokucdn.com/deploy/button.svg)](https://heroku.com/deploy)
 
 ## License
 

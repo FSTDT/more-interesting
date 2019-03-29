@@ -1,0 +1,8 @@
+{
+  "name": "more-interesting",
+  "version": "0.0.0",
+  "//": "This script is required for heroku's node.js buildpack; the actual stuff is all in `assets`",
+  "scripts": {
+    "postinstall": "cd assets && NODE_ENV=dev npm install && npm run webpack"
+  }
+}

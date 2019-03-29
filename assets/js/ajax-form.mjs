@@ -25,7 +25,7 @@ export class AjaxFormElement extends HTMLElement {
         }
         switch (state) {
             case "star_active":
-                img.src = "-assets/star_active.svg";
+                img.src = "assets/star_active.svg";
                 t.title = "Remove star";
                 t.formAction = '/-rm-star' + suff;
                 if (span) {
@@ -33,7 +33,7 @@ export class AjaxFormElement extends HTMLElement {
                 }
                 break;
             case "star":
-                img.src = "-assets/star.svg";
+                img.src = "assets/star.svg";
                 t.title = "Add star";
                 t.formAction = '/-add-star' + suff;
                 if (span) {
@@ -41,12 +41,12 @@ export class AjaxFormElement extends HTMLElement {
                 }
                 break;
             case "flag_active":
-                img.src = "-assets/flag_active.svg";
+                img.src = "assets/flag_active.svg";
                 t.title = "Remove flag";
                 t.formAction = '/-remove-flag';
                 break;
             case "flag":
-                img.src = "-assets/flag.svg";
+                img.src = "assets/flag.svg";
                 t.title = "Add flag";
                 t.formAction = '/-add-flag';
                 break;

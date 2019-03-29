@@ -19,8 +19,8 @@ matrix:
         chrome: stable
       env:
         - MORE_INTERESTING_WEBDRIVER=chrome
-        - MORE_INTERESTING_INIT_USERNAME=root
-        - MORE_INTERESTING_INIT_PASSWORD=ready2go
+        - ROCKET_INIT_USERNAME=root
+        - ROCKET_INIT_PASSWORD=ready2go
       before_install:
         - nvm install 10
         - cd test/webdriver && npm ci && cd ../..

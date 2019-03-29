@@ -1,3 +1,3 @@
 #!/usr/bin/env bash
 cd assets
-npm run webpack "$@"
+NODE_ENV=dev npm run webpack "$@"
