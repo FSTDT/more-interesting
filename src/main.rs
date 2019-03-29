@@ -15,6 +15,7 @@ mod password;
 mod session;
 mod base32;
 mod prettify;
+mod pid_file_fairing;
 
 use rocket::request::{Form, FlashMessage};
 use rocket::response::{Responder, Redirect, Flash};
@@ -34,6 +35,7 @@ use url::Url;
 use std::collections::HashMap;
 use v_htmlescape::escape;
 use handlebars::{Helper, Handlebars, Context, RenderContext, Output, HelperResult};
+use crate::pid_file_fairing::PidFileFairing;
 
 #[derive(Serialize, Default)]
 struct TemplateContext {
@@ -437,6 +439,7 @@ fn main() {
     //env_logger::init();
     rocket::ignite()
         .attach(MoreInterestingConn::fairing())
+        .attach(PidFileFairing)
         .mount("/", routes![index, login_form, login, logout, create_form, create, setup, get_comments, add_star, rm_star, consume_invite, get_settings, create_invite, invite_tree, change_password, post_comment, add_star_comment, rm_star_comment])
         .mount("/-assets", StaticFiles::from("assets"))
         .attach(Template::custom(|engines| {
