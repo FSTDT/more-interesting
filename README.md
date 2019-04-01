@@ -54,7 +54,7 @@ careful benchmarking and frontend design.
 ### No such thing as karma
 
 This should go without saying, but MI does not show any numbers next to a user's name, and never will.
-The closest analogue is "trust levels", but those do not grow indefinitely, so there's no incentive to game them once you pass the TL2 threshold.
+The closest analogue is "trust levels", but those do not grow indefinitely, so there's no incentive to game them once you pass the TL2 threshold, and they're hidden in your profile where people have to actively want to know about them.
 
 ### Discussion and Ranking
 
@@ -253,15 +253,19 @@ In practice, I expect the same conventions as on Twitter and Hacker News will be
 Also, the system should use global IDs for comments, and it should ensure that the comment exists before linking to it.
 In other words, I don't want `#1` to get auto-linked, so comment `#1` should only be the first comment ever made, not the first one in the thread.
 
-### Revoking sessions, and enhanced login
+### Content extraction
 
-It doesn't support it yet, but it's going to support full-blown device keying.
-So in the settings page, there'll be a list of previously seen devices, and you'll be able to individually revoke their sessions,
-like Discourse, Google, and stuff do.
+The member's reading experience trumps all other concerns. Along with all the effort to make the comment stream readable,
+More Interesting will visit linked-to sites and extract their text,
+showing it above the comment stream so that the user is encouraged to read it first.
+This will work basically the same as http://www.fullhn.com/ but baked in.
 
 ### Usability
 
 * Correctly handle [rogue double-clickers](https://blog.codinghorror.com/double-click-must-die/)
+* It doesn't support it yet, but it's going to support full-blown device keying.
+So in the settings page, there'll be a list of previously seen devices, and you'll be able to individually revoke their sessions,
+like Discourse, Google, and stuff do.
 
 ## Running locally
 
