@@ -149,7 +149,7 @@ impl MoreInterestingConn {
                 self::users::dsl::username,
             ))
             .filter(visible.eq(true))
-            .order_by(initial_stellar_time)
+            .order_by((initial_stellar_time.desc(), self::posts::dsl::created_at.desc()))
             .limit(400)
             .get_results::<(i32, Base32, String, Option<String>, bool, i32, i32, i32, bool, NaiveDateTime, i32, Option<i32>, String)>(&self.0)?
             .into_iter()
