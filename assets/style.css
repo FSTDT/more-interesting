@@ -338,6 +338,10 @@ template {
     color: #d70022;
 }
 
+.inner-link:link {
+    color: #058b00;
+}
+
 article, aside {
     display: block;
     border: solid 1px #0c0c0d;

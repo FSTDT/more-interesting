@@ -1,13 +1,7 @@
 {{#*inline "page"}}
     <ajax-form>
         <article>
-            <header class=article-header>
-                {{#if posts.0.url}}
-                    <a class=article-header-inner href="{{posts.0.url}}">{{posts.0.title}}</a>
-                {{else}}
-                    <a class=article-header-inner href={{posts.0.uuid}}>{{posts.0.title}}</a>
-                {{/if}}
-            </header>
+            <header class=article-header><span class="article-header-inner">{{{posts.0.title_html}}}</span></header>
             submitted by <a href="@{{posts.0.submitted_by_username}}">{{posts.0.submitted_by_username}}</a>
             {{#if starred_by}}
                 starred by

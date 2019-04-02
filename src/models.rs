@@ -2,13 +2,14 @@ use rocket_contrib::databases::diesel::PgConnection;
 use diesel::prelude::*;
 use diesel::result::Error as DieselError;
 use chrono::NaiveDateTime;
-use crate::schema::{users, posts, stars, invite_tokens, comments, comment_stars};
+use crate::schema::{users, posts, stars, invite_tokens, comments, comment_stars, tags, post_tagging};
 use crate::password::{password_hash, password_verify, PasswordResult};
 use serde::Serialize;
 use crate::base32::Base32;
 use std::cmp::max;
 use ordered_float::OrderedFloat;
 use std::collections::HashMap;
+use crate::prettify::{self, prettify_title};
 
 #[derive(Queryable, Serialize)]
 pub struct Post {
@@ -36,6 +37,20 @@ pub struct User {
     pub invited_by: Option<i32>,
 }
 
+impl Default for User {
+    fn default() -> Self {
+        User {
+            id: 0,
+            banned: false,
+            trust_level: 0,
+            username: "".to_string(),
+            password_hash: vec![],
+            created_at: NaiveDateTime::from_timestamp(0, 0),
+            invited_by: None,
+        }
+    }
+}
+
 pub struct NewPost<'a> {
     pub title: &'a str,
     pub url: Option<&'a str>,
@@ -47,6 +62,7 @@ pub struct PostInfo {
     pub id: i32,
     pub uuid: Base32,
     pub title: String,
+    pub title_html: String,
     pub url: Option<String>,
     pub visible: bool,
     pub hotness: f64,
@@ -122,11 +138,25 @@ pub struct NewUser<'a> {
     pub invited_by: Option<i32>,
 }
 
+pub struct NewTag<'a> {
+    pub name: &'a str,
+    pub description: Option<&'a str>,
+}
+
+#[derive(Queryable, Serialize)]
+pub struct Tag {
+    pub id: i32,
+    pub name: String,
+    pub description: Option<String>,
+    pub created_at: NaiveDateTime,
+    pub updated_at: NaiveDateTime,
+}
+
 #[database("more_interesting")]
 pub struct MoreInterestingConn(PgConnection);
 
 impl MoreInterestingConn {
-    pub fn get_recent_posts_with_starred_bit(&self, user_id_param: i32) -> Result<Vec<PostInfo>, DieselError> {
+    pub fn get_post_info_recent(&self, user_id_param: i32) -> Result<Vec<PostInfo>, DieselError> {
         use self::posts::dsl::*;
         use self::stars::dsl::*;
         use self::users::dsl::*;
@@ -153,7 +183,42 @@ impl MoreInterestingConn {
             .limit(400)
             .get_results::<(i32, Base32, String, Option<String>, bool, i32, i32, i32, bool, NaiveDateTime, i32, Option<i32>, String)>(&self.0)?
             .into_iter()
-            .map(|t| tuple_to_post_info(t, self.get_current_stellar_time()))
+            .map(|t| tuple_to_post_info(self, t, self.get_current_stellar_time()))
+            .collect();
+        all.sort_by_key(|info| OrderedFloat(-info.hotness));
+        Ok(all)
+    }
+    pub fn get_post_info_recent_by_tag(&self, user_id_param: i32, tag_id_param: i32) -> Result<Vec<PostInfo>, DieselError> {
+        use self::posts::dsl::*;
+        use self::stars::dsl::*;
+        use self::users::dsl::*;
+        use self::post_tagging::dsl::*;
+        let mut all: Vec<PostInfo> = posts
+            .left_outer_join(stars.on(self::stars::dsl::post_id.eq(self::posts::dsl::id).and(user_id.eq(user_id_param))))
+            .inner_join(users)
+            .inner_join(post_tagging)
+            .select((
+                self::posts::dsl::id,
+                self::posts::dsl::uuid,
+                self::posts::dsl::title,
+                self::posts::dsl::url,
+                self::posts::dsl::visible,
+                self::posts::dsl::initial_stellar_time,
+                self::posts::dsl::score,
+                self::posts::dsl::comment_count,
+                self::posts::dsl::authored_by_submitter,
+                self::posts::dsl::created_at,
+                self::posts::dsl::submitted_by,
+                self::stars::dsl::post_id.nullable(),
+                self::users::dsl::username,
+            ))
+            .filter(visible.eq(true))
+            .filter(self::post_tagging::tag_id.eq(tag_id_param))
+            .order_by((initial_stellar_time.desc(), self::posts::dsl::created_at.desc()))
+            .limit(400)
+            .get_results::<(i32, Base32, String, Option<String>, bool, i32, i32, i32, bool, NaiveDateTime, i32, Option<i32>, String)>(&self.0)?
+            .into_iter()
+            .map(|t| tuple_to_post_info(self, t, self.get_current_stellar_time()))
             .collect();
         all.sort_by_key(|info| OrderedFloat(-info.hotness));
         Ok(all)
@@ -163,7 +228,7 @@ impl MoreInterestingConn {
         use self::stars::dsl::*;
         use self::users::dsl::*;
         // This is a bunch of duplicate code.
-        Ok(tuple_to_post_info(posts.left_outer_join(stars.on(post_id.eq(self::posts::dsl::id).and(user_id.eq(user_id_param))))
+        Ok(tuple_to_post_info(self, posts.left_outer_join(stars.on(post_id.eq(self::posts::dsl::id).and(user_id.eq(user_id_param))))
             .inner_join(users)
             .select((
                 self::posts::dsl::id,
@@ -199,7 +264,13 @@ impl MoreInterestingConn {
             submitted_by: i32,
             initial_stellar_time: i32,
         }
-        diesel::insert_into(posts::table)
+        #[derive(Insertable)]
+        #[table_name="post_tagging"]
+        struct CreatePostTagging {
+            post_id: i32,
+            tag_id: i32,
+        }
+        let result = diesel::insert_into(posts::table)
             .values(CreatePost {
                 title: new_post.title,
                 url: new_post.url,
@@ -207,7 +278,21 @@ impl MoreInterestingConn {
                 submitted_by: new_post.submitted_by,
                 initial_stellar_time: self.get_current_stellar_time(),
             })
-            .get_result(&self.0)
+            .get_result::<Post>(&self.0);
+        if let Ok(ref post) = result {
+            let html_and_stuff = crate::prettify::prettify_title(new_post.title, "", &mut PrettifyData(self));
+            for tag in html_and_stuff.hash_tags {
+                if let Ok(tag_info) = self.get_tag_by_name(&tag) {
+                    diesel::insert_into(post_tagging::table)
+                        .values(CreatePostTagging {
+                            post_id: post.id,
+                            tag_id: tag_info.id,
+                        })
+                        .execute(&self.0)?;
+                }
+            }
+        }
+        result
     }
     pub fn add_star(&self, new_star: &NewStar) -> bool {
         let affected_rows = diesel::insert_into(stars::table)
@@ -306,6 +391,12 @@ impl MoreInterestingConn {
             .execute(&self.0)
             .map(|k| { assert_eq!(k, 1); })
     }
+    pub fn change_user_trust_level(&self, user_id_value: i32, trust_level_value: i32) -> Result<(), DieselError> {
+        use self::users::dsl::*;
+        diesel::update(users.find(user_id_value)).set(trust_level.eq(trust_level_value))
+            .execute(&self.0)
+            .map(|k| { assert_eq!(k, 1); })
+    }
     pub fn create_invite_token(&self, invited_by: i32) -> Result<InviteToken, DieselError> {
         #[derive(Insertable)]
         #[table_name="invite_tokens"]
@@ -348,19 +439,7 @@ impl MoreInterestingConn {
             post_id: i32,
             created_by: i32,
         }
-        struct Data<'a>(&'a MoreInterestingConn);
-        impl<'a> crate::prettify::Data for Data<'a> {
-            fn check_comment_ref(&mut self, _id: i32) -> bool {
-                false
-            }
-            fn check_hash_tag(&mut self, _tag: &str) -> bool {
-                false
-            }
-            fn check_username(&mut self, _username: &str) -> bool {
-                false
-            }
-        }
-        let html_and_stuff = crate::prettify::prettify(new_post.text, &mut Data(self));
+        let html_and_stuff = crate::prettify::prettify_body(new_post.text, &mut PrettifyData(self));
         self.update_comment_count_on_post(new_post.post_id, 1)?;
         diesel::insert_into(comments::table)
             .values(CreateComment{
@@ -431,12 +510,46 @@ impl MoreInterestingConn {
             .collect();
         Ok(all)
     }
+    pub fn get_tag_by_name(&self, name_param: &str) -> Result<Tag, DieselError> {
+        use self::tags::dsl::*;
+        tags
+            .filter(name.eq(name_param))
+            .get_result::<Tag>(&self.0)
+    }
+    pub fn create_or_update_tag(&self, new_tag: &NewTag) -> Result<Tag, DieselError> {
+        #[derive(Insertable)]
+        #[table_name="tags"]
+        struct CreateTag<'a> {
+            name: &'a str,
+            description: Option<&'a str>,
+        }
+        if let Ok(tag) = self.get_tag_by_name(new_tag.name) {
+            use self::tags::dsl::*;
+            diesel::update(tags.find(tag.id))
+                .set(description.eq(new_tag.description))
+                .get_result(&self.0)
+        } else {
+            diesel::insert_into(tags::table)
+                .values(CreateTag {
+                    name: new_tag.name,
+                    description: new_tag.description,
+                })
+                .get_result(&self.0)
+        }
+    }
 }
 
-fn tuple_to_post_info((id, uuid, title, url, visible, initial_stellar_time, score, comment_count, authored_by_submitter, created_at, submitted_by, starred_post_id, submitted_by_username): (i32, Base32, String, Option<String>, bool, i32, i32, i32, bool, NaiveDateTime, i32, Option<i32>, String), current_stellar_time: i32) -> PostInfo {
+fn tuple_to_post_info(conn: &MoreInterestingConn, (id, uuid, title, url, visible, initial_stellar_time, score, comment_count, authored_by_submitter, created_at, submitted_by, starred_post_id, submitted_by_username): (i32, Base32, String, Option<String>, bool, i32, i32, i32, bool, NaiveDateTime, i32, Option<i32>, String), current_stellar_time: i32) -> PostInfo {
+    let link_url = if let Some(ref url) = url {
+        url.clone()
+    } else {
+        uuid.to_string()
+    };
+    let title_html_output = prettify_title(&title, &link_url, &mut PrettifyData(conn));
+    let title_html = title_html_output.string;
     PostInfo {
         id, uuid, title, url, visible, score, authored_by_submitter, created_at,
-        submitted_by, submitted_by_username, comment_count,
+        submitted_by, submitted_by_username, comment_count, title_html,
         starred_by_me: starred_post_id.is_some(),
         hotness: compute_hotness(initial_stellar_time, current_stellar_time, score, authored_by_submitter)
     }
@@ -455,4 +568,17 @@ fn compute_hotness(initial_stellar_time: i32, current_stellar_time: i32, score: 
     let boost = if authored_by_submitter { 0.33 } else { 0.0 };
     let stellar_age = max(current_stellar_time - initial_stellar_time, 0) as f64;
     (boost + (score as f64) + 1.0) / (stellar_age + 1.0).powf(gravity)
+}
+
+struct PrettifyData<'a>(&'a MoreInterestingConn);
+impl<'a> prettify::Data for PrettifyData<'a> {
+    fn check_comment_ref(&mut self, _id: i32) -> bool {
+        false
+    }
+    fn check_hash_tag(&mut self, tag: &str) -> bool {
+        self.0.get_tag_by_name(tag).is_ok()
+    }
+    fn check_username(&mut self, username: &str) -> bool {
+        self.0.get_user_by_username(username).is_ok()
+    }
 }

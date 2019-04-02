@@ -7,6 +7,7 @@ CREATE TABLE users (
   -- 1=looser rate limit
   -- 2=able to change titles and tags on other people's posts
   -- 3=moderator
+  -- 4=admin
   -- this is a somewhat flatter hierarchy than what Discourse user,
   -- but MI is designed for smaller communities
   trust_level INTEGER NOT NULL DEFAULT 0,

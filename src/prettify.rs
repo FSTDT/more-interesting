@@ -1,9 +1,18 @@
 use v_htmlescape::escape;
 use std::fmt::{self, Display, Formatter};
+use lazy_static::lazy_static;
 
 const URL_PROTOCOLS: &[&str] = &["http:", "https:", "ftp:", "gopher:", "mailto:", "magnet:"];
 
-/// Prettify HTML: transform plain text, as described in the readme, into HTML with links.
+lazy_static!{
+    static ref CLEANER: ammonia::Builder<'static> = {
+        let mut b = ammonia::Builder::default();
+        b.add_allowed_classes("a", ["inner-link"][..].iter().cloned());
+        b
+    };
+}
+
+/// Prettify: transform plain text, as described in the readme, into HTML with links.
 ///
 /// # Syntax
 ///
@@ -28,7 +37,7 @@ const URL_PROTOCOLS: &[&str] = &["http:", "https:", "ftp:", "gopher:", "mailto:"
 ///
 /// - `text`: A plain text input (well, there are five special syntactic constructs)
 /// - `data`: Used to check if particular usernames exist.
-pub fn prettify<D: Data>(mut text: &str, data: &mut D) -> Output {
+pub fn prettify_body<D: Data>(mut text: &str, data: &mut D) -> Output {
     let mut ret_val = Output::with_capacity(text.len());
     ret_val.push_str("<p>");
     while let Some(c) = text.as_bytes().get(0) {
@@ -56,7 +65,7 @@ pub fn prettify<D: Data>(mut text: &str, data: &mut D) -> Output {
                     ret_val.push_str("</a>&gt;");
                 } else if contents.starts_with('@') {
                     ret_val.push_str("&lt;");
-                    maybe_write_username(&contents[1..], data, &mut ret_val);
+                    maybe_write_username(&contents[1..], data, &mut ret_val, None);
                     ret_val.push_str("&gt;");
                 } else if contents.contains('@') {
                     let html = escape(&contents).to_string();
@@ -67,7 +76,7 @@ pub fn prettify<D: Data>(mut text: &str, data: &mut D) -> Output {
                     ret_val.push_str("</a>&lt;");
                 } else if contents.starts_with('#') {
                     ret_val.push_str("&lt;");
-                    maybe_write_number_sign(&contents[1..], data, &mut ret_val);
+                    maybe_write_number_sign(&contents[1..], data, &mut ret_val, None);
                     ret_val.push_str("&gt;");
                 } else {
                     ret_val.push_str(&escape(&text[..count]).to_string());
@@ -77,12 +86,12 @@ pub fn prettify<D: Data>(mut text: &str, data: &mut D) -> Output {
             }
             b'@' => {
                 let contents = scan_lexical_token(&text[1..], false);
-                maybe_write_username(contents, data, &mut ret_val);
+                maybe_write_username(contents, data, &mut ret_val, None);
                 text = &text[(1 + contents.len())..];
             }
             b'#' => {
                 let contents = scan_lexical_token(&text[1..], false);
-                maybe_write_number_sign(contents, data, &mut ret_val);
+                maybe_write_number_sign(contents, data, &mut ret_val, None);
                 text = &text[(1 + contents.len())..];
             }
             _ if starts_with_url_protocol(text) => {
@@ -137,19 +146,96 @@ pub fn prettify<D: Data>(mut text: &str, data: &mut D) -> Output {
             }
         }
     }
-    ret_val.string = ammonia::clean(&ret_val.string).to_string();
+    ret_val.string = CLEANER.clean(&ret_val.string).to_string();
     ret_val
 }
 
-fn maybe_write_username<D: Data>(username_without_at: &str, data: &mut D, out: &mut Output) {
+/// Prettify a title line: similar to `prettify_body`, but without paragraph breaks
+pub fn prettify_title<D: Data>(mut text: &str, url: &str, data: &mut D) -> Output {
+    let mut ret_val = Output::with_capacity(text.len());
+    ret_val.push_str("<a href=\"");
+    ret_val.push_str(url);
+    ret_val.push_str("\">");
+    while let Some(c) = text.as_bytes().get(0) {
+        match c {
+            b'<' => {
+                let (contents, count) = scan_angle_brackets(text);
+                assert_ne!(count, 0);
+                if contents == "" {
+                    for _ in 0..count {
+                        ret_val.push_str("&lt;");
+                    }
+                } else if contents.starts_with('@') {
+                    ret_val.push_str("&lt;");
+                    maybe_write_username(&contents[1..], data, &mut ret_val, Some(url));
+                    ret_val.push_str("&gt;");
+                } else if contents.starts_with('#') {
+                    ret_val.push_str("&lt;");
+                    maybe_write_number_sign(&contents[1..], data, &mut ret_val, Some(url));
+                    ret_val.push_str("&gt;");
+                } else {
+                    ret_val.push_str(&escape(&text[..count]).to_string());
+                }
+                assert_ne!(0, count);
+                text = &text[count..];
+            }
+            b'@' => {
+                let contents = scan_lexical_token(&text[1..], false);
+                maybe_write_username(contents, data, &mut ret_val, Some(url));
+                text = &text[(1 + contents.len())..];
+            }
+            b'#' => {
+                let contents = scan_lexical_token(&text[1..], false);
+                maybe_write_number_sign(contents, data, &mut ret_val, Some(url));
+                text = &text[(1 + contents.len())..];
+            }
+            b' ' => {
+                ret_val.push_str(" ");
+                text = &text[1..];
+            }
+            _ => {
+                let mut i = 1;
+                fn is_normal(c: u8) -> bool {
+                    match c {
+                        b'<' | b'@' | b'#' | b' ' | b'\n' | b'*' | b'(' => false,
+                        _ => true,
+                    }
+                }
+                while text.as_bytes().get(i).cloned().map(is_normal).unwrap_or(false) {
+                    if starts_with_url_protocol(&text[i..]) || text[i..].starts_with("www.") {
+                        break;
+                    }
+                    i += 1;
+                }
+                ret_val.push_str(&escape(&text[..i]).to_string());
+                text = &text[i..];
+            }
+        }
+    }
+    ret_val.push_str("</a>");
+    ret_val.string = CLEANER.clean(&ret_val.string).to_string();
+    ret_val
+}
+
+fn maybe_write_username<D: Data>(username_without_at: &str, data: &mut D, out: &mut Output, embedded: Option<&str>) {
     let html = escape(&username_without_at).to_string();
     if data.check_username(username_without_at) {
         out.usernames.push(username_without_at.to_owned());
-        out.push_str("<a href=\"@");
+        if embedded.is_some() {
+            out.push_str("</a><a class=inner-link href=\"@");
+        } else {
+            out.push_str("<a href=\"@");
+        }
         out.push_str(&html);
         out.push_str("\">@");
         out.push_str(&html);
-        out.push_str("</a>");
+        if let Some(embedded) = embedded {
+            out.push_str("</a><a href=\"");
+            out.push_str(embedded);
+            out.push_str("\">");
+        } else {
+            out.push_str("</a>");
+        }
     } else {
         out.push_str("@");
         out.push_str(&html);
@@ -163,24 +249,44 @@ fn starts_with_url_protocol(s: &str) -> bool {
     false
 }
 
-fn maybe_write_number_sign<D: Data>(number_without_sign: &str, data: &mut D, out: &mut Output) {
+fn maybe_write_number_sign<D: Data>(number_without_sign: &str, data: &mut D, out: &mut Output, embedded: Option<&str>) {
     let html = escape(number_without_sign).to_string();
     match data.check_number_sign(number_without_sign) {
         NumberSign::Tag(tag) => {
             out.hash_tags.push(tag.to_owned());
-            out.push_str("<a href=\"%20");
-            out.push_str(&html);
-            out.push_str("%20\">#");
-            out.push_str(&html);
-            out.push_str("</a>");
-        }
-        NumberSign::Comment(id) => {
-            out.comment_refs.push(id);
-            out.push_str("<a href=\"#");
+            if embedded.is_some() {
+                out.push_str("</a><a class=inner-link href=\"?tag=");
+            } else {
+                out.push_str("<a href=\"?tag=");
+            }
             out.push_str(&html);
             out.push_str("\">#");
             out.push_str(&html);
-            out.push_str("</a>");
+            if let Some(embedded) = embedded {
+                out.push_str("</a><a href=\"");
+                out.push_str(embedded);
+                out.push_str("\">");
+            } else {
+                out.push_str("</a>");
+            }
+        }
+        NumberSign::Comment(id) => {
+            out.comment_refs.push(id);
+            if embedded.is_some() {
+                out.push_str("</a><a class=inner-link href=\"#");
+            } else {
+                out.push_str("<a href=\"#");
+            }
+            out.push_str(&html);
+            out.push_str("\">#");
+            out.push_str(&html);
+            if let Some(embedded) = embedded {
+                out.push_str("</a><a href=\"");
+                out.push_str(embedded);
+                out.push_str("\">");
+            } else {
+                out.push_str("</a>");
+            }
         }
         NumberSign::None => {
             out.push_str("#");
@@ -366,6 +472,27 @@ mod test {
         }
     }
     #[test]
+    fn test_example_title() {
+        let title = "this is a #test for #words here";
+
+        struct MyData;
+        impl Data for MyData {
+            fn check_comment_ref(&mut self, id: i32) -> bool {
+                id == 12345
+            }
+            fn check_hash_tag(&mut self, tag: &str) -> bool {
+                tag == "words"
+            }
+            fn check_username(&mut self, username: &str) -> bool {
+                username == "mentioning"
+            }
+        }
+
+        let html = "<a href=\"url\">this is a #test for </a><a class=embedded-link href=\"+words\">#words</a><a href=\"url\"> here</a>";
+
+        assert_eq!(prettify_title(comment, &mut MyData).string, ammonia::clean(html));
+    }
+    #[test]
     fn test_example() {
 let comment = r####"Write my comment here.
 
@@ -389,7 +516,7 @@ let html = r####"<p>Write my comment here.
 
 <p><a href="#12345">#12345</a> numbers will link to another comment on the same post.
 
-<p><a href="%20words%20">#words</a> are hash tags, just like on Twitter.
+<p><a href="+words">#words</a> are hash tags, just like on Twitter.
 
 <p>Consecutive line breaks are paragraph breaks, like in Markdown.
 
@@ -412,6 +539,6 @@ fn check_username(&mut self, username: &str) -> bool {
 }
 }
 
-assert_eq!(prettify(comment, &mut MyData).string, ammonia::clean(html));
+assert_eq!(prettify_body(comment, &mut MyData).string, ammonia::clean(html));
     }
 }

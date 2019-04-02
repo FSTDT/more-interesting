@@ -28,7 +28,7 @@ use rocket_contrib::serve::StaticFiles;
 use rocket_contrib::templates::{Template, handlebars};
 use serde::Serialize;
 use std::borrow::Cow;
-use crate::models::{PostInfo, NewStar, NewUser, CommentInfo, NewPost, NewComment, NewStarComment};
+use crate::models::{PostInfo, NewStar, NewUser, CommentInfo, NewPost, NewComment, NewStarComment, NewTag};
 use base32::Base32;
 use url::Url;
 use std::collections::HashMap;
@@ -37,6 +37,7 @@ use handlebars::{Helper, Handlebars, Context, RenderContext, Output, HelperResul
 use crate::pid_file_fairing::PidFileFairing;
 use rocket::fairing;
 use rocket::State;
+use session::SeniorUser;
 
 #[derive(Serialize, Default)]
 struct TemplateContext {
@@ -81,7 +82,7 @@ struct MaybeRedirect {
 impl MaybeRedirect {
     pub fn maybe_redirect(self) -> Result<impl Responder<'static>, Status> {
         match self.redirect {
-            Some(b) if b == Base32::zero() => Ok(Redirect::to(uri!(index))),
+            Some(b) if b == Base32::zero() => Ok(Redirect::to("/")),
             Some(b) => Ok(Redirect::to(uri!(get_comments: b))),
             None => Err(Status::Created)
         }
@@ -156,15 +157,26 @@ fn vote_comment(conn: MoreInterestingConn, user: User, redirect: Form<MaybeRedir
     }
 }
 
-#[get("/")]
-fn index(conn: MoreInterestingConn, user: Option<User>, flash: Option<FlashMessage>) -> impl Responder<'static> {
+#[derive(FromForm)]
+struct IndexParams {
+    tag: Option<String>,
+}
+
+#[get("/?<params..>")]
+fn index(conn: MoreInterestingConn, user: Option<User>, flash: Option<FlashMessage>, params: Option<Form<IndexParams>>) -> impl Responder<'static> {
     let (username, user_id) = user.map(|u| (u.username, u.id)).unwrap_or((String::new(), 0));
+    let posts = if let Some(tag_name) = params.as_ref().and_then(|params| params.tag.as_ref()) {
+        conn.get_tag_by_name(tag_name)
+            .and_then(|tag| conn.get_post_info_recent_by_tag(user_id, tag.id))
+            .unwrap_or(Vec::new())
+    }  else {
+        conn.get_post_info_recent(user_id).unwrap_or(Vec::new())
+    };
     Template::render("index", &TemplateContext {
         title: Cow::Borrowed("home"),
-        posts: conn.get_recent_posts_with_starred_bit(user_id).expect("getting hot posts should always work"),
         parent: "layout",
         alert: flash.map(|f| f.msg().to_owned()),
-        username,
+        username, posts,
         ..default()
     })
 }
@@ -188,11 +200,13 @@ struct NewPostForm {
 #[post("/submit", data = "<post>")]
 fn create(user: User, conn: MoreInterestingConn, post: Form<NewPostForm>) -> Result<impl Responder<'static>, Status> {
     let NewPostForm { title, url } = &*post;
-    let url = url.as_ref().map(|u| {
-        if !u.contains(":") && !u.starts_with("//") {
-            format!("https://{}", u)
+    let url = url.as_ref().and_then(|u| {
+        if u == "" {
+            None
+        } else if !u.contains(":") && !u.starts_with("//") {
+            Some(format!("https://{}", u))
         } else {
-            u.to_owned()
+            Some(u.to_owned())
         }
     });
     match conn.create_post(&NewPost {
@@ -200,7 +214,7 @@ fn create(user: User, conn: MoreInterestingConn, post: Form<NewPostForm>) -> Res
         url: url.as_ref().map(|s| &s[..]),
         submitted_by: user.id,
     }) {
-        Ok(_) => Ok(Redirect::to(uri!(index))),
+        Ok(_) => Ok(Redirect::to("/")),
         Err(e) => {
             warn!("{:?}", e);
             Err(Status::InternalServerError)
@@ -231,10 +245,10 @@ fn login(conn: MoreInterestingConn, post: Form<UserForm>, mut cookies: Cookies) 
     }) {
         Some(user) => {
             cookies.add_private(Cookie::new("user_id", user.id.to_string()));
-            Flash::success(Redirect::to(uri!(index)), "Congrats, you're in!")
+            Flash::success(Redirect::to("/"), "Congrats, you're in!")
         },
         None => {
-            Flash::error(Redirect::to(uri!(index)), "Incorrect username or password")
+            Flash::error(Redirect::to("/"), "Incorrect username or password")
         },
     }
 }
@@ -244,7 +258,7 @@ fn logout(mut cookies: Cookies) -> impl Responder<'static> {
     if let Some(cookie) = cookies.get_private("user_id") {
         cookies.remove_private(cookie);
     }
-    Redirect::to(uri!(index))
+    Redirect::to("/")
 }
 
 #[get("/<uuid>")]
@@ -321,7 +335,7 @@ fn consume_invite(conn: MoreInterestingConn, form: Form<ConsumeInviteForm>, mut 
             invited_by: Some(invite_token.invited_by),
         }) {
             cookies.add_private(Cookie::new("user_id", user.id.to_string()));
-            return Ok(Flash::success(Redirect::to(uri!(index)), "Congrats, you're in!"));
+            return Ok(Flash::success(Redirect::to("/"), "Congrats, you're in!"));
         }
     }
     Err(Status::BadRequest)
@@ -379,6 +393,38 @@ fn invite_tree(conn: MoreInterestingConn, user: Option<User>) -> impl Responder<
     })
 }
 
+#[get("/edit-tags")]
+fn get_edit_tags(_conn: MoreInterestingConn, user: SeniorUser, flash: Option<FlashMessage>) -> impl Responder<'static> {
+    Template::render("edit-tags", &TemplateContext {
+        title: Cow::Borrowed("add or edit tags"),
+        parent: "layout",
+        username: user.0.username,
+        alert: flash.map(|f| f.msg().to_owned()),
+        ..default()
+    })
+}
+
+#[derive(FromForm)]
+struct EditTagsForm {
+    name: String,
+    description: Option<String>,
+}
+
+#[post("/edit-tags", data = "<form>")]
+fn edit_tags(conn: MoreInterestingConn, _user: SeniorUser, form: Form<EditTagsForm>) -> impl Responder<'static> {
+    match conn.create_or_update_tag(&NewTag {
+        name: &form.name,
+        description: form.description.as_ref().map(|d| &d[..])
+    }) {
+        Ok(_) => {
+            Flash::success(Redirect::to(uri!(get_edit_tags)), "Updated site tags")
+        }
+        Err(e) => {
+            debug!("Unable to update site tags: {:?}", e);
+            Flash::error(Redirect::to(uri!(get_edit_tags)), "Unable to update site tags")
+        }
+    }
+}
 
 #[derive(FromForm)]
 struct ChangePasswordForm {
@@ -440,16 +486,17 @@ fn main() {
                 let username = config.get_str("init_username").ok();
                 let password = config.get_str("init_password").ok();
                 if let (Some(username), Some(password)) = (username, password) {
-                    conn.register_user(&NewUser {
+                    let user = conn.register_user(&NewUser {
                         username: &username[..],
                         password: &password[..],
                         invited_by: None,
                     }).expect("registering the initial user should always succeed");
+                    conn.change_user_trust_level(user.id, 4).expect("to make the initial user an admin");
                 }
             }
             Ok(rocket)
         }))
-        .mount("/", routes![index, login_form, login, logout, create_form, create, get_comments, vote, consume_invite, get_settings, create_invite, invite_tree, change_password, post_comment, vote_comment])
+        .mount("/", routes![index, login_form, login, logout, create_form, create, get_comments, vote, consume_invite, get_settings, create_invite, invite_tree, change_password, post_comment, vote_comment, get_edit_tags, edit_tags])
         .mount("/assets", StaticFiles::from("assets"))
         .attach(Template::custom(|engines| {
             engines.handlebars.register_helper("count", Box::new(count_helper));

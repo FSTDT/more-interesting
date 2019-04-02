@@ -3,6 +3,7 @@ use rocket::Request;
 use rocket::http::Status;
 use rocket::Outcome;
 use crate::models::*;
+use std::mem;
 
 impl<'a, 'r> FromRequest<'a, 'r> for User {
     type Error = ();
@@ -21,6 +22,21 @@ impl<'a, 'r> FromRequest<'a, 'r> for User {
             }
         } else {
             Outcome::Failure((Status::BadRequest, ()))
+        }
+    }
+}
+
+pub struct SeniorUser(pub User);
+
+impl<'a, 'r> FromRequest<'a, 'r> for SeniorUser {
+    type Error = ();
+
+    fn from_request(request: &'a Request<'r>) -> Outcome<SeniorUser, (Status, ()), ()> {
+        match User::from_request(request) {
+            Outcome::Success(ref mut user) if user.trust_level >= 2 => Outcome::Success(SeniorUser(mem::replace(user, User::default()))),
+            Outcome::Success(_junior_user) => Outcome::Failure((Status::BadRequest, ())),
+            Outcome::Failure(f) => Outcome::Failure(f),
+            Outcome::Forward(f) => Outcome::Forward(f),
         }
     }
 }

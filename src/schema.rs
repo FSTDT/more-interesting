@@ -27,6 +27,13 @@ table! {
 }
 
 table! {
+    post_tagging (post_id, tag_id) {
+        post_id -> Int4,
+        tag_id -> Int4,
+    }
+}
+
+table! {
     posts (id) {
         id -> Int4,
         uuid -> Int8,
@@ -51,6 +58,16 @@ table! {
 }
 
 table! {
+    tags (id) {
+        id -> Int4,
+        name -> Varchar,
+        description -> Nullable<Varchar>,
+        created_at -> Timestamp,
+        updated_at -> Timestamp,
+    }
+}
+
+table! {
     users (id) {
         id -> Int4,
         banned -> Bool,
@@ -67,6 +84,8 @@ joinable!(comment_stars -> users (user_id));
 joinable!(comments -> posts (post_id));
 joinable!(comments -> users (created_by));
 joinable!(invite_tokens -> users (invited_by));
+joinable!(post_tagging -> posts (post_id));
+joinable!(post_tagging -> tags (tag_id));
 joinable!(posts -> users (submitted_by));
 joinable!(stars -> posts (post_id));
 joinable!(stars -> users (user_id));
@@ -75,7 +94,9 @@ allow_tables_to_appear_in_same_query!(
     comment_stars,
     comments,
     invite_tokens,
+    post_tagging,
     posts,
     stars,
+    tags,
     users,
 );
