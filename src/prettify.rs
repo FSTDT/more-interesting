@@ -255,9 +255,9 @@ fn maybe_write_number_sign<D: Data>(number_without_sign: &str, data: &mut D, out
         NumberSign::Tag(tag) => {
             out.hash_tags.push(tag.to_owned());
             if embedded.is_some() {
-                out.push_str("</a><a class=inner-link href=\"?tag=");
+                out.push_str("</a><a class=inner-link href=\"/?tag=");
             } else {
-                out.push_str("<a href=\"?tag=");
+                out.push_str("<a href=\"/?tag=");
             }
             out.push_str(&html);
             out.push_str("\">#");
@@ -488,9 +488,9 @@ mod test {
             }
         }
 
-        let html = "<a href=\"url\">this is a #test for </a><a class=embedded-link href=\"+words\">#words</a><a href=\"url\"> here</a>";
+        let html = "<a href=\"url\">this is a #test for </a><a class=inner-link href=\"/?tag=words\">#words</a><a href=\"url\"> here</a>";
 
-        assert_eq!(prettify_title(comment, &mut MyData).string, ammonia::clean(html));
+        assert_eq!(prettify_title(title, "url", &mut MyData).string, CLEANER.clean(html).to_string());
     }
     #[test]
     fn test_example() {
@@ -516,7 +516,7 @@ let html = r####"<p>Write my comment here.
 
 <p><a href="#12345">#12345</a> numbers will link to another comment on the same post.
 
-<p><a href="+words">#words</a> are hash tags, just like on Twitter.
+<p><a href="/?tag=words">#words</a> are hash tags, just like on Twitter.
 
 <p>Consecutive line breaks are paragraph breaks, like in Markdown.
 
@@ -539,6 +539,6 @@ fn check_username(&mut self, username: &str) -> bool {
 }
 }
 
-assert_eq!(prettify_body(comment, &mut MyData).string, ammonia::clean(html));
+assert_eq!(prettify_body(comment, &mut MyData).string, CLEANER.clean(html).to_string());
     }
 }
