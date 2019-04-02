@@ -3,7 +3,8 @@
 {{#each posts}}
     <article>
         <header class=article-header><span class="article-header-inner">{{{this.title_html}}}</span></header>
-        submitted by <a href="@{{this.submitted_by_username}}">{{this.submitted_by_username}}</a> |
+        submitted by <a href="@{{this.submitted_by_username}}">{{this.submitted_by_username}}</a>
+        {{date this.created_at}} and got
         <a href={{this.uuid}}>{{this.comment_count}} comments</a>
         <form class=module-aside action="vote?redirect=2" method=POST>
             <button name="{{#if this.starred_by_me}}rm_star{{else}}add_star{{/if}}" value={{this.uuid}} title="{{#if this.starred_by_me}}Remove star{{else}}Add star{{/if}}">

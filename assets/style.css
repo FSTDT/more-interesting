@@ -88,9 +88,10 @@ a:hover {
 }
 
 abbr[title] {
-    border-bottom: none; /* 1 */
-    text-decoration: underline; /* 2 */
-    text-decoration: underline dotted; /* 2 */
+    /* this is the opposite of how normalize.css does it */
+    /* it's done this way to get consistent appearance with IE11 */
+    border-bottom: dotted 1px currentColor;
+    text-decoration: inherit;
 }
 
 b,
@@ -526,4 +527,8 @@ details-dialog {
 
 p {
     margin-top: 0;
+}
+
+local-date {
+    border-bottom: dotted 1px currentColor;
 }

@@ -466,6 +466,43 @@ fn count_helper(
     Ok(())
 }
 
+fn date_helper(
+    h: &Helper,
+    _: &Handlebars,
+    _: &Context,
+    _: &mut RenderContext,
+    out: &mut Output
+) -> HelperResult {
+    // Design rationale:
+    //
+    // - NaiveDateTime is used for timestamps because they're always in the past,
+    //   and are conventionally UTC. They are also only really used for display,
+    //   not scheduling, so jitter is acceptable.
+    // - "Humanization" is done on the server side to avoid layout jumping after the
+    //   JS loads, and is always done in a relative way that is timezone agnostic.
+    //   Localized dates, which can't be shown until after the JS loads because
+    //   timezones can't be reliably pulled from HTTP headers, are relegated
+    //   to tooltips.
+    use chrono::{Duration, Utc, NaiveDateTime};
+    use chrono_humanize::{Accuracy, HumanTime, Tense};
+    if let Some(param) = h.param(0) {
+        if let serde_json::Value::String(date) = param.value() {
+            out.write("<local-date title=\"")?;
+            out.write(&v_htmlescape::escape(&date).to_string())?;
+            out.write("+00:00\">")?;
+            if let Ok(dt) = NaiveDateTime::parse_from_str(&date, "%Y-%m-%dT%H:%M:%S%.f") {
+                let h = HumanTime::from(dt - Utc::now().naive_utc());
+                out.write(&v_htmlescape::escape(&h).to_text_en(Accuracy::Rough, Tense::Past))?;
+            } else {
+                warn!("Invalid timestamp: {:?}", date);
+                out.write(&v_htmlescape::escape(&date).to_string())?;
+            }
+            out.write("</local-date>")?;
+        }
+    }
+    Ok(())
+}
+
 struct PublicUrl(Url);
 
 fn main() {
@@ -501,6 +538,7 @@ fn main() {
         .mount("/assets", StaticFiles::from("assets"))
         .attach(Template::custom(|engines| {
             engines.handlebars.register_helper("count", Box::new(count_helper));
+            engines.handlebars.register_helper("date", Box::new(date_helper));
         }))
         .attach(PidFileFairing)
         .launch();
