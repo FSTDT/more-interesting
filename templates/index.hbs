@@ -2,13 +2,7 @@
 <ajax-form>
 {{#each posts}}
     <article>
-        <header class=article-header>
-            {{#if this.url}}
-                <a class=article-header-inner href="{{this.url}}">{{this.title}}</a>
-            {{else}}
-                <a class=article-header-inner href={{this.uuid}}>{{this.title}}</a>
-            {{/if}}
-        </header>
+        <header class=article-header><span class="article-header-inner">{{{this.title_html}}}</span></header>
         submitted by <a href="@{{this.submitted_by_username}}">{{this.submitted_by_username}}</a> |
         <a href={{this.uuid}}>{{this.comment_count}} comments</a>
         <form class=module-aside action="vote?redirect=2" method=POST>

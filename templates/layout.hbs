@@ -6,23 +6,26 @@
     <nav>
         <a class=top-header-link href="/">Home</a>
         <details-menu-bar class=top-header-aside role=menubar>
-            {{#if username}}
+            {{#if user.username}}
                 <details class="details-menu-outer backwards" role=menuitem>
                     <summary class="details-menu-summary backwards" aria-haspopup=menu>+</summary>
                     <form class="details-menu-inner backwards" role=menu>
-                        <a class=details-menu-item href="submit" role=menuitem>Create Post</a>
+                        <a class=details-menu-item href="submit" role=menuitem>Create post</a>
+                        {{#if (gte user.trust_level 2)}}
+                        <a class=details-menu-item href="edit-tags" role=menuitem>Edit tags</a>
+                        {{/if}}
                     </form>
                 </details>
                 <details class="details-menu-outer backwards" role=menuitem>
-                    <summary class="details-menu-summary backwards" aria-haspopup=menu>{{username}}</summary>
+                    <summary class="details-menu-summary backwards" aria-haspopup=menu>{{user.username}}</summary>
                     <form class="details-menu-inner backwards" role=menu action=logout method=POST>
                         <a class=details-menu-item href=settings role=menuitem>Settings</a>
-                        <a class=details-menu-item href="@{{username}}" role=menuitem>Your profile</a>
-                        <button class=details-menu-item role=menuitem>Sign Out</button>
+                        <a class=details-menu-item href="@{{user.username}}" role=menuitem>Your profile</a>
+                        <button class=details-menu-item role=menuitem>Sign out</button>
                     </form>
                 </details>
             {{else}}
-                <a class=button href=login role=menuitem>LOG IN</a>
+                <a class=button href=login role=menuitem>Sign in</a>
             {{/if}}
         </details-menu-bar>
     </nav>
@@ -35,7 +38,8 @@
 </div></main>
 <footer class=top-header>
     <nav>
-        <a href="@" class=top-header-link>User Invite Tree</a>
+        <a href="@" class=top-header-link>All users</a>
+        <a href="tags" class=top-header-link>All tags</a>
     </nav>
 </footer>
 <script>
