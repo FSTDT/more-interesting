@@ -2,6 +2,9 @@
     <ajax-form>
         <article>
             <header class=article-header><span class="article-header-inner">{{{posts.0.title_html}}}</span></header>
+            {{#if posts.0.excerpt_html}}
+                <main>{{{posts.0.excerpt_html}}}</main>
+            {{/if}}
             submitted by <a href="@{{posts.0.submitted_by_username}}">{{posts.0.submitted_by_username}}</a>
             on {{date posts.0.created_at}}
             {{#if starred_by}}

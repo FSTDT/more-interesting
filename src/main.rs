@@ -196,11 +196,12 @@ fn create_form(user: User) -> impl Responder<'static> {
 struct NewPostForm {
     title: String,
     url: Option<String>,
+    excerpt: Option<String>,
 }
 
 #[post("/submit", data = "<post>")]
 fn create(user: User, conn: MoreInterestingConn, post: Form<NewPostForm>) -> Result<impl Responder<'static>, Status> {
-    let NewPostForm { title, url } = &*post;
+    let NewPostForm { title, url, excerpt } = &*post;
     let url = url.as_ref().and_then(|u| {
         if u == "" {
             None
@@ -210,10 +211,12 @@ fn create(user: User, conn: MoreInterestingConn, post: Form<NewPostForm>) -> Res
             Some(u.to_owned())
         }
     });
+    let excerpt = excerpt.as_ref().and_then(|k| if k == "" { None } else { Some(&k[..]) });
     match conn.create_post(&NewPost {
         title: &title,
         url: url.as_ref().map(|s| &s[..]),
         submitted_by: user.id,
+        excerpt
     }) {
         Ok(_) => Ok(Redirect::to("/")),
         Err(e) => {
