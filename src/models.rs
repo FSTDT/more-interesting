@@ -26,7 +26,7 @@ pub struct Post {
     pub submitted_by: i32,
 }
 
-#[derive(Queryable)]
+#[derive(Queryable, Serialize)]
 pub struct User {
     pub id: i32,
     pub banned: bool,
@@ -536,6 +536,10 @@ impl MoreInterestingConn {
                 })
                 .get_result(&self.0)
         }
+    }
+    pub fn get_all_tags(&self) -> Result<Vec<Tag>, DieselError> {
+        use self::tags::dsl::*;
+        tags.get_results::<Tag>(&self.0)
     }
 }
 
