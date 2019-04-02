@@ -483,7 +483,7 @@ fn date_helper(
     //   Localized dates, which can't be shown until after the JS loads because
     //   timezones can't be reliably pulled from HTTP headers, are relegated
     //   to tooltips.
-    use chrono::{Duration, Utc, NaiveDateTime};
+    use chrono::{Utc, NaiveDateTime};
     use chrono_humanize::{Accuracy, HumanTime, Tense};
     if let Some(param) = h.param(0) {
         if let serde_json::Value::String(date) = param.value() {
@@ -492,7 +492,7 @@ fn date_helper(
             out.write("+00:00\">")?;
             if let Ok(dt) = NaiveDateTime::parse_from_str(&date, "%Y-%m-%dT%H:%M:%S%.f") {
                 let h = HumanTime::from(dt - Utc::now().naive_utc());
-                out.write(&v_htmlescape::escape(&h).to_text_en(Accuracy::Rough, Tense::Past))?;
+                out.write(&v_htmlescape::escape(&h.to_text_en(Accuracy::Rough, Tense::Past)).to_string())?;
             } else {
                 warn!("Invalid timestamp: {:?}", date);
                 out.write(&v_htmlescape::escape(&date).to_string())?;
