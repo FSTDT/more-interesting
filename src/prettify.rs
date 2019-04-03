@@ -37,7 +37,9 @@ lazy_static!{
 ///
 /// - `text`: A plain text input (well, there are five special syntactic constructs)
 /// - `data`: Used to check if particular usernames exist.
-pub fn prettify_body<D: Data>(mut text: &str, data: &mut D) -> Output {
+pub fn prettify_body<D: Data>(text: &str, data: &mut D) -> Output {
+    let text = text.replace("\r\n", "\n");
+    let mut text = &text[..];
     let mut ret_val = Output::with_capacity(text.len());
     ret_val.push_str("<p>");
     while let Some(c) = text.as_bytes().get(0) {
@@ -491,6 +493,24 @@ mod test {
         let html = "<a href=\"url\">this is a #test for </a><a class=inner-link href=\"/?tag=words\">#words</a><a href=\"url\"> here</a>";
 
         assert_eq!(prettify_title(title, "url", &mut MyData).string, CLEANER.clean(html).to_string());
+    }
+    #[test]
+    fn test_windows_newlines() {
+        let comment = "test\r\n\r\npost";
+        let html = "<p>test\n\n<p>post";
+        struct MyData;
+        impl Data for MyData {
+            fn check_comment_ref(&mut self, id: i32) -> bool {
+                id == 12345
+            }
+            fn check_hash_tag(&mut self, tag: &str) -> bool {
+                tag == "words"
+            }
+            fn check_username(&mut self, username: &str) -> bool {
+                username == "mentioning"
+            }
+        }
+        assert_eq!(prettify_body(comment, &mut MyData).string, CLEANER.clean(html).to_string());
     }
     #[test]
     fn test_example() {
