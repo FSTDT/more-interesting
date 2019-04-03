@@ -37,11 +37,14 @@ and they are intentionally designed to escalate quickly (three flags are enough 
 good feedback, so that users are encouraged to employ them,
 and don't give up on them ["because it's ineffective"](https://lobste.rs/s/v9rktg/new_users_ethics_civility_threads_you#c_xm6qwm).
 
-### Private, invite-only, fast
+### Private, invite-only-by-default, fast
 
-More Interesting is going to have an invite tree.
+More Interesting is going to have an invite tree by default, like Lobsters does. It'll be possible to turn it off,
+but that's a low-priority compared to getting all the core interactions right first. Comments and likes will always require accounts,
+just because the anonymous contributions are the source of 99% of the abuse.
  
-More Interesting doesn't require your email address, phone number, IP address, or other PII information.
+More Interesting doesn't require your email address, phone number, IP address, or other PII information. It doesn't ask,
+and it never will require it.
 
 More Interesting allows users to participate without JavaScript. While the vote buttons probably will use JS, most other forms of interaction shouldn't need it. See [details-dialog](https://github.com/github/details-dialog-element), the menues in [bors-ng](https://app.bors.tech), and [this post](https://dev.to/winduptoy/a-javascript-free-frontend-2d3e).
 
@@ -182,13 +185,10 @@ Like Lobsters, and unlike Hacker News and Reddit, there is no secret sauce and t
 
 ### Tagging
 
-All posts need at least one tag and at most four.
+More Interesting additionally will allow you to mark a post as something you authored, which gives it a small boost.
+The self-authorship boost will be optional, so some server operators can remove it.
 
-Because More Interesting is designed to be a news site, with no specific "tech" focus, it allows tags to be completely
-user-driven. There is also no penalty associated with particular tags, other than the fact that users can filter certain
-tags out.
-
-More Interesting additionally allows you to mark a post as something you authored, which gives it a small boost.
+It will require you to have at least one tag, though that's not implemented yet.
 
 Copying hats from lobsters (essentially, allowing someone to tag their post with a flair who's authenticity was vetted by the mods) also seems like a good idea.
 
