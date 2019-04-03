@@ -16,6 +16,7 @@ mod session;
 mod base32;
 mod prettify;
 mod pid_file_fairing;
+mod extract_excerpt;
 
 use rocket::request::{Form, FlashMessage};
 use rocket::response::{Responder, Redirect, Flash};
@@ -227,7 +228,16 @@ fn create(user: User, conn: MoreInterestingConn, post: Form<NewPostForm>) -> Res
             Some(u.to_owned())
         }
     });
-    let excerpt = excerpt.as_ref().and_then(|k| if k == "" { None } else { Some(&k[..]) });
+    let e;
+    let mut excerpt = excerpt.as_ref().and_then(|k| if k == "" { None } else { Some(&k[..]) });
+    if let (None, Some(url)) = (excerpt, &url) {
+        if let Ok(url) = Url::parse(url) {
+            e = extract_excerpt::extract_excerpt_url(url);
+            if e != "" {
+                excerpt = Some(&e);
+            }
+        }
+    }
     match conn.create_post(&NewPost {
         title: &title,
         url: url.as_ref().map(|s| &s[..]),
