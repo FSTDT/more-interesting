@@ -4,11 +4,15 @@
   "repository": "https://github.com/notridde/more-interesting",
   "keywords": ["rust", "rocket", "discussion"],
 
-  "success_url": "/-setup",
+  "success_url": "/login",
   "env": {
     "ROCKET_INIT_USERNAME": {
       "description": "Username for the root account",
       "value": "root"
+    },
+    "ROCKET_ENABLE_USER_DIRECTORY": {
+      "description": "Allow people to see everyone who's signed up",
+      "value": "true"
     },
     "ROCKET_INIT_PASSWORD": {
       "description": "Password for the root account",

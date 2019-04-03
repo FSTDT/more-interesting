@@ -24,6 +24,8 @@ pub struct Post {
     pub authored_by_submitter: bool,
     pub created_at: NaiveDateTime,
     pub submitted_by: i32,
+    pub excerpt: Option<String>,
+    pub excerpt_html: Option<String>,
 }
 
 #[derive(Queryable, Serialize)]
@@ -54,6 +56,7 @@ impl Default for User {
 pub struct NewPost<'a> {
     pub title: &'a str,
     pub url: Option<&'a str>,
+    pub excerpt: Option<&'a str>,
     pub submitted_by: i32,
 }
 
@@ -73,6 +76,8 @@ pub struct PostInfo {
     pub submitted_by: i32,
     pub submitted_by_username: String,
     pub starred_by_me: bool,
+    pub excerpt: Option<String>,
+    pub excerpt_html: Option<String>,
 }
 
 #[derive(Queryable)]
@@ -175,13 +180,15 @@ impl MoreInterestingConn {
                 self::posts::dsl::authored_by_submitter,
                 self::posts::dsl::created_at,
                 self::posts::dsl::submitted_by,
+                self::posts::dsl::excerpt,
+                self::posts::dsl::excerpt_html,
                 self::stars::dsl::post_id.nullable(),
                 self::users::dsl::username,
             ))
             .filter(visible.eq(true))
             .order_by((initial_stellar_time.desc(), self::posts::dsl::created_at.desc()))
             .limit(400)
-            .get_results::<(i32, Base32, String, Option<String>, bool, i32, i32, i32, bool, NaiveDateTime, i32, Option<i32>, String)>(&self.0)?
+            .get_results::<(i32, Base32, String, Option<String>, bool, i32, i32, i32, bool, NaiveDateTime, i32, Option<String>, Option<String>, Option<i32>, String)>(&self.0)?
             .into_iter()
             .map(|t| tuple_to_post_info(self, t, self.get_current_stellar_time()))
             .collect();
@@ -209,6 +216,8 @@ impl MoreInterestingConn {
                 self::posts::dsl::authored_by_submitter,
                 self::posts::dsl::created_at,
                 self::posts::dsl::submitted_by,
+                self::posts::dsl::excerpt,
+                self::posts::dsl::excerpt_html,
                 self::stars::dsl::post_id.nullable(),
                 self::users::dsl::username,
             ))
@@ -216,7 +225,7 @@ impl MoreInterestingConn {
             .filter(self::post_tagging::tag_id.eq(tag_id_param))
             .order_by((initial_stellar_time.desc(), self::posts::dsl::created_at.desc()))
             .limit(400)
-            .get_results::<(i32, Base32, String, Option<String>, bool, i32, i32, i32, bool, NaiveDateTime, i32, Option<i32>, String)>(&self.0)?
+            .get_results::<(i32, Base32, String, Option<String>, bool, i32, i32, i32, bool, NaiveDateTime, i32, Option<String>, Option<String>, Option<i32>, String)>(&self.0)?
             .into_iter()
             .map(|t| tuple_to_post_info(self, t, self.get_current_stellar_time()))
             .collect();
@@ -242,12 +251,14 @@ impl MoreInterestingConn {
                 self::posts::dsl::authored_by_submitter,
                 self::posts::dsl::created_at,
                 self::posts::dsl::submitted_by,
+                self::posts::dsl::excerpt,
+                self::posts::dsl::excerpt_html,
                 self::stars::dsl::post_id.nullable(),
                 self::users::dsl::username,
             ))
             .filter(visible.eq(true))
             .filter(uuid.eq(uuid_param.into_i64()))
-            .first::<(i32, Base32, String, Option<String>, bool, i32, i32, i32, bool, NaiveDateTime, i32, Option<i32>, String)>(&self.0)?, self.get_current_stellar_time()))
+            .first::<(i32, Base32, String, Option<String>, bool, i32, i32, i32, bool, NaiveDateTime, i32, Option<String>, Option<String>, Option<i32>, String)>(&self.0)?, self.get_current_stellar_time()))
     }
     pub fn get_current_stellar_time(&self) -> i32 {
         use self::stars::dsl::*;
@@ -263,6 +274,8 @@ impl MoreInterestingConn {
             url: Option<&'a str>,
             submitted_by: i32,
             initial_stellar_time: i32,
+            excerpt: Option<&'a str>,
+            excerpt_html: Option<&'a str>,
         }
         #[derive(Insertable)]
         #[table_name="post_tagging"]
@@ -270,6 +283,12 @@ impl MoreInterestingConn {
             post_id: i32,
             tag_id: i32,
         }
+        let title_html_and_stuff = crate::prettify::prettify_title(new_post.title, "", &mut PrettifyData(self));
+        let excerpt_html_and_stuff = if let Some(excerpt) = new_post.excerpt {
+            Some(crate::prettify::prettify_body(excerpt, &mut PrettifyData(self)))
+        } else {
+            None
+        };
         let result = diesel::insert_into(posts::table)
             .values(CreatePost {
                 title: new_post.title,
@@ -277,11 +296,12 @@ impl MoreInterestingConn {
                 uuid: rand::random(),
                 submitted_by: new_post.submitted_by,
                 initial_stellar_time: self.get_current_stellar_time(),
+                excerpt: new_post.excerpt,
+                excerpt_html: excerpt_html_and_stuff.as_ref().map(|e| &e.string[..])
             })
             .get_result::<Post>(&self.0);
         if let Ok(ref post) = result {
-            let html_and_stuff = crate::prettify::prettify_title(new_post.title, "", &mut PrettifyData(self));
-            for tag in html_and_stuff.hash_tags {
+            for tag in title_html_and_stuff.hash_tags.iter().chain(excerpt_html_and_stuff.iter().flat_map(|e| e.hash_tags.iter())) {
                 if let Ok(tag_info) = self.get_tag_by_name(&tag) {
                     diesel::insert_into(post_tagging::table)
                         .values(CreatePostTagging {
@@ -543,7 +563,7 @@ impl MoreInterestingConn {
     }
 }
 
-fn tuple_to_post_info(conn: &MoreInterestingConn, (id, uuid, title, url, visible, initial_stellar_time, score, comment_count, authored_by_submitter, created_at, submitted_by, starred_post_id, submitted_by_username): (i32, Base32, String, Option<String>, bool, i32, i32, i32, bool, NaiveDateTime, i32, Option<i32>, String), current_stellar_time: i32) -> PostInfo {
+fn tuple_to_post_info(conn: &MoreInterestingConn, (id, uuid, title, url, visible, initial_stellar_time, score, comment_count, authored_by_submitter, created_at, submitted_by, excerpt, excerpt_html, starred_post_id, submitted_by_username): (i32, Base32, String, Option<String>, bool, i32, i32, i32, bool, NaiveDateTime, i32, Option<String>, Option<String>, Option<i32>, String), current_stellar_time: i32) -> PostInfo {
     let link_url = if let Some(ref url) = url {
         url.clone()
     } else {
@@ -554,6 +574,7 @@ fn tuple_to_post_info(conn: &MoreInterestingConn, (id, uuid, title, url, visible
     PostInfo {
         id, uuid, title, url, visible, score, authored_by_submitter, created_at,
         submitted_by, submitted_by_username, comment_count, title_html,
+        excerpt, excerpt_html,
         starred_by_me: starred_post_id.is_some(),
         hotness: compute_hotness(initial_stellar_time, current_stellar_time, score, authored_by_submitter)
     }

@@ -1,0 +1,2 @@
+ALTER TABLE posts ADD COLUMN excerpt VARCHAR NULL DEFAULT NULL CHECK (excerpt <> '');
+ALTER TABLE posts ADD COLUMN excerpt_html VARCHAR NULL DEFAULT NULL CHECK (excerpt <> '');

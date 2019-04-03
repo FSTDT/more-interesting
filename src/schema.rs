@@ -46,6 +46,8 @@ table! {
         authored_by_submitter -> Bool,
         created_at -> Timestamp,
         submitted_by -> Int4,
+        excerpt -> Nullable<Varchar>,
+        excerpt_html -> Nullable<Varchar>,
     }
 }
 
