@@ -39,6 +39,19 @@ use rocket::fairing;
 use rocket::State;
 use session::SeniorUser;
 
+#[derive(Clone, Serialize)]
+struct SiteConfig {
+    enable_user_directory: bool,
+    #[serde(with = "url_serde")]
+    public_url: Url,
+}
+
+impl Default for SiteConfig {
+    fn default() -> Self {
+        SiteConfig { enable_user_directory: false, public_url: Url::parse("http://localhost").unwrap() }
+    }
+}
+
 #[derive(Serialize, Default)]
 struct TemplateContext {
     title: Cow<'static, str>,
@@ -51,6 +64,7 @@ struct TemplateContext {
     invite_token: Option<Base32>,
     raw_html: String,
     tags: Vec<Tag>,
+    config: SiteConfig,
 }
 
 fn default<T: Default>() -> T { T::default() }
@@ -164,7 +178,7 @@ struct IndexParams {
 }
 
 #[get("/?<params..>")]
-fn index(conn: MoreInterestingConn, user: Option<User>, flash: Option<FlashMessage>, params: Option<Form<IndexParams>>) -> impl Responder<'static> {
+fn index(conn: MoreInterestingConn, user: Option<User>, flash: Option<FlashMessage>, params: Option<Form<IndexParams>>, config: State<SiteConfig>) -> impl Responder<'static> {
     let user = user.unwrap_or(User::default());
     let posts = if let Some(tag_name) = params.as_ref().and_then(|params| params.tag.as_ref()) {
         conn.get_tag_by_name(tag_name)
@@ -177,16 +191,18 @@ fn index(conn: MoreInterestingConn, user: Option<User>, flash: Option<FlashMessa
         title: Cow::Borrowed("home"),
         parent: "layout",
         alert: flash.map(|f| f.msg().to_owned()),
+        config: config.clone(),
         user, posts,
         ..default()
     })
 }
 
 #[get("/submit")]
-fn create_form(user: User) -> impl Responder<'static> {
+fn create_form(user: User, config: State<SiteConfig>) -> impl Responder<'static> {
     Template::render("submit", &TemplateContext {
         title: Cow::Borrowed("submit"),
         parent: "layout",
+        config: config.clone(),
         user,
         ..default()
     })
@@ -227,10 +243,11 @@ fn create(user: User, conn: MoreInterestingConn, post: Form<NewPostForm>) -> Res
 }
 
 #[get("/login")]
-fn login_form() -> impl Responder<'static> {
+fn login_form(config: State<SiteConfig>) -> impl Responder<'static> {
     Template::render("login", &TemplateContext {
         title: Cow::Borrowed("log in"),
         parent: "layout",
+        config: config.clone(),
         ..default()
     })
 }
@@ -266,7 +283,7 @@ fn logout(mut cookies: Cookies) -> impl Responder<'static> {
 }
 
 #[get("/<uuid>")]
-fn get_comments(conn: MoreInterestingConn, user: Option<User>, uuid: Base32) -> Result<impl Responder<'static>, Status> {
+fn get_comments(conn: MoreInterestingConn, user: Option<User>, uuid: Base32, config: State<SiteConfig>) -> Result<impl Responder<'static>, Status> {
     let user = user.unwrap_or(User::default());
     if let Ok(post_info) = conn.get_post_info_by_uuid(user.id, uuid) {
         let comments = conn.get_comments_from_post(post_info.id, user.id).unwrap_or_else(|e| {
@@ -279,6 +296,7 @@ fn get_comments(conn: MoreInterestingConn, user: Option<User>, uuid: Base32) -> 
             posts: vec![post_info],
             parent: "layout",
             starred_by: conn.get_post_starred_by(post_id).unwrap_or(Vec::new()),
+            config: config.clone(),
             comments, user,
             ..default()
         }))
@@ -287,6 +305,7 @@ fn get_comments(conn: MoreInterestingConn, user: Option<User>, uuid: Base32) -> 
             title: Cow::Borrowed("signup"),
             parent: "layout",
             invite_token: Some(uuid),
+            config: config.clone(),
             ..default()
         }))
     } else {
@@ -334,21 +353,22 @@ fn consume_invite(conn: MoreInterestingConn, form: Form<ConsumeInviteForm>, mut 
 }
 
 #[get("/settings")]
-fn get_settings(_conn: MoreInterestingConn, user: User, flash: Option<FlashMessage>) -> impl Responder<'static> {
+fn get_settings(_conn: MoreInterestingConn, user: User, flash: Option<FlashMessage>, config: State<SiteConfig>) -> impl Responder<'static> {
     Template::render("settings", &TemplateContext {
         title: Cow::Borrowed("settings"),
         parent: "layout",
         alert: flash.map(|f| f.msg().to_owned()),
+        config: config.clone(),
         user,
         ..default()
     })
 }
 
 #[post("/create-invite")]
-fn create_invite<'a>(conn: MoreInterestingConn, user: User, public_url: State<PublicUrl>) -> impl Responder<'static> {
+fn create_invite<'a>(conn: MoreInterestingConn, user: User, config: State<SiteConfig>) -> impl Responder<'static> {
     match conn.create_invite_token(user.id) {
         Ok(invite_token) => {
-            let public_url = &public_url.0;
+            let public_url = &config.public_url;
             let created_invite_url = public_url.join(&invite_token.uuid.to_string()).expect("base128 is a valid relative URL");
             Flash::success(Redirect::to(uri!(get_settings)), format!("To invite them, send them this link: {}", created_invite_url))
         }
@@ -360,20 +380,21 @@ fn create_invite<'a>(conn: MoreInterestingConn, user: User, public_url: State<Pu
 }
 
 #[get("/tags")]
-fn get_tags(conn: MoreInterestingConn, user: Option<User>) -> impl Responder<'static> {
+fn get_tags(conn: MoreInterestingConn, user: Option<User>, config: State<SiteConfig>) -> impl Responder<'static> {
     let user = user.unwrap_or(User::default());
     assert!((user.id == 0) ^ (user.username != ""));
     let tags = conn.get_all_tags().unwrap_or(Vec::new());
     Template::render("tags", &TemplateContext {
         title: Cow::Borrowed("user invite tree"),
         parent: "layout",
+        config: config.clone(),
         tags, user,
         ..default()
     })
 }
 
 #[get("/@")]
-fn invite_tree(conn: MoreInterestingConn, user: Option<User>) -> impl Responder<'static> {
+fn invite_tree(conn: MoreInterestingConn, user: Option<User>, config: State<SiteConfig>) -> impl Responder<'static> {
     let user = user.unwrap_or(User::default());
     assert!((user.id == 0) ^ (user.username != ""));
     fn handle_invite_tree(invite_tree_html: &mut String, invite_tree: &HashMap<i32, Vec<User>>, id: i32) {
@@ -388,23 +409,27 @@ fn invite_tree(conn: MoreInterestingConn, user: Option<User>) -> impl Responder<
         }
     }
     let mut raw_html = String::from("<ul class=tree>");
-    handle_invite_tree(&mut raw_html, &conn.get_invite_tree(), 0);
+    if config.enable_user_directory {
+        handle_invite_tree(&mut raw_html, &conn.get_invite_tree(), 0);
+    }
     raw_html.push_str("</ul>");
     Template::render("users", &TemplateContext {
         title: Cow::Borrowed("user invite tree"),
         parent: "layout",
+        config: config.clone(),
         user, raw_html,
         ..default()
     })
 }
 
 #[get("/edit-tags")]
-fn get_edit_tags(_conn: MoreInterestingConn, user: SeniorUser, flash: Option<FlashMessage>) -> impl Responder<'static> {
+fn get_edit_tags(_conn: MoreInterestingConn, user: SeniorUser, flash: Option<FlashMessage>, config: State<SiteConfig>) -> impl Responder<'static> {
     Template::render("edit-tags", &TemplateContext {
         title: Cow::Borrowed("add or edit tags"),
         parent: "layout",
         user: user.0,
         alert: flash.map(|f| f.msg().to_owned()),
+        config: config.clone(),
         ..default()
     })
 }
@@ -506,19 +531,20 @@ fn date_helper(
     Ok(())
 }
 
-struct PublicUrl(Url);
-
 fn main() {
     //env_logger::init();
     rocket::ignite()
         .attach(MoreInterestingConn::fairing())
-        .attach(fairing::AdHoc::on_attach("public url", |rocket| {
+        .attach(fairing::AdHoc::on_attach("site config", |rocket| {
             let mut public_url = rocket.config().get_str("public_url").unwrap_or("http://localhost").to_owned();
             if !public_url.starts_with("http:") && !public_url.starts_with("https:") {
                 public_url = "https://".to_owned() + &public_url;
             }
             let public_url = Url::parse(&public_url).expect("public_url configuration must be valid");
-            Ok(rocket.manage(PublicUrl(public_url)))
+            let enable_user_directory = rocket.config().get_bool("enable_user_directory").unwrap_or(true);
+            Ok(rocket.manage(SiteConfig {
+                enable_user_directory, public_url
+            }))
         }))
         .attach(fairing::AdHoc::on_attach("setup", |rocket| {
             let conn = MoreInterestingConn::get_one(&rocket).unwrap();

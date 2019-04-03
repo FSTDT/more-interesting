@@ -10,6 +10,10 @@
       "description": "Username for the root account",
       "value": "root"
     },
+    "ROCKET_ENABLE_USER_DIRECTORY": {
+      "description": "Allow people to see everyone who's signed up",
+      "value": "true"
+    },
     "ROCKET_INIT_PASSWORD": {
       "description": "Password for the root account",
       "value": ""
