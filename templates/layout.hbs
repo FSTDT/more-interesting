@@ -1,10 +1,11 @@
 <!DOCTYPE html>
 <meta name=viewport content="width=device-width">
 <link rel=stylesheet href="assets/style.css?3">
+<style>{{{config.custom_css}}}</style>
 <title>{{title}}</title>
 <header class=top-header>
     <nav>
-        <a class=top-header-link href="/">Home</a>
+        <a class=top-header-link href="/">{{{config.site_title_html}}}</a>
         <details-menu-bar class=top-header-aside role=menubar>
             {{#if user.username}}
                 <details class="details-menu-outer backwards" role=menuitem>

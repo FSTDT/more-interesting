@@ -45,11 +45,18 @@ struct SiteConfig {
     enable_user_directory: bool,
     #[serde(with = "url_serde")]
     public_url: Url,
+    custom_css: String,
+    site_title_html: String,
 }
 
 impl Default for SiteConfig {
     fn default() -> Self {
-        SiteConfig { enable_user_directory: false, public_url: Url::parse("http://localhost").unwrap() }
+        SiteConfig {
+            enable_user_directory: false,
+            public_url: Url::parse("http://localhost").unwrap(),
+            site_title_html: String::new(),
+            custom_css: String::new(),
+        }
     }
 }
 
@@ -552,8 +559,11 @@ fn main() {
             }
             let public_url = Url::parse(&public_url).expect("public_url configuration must be valid");
             let enable_user_directory = rocket.config().get_bool("enable_user_directory").unwrap_or(true);
+            let site_title_html = rocket.config().get_str("site_title_html").unwrap_or("More Interesting").to_owned();
+            let custom_css = rocket.config().get_str("custom_css").unwrap_or("").to_owned();
             Ok(rocket.manage(SiteConfig {
-                enable_user_directory, public_url
+                enable_user_directory, public_url,
+                site_title_html, custom_css,
             }))
         }))
         .attach(fairing::AdHoc::on_attach("setup", |rocket| {
