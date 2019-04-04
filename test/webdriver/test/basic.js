@@ -36,7 +36,7 @@ describe("testing javascript in the browser", function() {
         await this.browser.wait(until.urlIs("http://localhost:3001/submit"));
         var headline = await this.browser.findElement(By.css('a'));
         var text = await headline.getText();
-        return assert.equal(text, "Home");
+        return assert.equal(text, "More Interesting");
     });
 
     it("log out button should go away when you log out", async function() {
