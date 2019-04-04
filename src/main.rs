@@ -29,7 +29,7 @@ use rocket_contrib::serve::StaticFiles;
 use rocket_contrib::templates::{Template, handlebars};
 use serde::Serialize;
 use std::borrow::Cow;
-use crate::models::{PostInfo, NewStar, NewUser, CommentInfo, NewPost, NewComment, NewStarComment, NewTag, Tag};
+use crate::models::{PostInfo, NewStar, NewUser, CommentInfo, NewPost, NewComment, NewStarComment, NewTag, Tag, Comment};
 use base32::Base32;
 use url::Url;
 use std::collections::HashMap;
@@ -66,6 +66,7 @@ struct TemplateContext {
     posts: Vec<PostInfo>,
     starred_by: Vec<String>,
     comments: Vec<CommentInfo>,
+    comment: Option<Comment>,
     user: User,
     parent: &'static str,
     alert: Option<String>,
@@ -534,6 +535,50 @@ fn edit_post(conn: MoreInterestingConn, user: Moderator, form: Form<EditPostForm
 }
 
 #[derive(FromForm)]
+struct GetEditComment {
+    comment: i32,
+}
+
+#[get("/edit-comment?<comment..>")]
+fn get_edit_comment(conn: MoreInterestingConn, user: User, flash: Option<FlashMessage>, comment: Form<GetEditComment>, config: State<SiteConfig>) -> Option<impl Responder<'static>> {
+    let comment = conn.get_comment_by_id(comment.comment).ok()?;
+    if !user.trust_level < 3 && comment.created_by != user.id {
+        return None;
+    }
+    Some(Template::render("edit-comment", &TemplateContext {
+        title: Cow::Borrowed("edit comment"),
+        parent: "layout",
+        alert: flash.map(|f| f.msg().to_owned()),
+        config: config.clone(),
+        comment: Some(comment),
+        user,
+        ..default()
+    }))
+}
+
+#[derive(FromForm)]
+struct EditCommentForm {
+    comment: i32,
+    text: String,
+}
+
+#[post("/edit-comment", data = "<form>")]
+fn edit_comment(conn: MoreInterestingConn, user: User, form: Form<EditCommentForm>) -> Result<impl Responder<'static>, Status> {
+    let comment = conn.get_comment_by_id(form.comment).map_err(|_| Status::NotFound)?;
+    let post = conn.get_post_uuid_from_comment(form.comment).map_err(|_| Status::NotFound)?;
+    if !user.trust_level < 3 && comment.created_by != user.id {
+        return Err(Status::NotFound);
+    }
+    match conn.update_comment(form.comment, &form.text) {
+        Ok(_) => Ok(Flash::success(Redirect::to(post.to_string()), "Updated comment")),
+        Err(e) => {
+            warn!("{:?}", e);
+            Err(Status::InternalServerError)
+        },
+    }
+}
+
+#[derive(FromForm)]
 struct ChangePasswordForm {
     old_password: String,
     new_password: String,
@@ -643,7 +688,7 @@ fn main() {
             }
             Ok(rocket)
         }))
-        .mount("/", routes![index, login_form, login, logout, create_form, create, get_comments, vote, consume_invite, get_settings, create_invite, invite_tree, change_password, post_comment, vote_comment, get_edit_tags, edit_tags, get_tags, edit_post, get_edit_post])
+        .mount("/", routes![index, login_form, login, logout, create_form, create, get_comments, vote, consume_invite, get_settings, create_invite, invite_tree, change_password, post_comment, vote_comment, get_edit_tags, edit_tags, get_tags, edit_post, get_edit_post, edit_comment, get_edit_comment])
         .mount("/assets", StaticFiles::from("assets"))
         .attach(Template::custom(|engines| {
             engines.handlebars.register_helper("count", Box::new(count_helper));

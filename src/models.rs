@@ -80,7 +80,7 @@ pub struct PostInfo {
     pub excerpt_html: Option<String>,
 }
 
-#[derive(Queryable)]
+#[derive(Queryable, Serialize)]
 pub struct Comment {
     pub id: i32,
     pub text: String,
@@ -482,6 +482,10 @@ impl MoreInterestingConn {
         }
         ret_val
     }
+    pub fn get_comment_by_id(&self, comment_id_value: i32) -> Result<Comment, DieselError> {
+        use self::comments::dsl::*;
+        comments.find(comment_id_value).get_result::<Comment>(&self.0)
+    }
     pub fn comment_on_post(&self, new_post: NewComment) -> Result<Comment, DieselError> {
         #[derive(Insertable)]
         #[table_name="comments"]
@@ -501,6 +505,17 @@ impl MoreInterestingConn {
                 created_by: new_post.created_by,
             })
             .get_result(&self.0)
+    }
+    pub fn update_comment(&self, comment_id_value: i32, text_value: &str) -> Result<(), DieselError> {
+        let html_and_stuff = crate::prettify::prettify_body(text_value, &mut PrettifyData(self));
+        use self::comments::dsl::*;
+        diesel::update(comments.find(comment_id_value))
+            .set((
+                text.eq(text_value),
+                html.eq(&html_and_stuff.string)
+                ))
+            .execute(&self.0)
+            .map(|_| ())
     }
     pub fn get_comments_from_post(&self, post_id_param: i32, user_id_param: i32) -> Result<Vec<CommentInfo>, DieselError> {
         use self::comments::dsl::*;
@@ -529,6 +544,15 @@ impl MoreInterestingConn {
             .map(|t| tuple_to_comment_info(self, t))
             .collect();
         Ok(all)
+    }
+    pub fn get_post_uuid_from_comment(&self, comment_id_param: i32) -> Result<Base32, DieselError> {
+        use self::comments::dsl::*;
+        use self::posts::dsl::*;
+        comments
+            .inner_join(posts)
+            .select(self::posts::dsl::uuid)
+            .filter(self::comments::dsl::id.eq(comment_id_param))
+            .get_result::<Base32>(&self.0)
     }
     pub fn get_post_starred_by(&self, post_id_param: i32) -> Result<Vec<String>, DieselError> {
         use self::stars::dsl::*;
