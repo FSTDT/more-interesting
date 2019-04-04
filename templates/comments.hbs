@@ -5,8 +5,9 @@
             {{#if posts.0.excerpt_html}}
                 <main>{{{posts.0.excerpt_html}}}</main>
             {{/if}}
+            <footer>
             submitted by <a href="@{{posts.0.submitted_by_username}}">{{posts.0.submitted_by_username}}</a>
-            on {{date posts.0.created_at}}
+            {{date posts.0.created_at}}
             {{#if starred_by}}
                 starred by
                 {{#each starred_by}}
@@ -27,10 +28,11 @@
                     <img width=12 height=12 src=assets/flag.svg alt="Add flag">
                 </button>
             </form>
+            </footer>
         </article>
         {{#each comments}}
             <aside>
-                {{{this.html}}}
+                <main>{{{this.html}}}</main>
                 <footer>
                     posted by <a href="@{{this.created_by_username}}">{{this.created_by_username}}</a>
                     {{date this.created_at}}

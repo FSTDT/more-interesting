@@ -59,8 +59,16 @@ h1 {
 
 figcaption,
 figure,
-main {
+header,
+main,
+footer {
     display: block;
+    overflow: hidden;
+    padding: 8px;
+}
+
+footer {
+    padding-top: 0;
 }
 
 figure {
@@ -348,12 +356,10 @@ article, aside {
     border: solid 1px #0c0c0d;
     background: #f9f9fa;
     margin: 24px 0;
-    padding: 8px 8px;
 }
 
 .article-header {
     margin-top: -24px;
-    margin-bottom: 4px;
     display: block;
 }
 
@@ -368,6 +374,7 @@ article, aside {
     border-bottom: solid 1px #0f1126;
     box-shadow: 0 1px 0 #0c0c0d;
     color: #fff;
+    padding: 0;
 }
 .top-header-link {
     color: #fff;
@@ -378,8 +385,6 @@ article, aside {
 
 .module-aside {
     float: right;
-    position: relative;
-    left: 4px;
 }
 
 details-dialog, .details-menu-inner {
