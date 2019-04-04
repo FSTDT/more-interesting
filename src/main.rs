@@ -542,7 +542,7 @@ struct GetEditComment {
 #[get("/edit-comment?<comment..>")]
 fn get_edit_comment(conn: MoreInterestingConn, user: User, flash: Option<FlashMessage>, comment: Form<GetEditComment>, config: State<SiteConfig>) -> Option<impl Responder<'static>> {
     let comment = conn.get_comment_by_id(comment.comment).ok()?;
-    if !user.trust_level < 3 && comment.created_by != user.id {
+    if user.trust_level < 3 && comment.created_by != user.id {
         return None;
     }
     Some(Template::render("edit-comment", &TemplateContext {
