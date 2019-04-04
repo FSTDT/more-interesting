@@ -256,7 +256,7 @@ pub fn prettify_title<D: Data>(mut text: &str, url: &str, data: &mut D) -> Outpu
                     }
                 }
                 while text.as_bytes().get(i).cloned().map(is_normal).unwrap_or(false) {
-                    if starts_with_url_protocol(&text[i..]) || text[i..].starts_with("www.") {
+                    if text.is_char_boundary(i) && (starts_with_url_protocol(&text[i..]) || text[i..].starts_with("www.")) {
                         break;
                     }
                     i += 1;
@@ -599,6 +599,24 @@ mod test {
             }
         }
         assert_eq!(prettify_body(comment, &mut MyData).string, CLEANER.clean(html).to_string());
+    }
+    #[test]
+    fn test_unicode_title() {
+        let comment = "finger— inciting the two officers to fire";
+        let html = "<a href=\"url\">finger— inciting the two officers to fire</a>";
+        struct MyData;
+        impl Data for MyData {
+            fn check_comment_ref(&mut self, id: i32) -> bool {
+                id == 12345
+            }
+            fn check_hash_tag(&mut self, tag: &str) -> bool {
+                tag == "words"
+            }
+            fn check_username(&mut self, username: &str) -> bool {
+                username == "mentioning"
+            }
+        }
+        assert_eq!(prettify_title(comment, "url", &mut MyData).string, CLEANER.clean(html).to_string());
     }
     #[test]
     fn test_multiple_brackets_pre() {
