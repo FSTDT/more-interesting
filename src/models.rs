@@ -8,7 +8,7 @@ use serde::Serialize;
 use crate::base32::Base32;
 use std::cmp::max;
 use ordered_float::OrderedFloat;
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
 use crate::prettify::{self, prettify_title};
 
 #[derive(Queryable, Serialize)]
@@ -302,7 +302,7 @@ impl MoreInterestingConn {
             })
             .get_result::<Post>(&self.0);
         if let Ok(ref post) = result {
-            for tag in title_html_and_stuff.hash_tags.iter().chain(excerpt_html_and_stuff.iter().flat_map(|e| e.hash_tags.iter())) {
+            for tag in title_html_and_stuff.hash_tags.iter().chain(excerpt_html_and_stuff.iter().flat_map(|e| e.hash_tags.iter())).map(|s| &s[..]).collect::<HashSet<&str>>() {
                 if let Ok(tag_info) = self.get_tag_by_name(&tag) {
                     diesel::insert_into(post_tagging::table)
                         .values(CreatePostTagging {
@@ -334,7 +334,7 @@ impl MoreInterestingConn {
             .execute(&self.0)?;
         diesel::delete(post_tagging.filter(post_id.eq(post_id_value)))
             .execute(&self.0)?;
-        for tag in title_html_and_stuff.hash_tags.iter().chain(excerpt_html_and_stuff.iter().flat_map(|e| e.hash_tags.iter())) {
+        for tag in title_html_and_stuff.hash_tags.iter().chain(excerpt_html_and_stuff.iter().flat_map(|e| e.hash_tags.iter())).map(|s| &s[..]).collect::<HashSet<&str>>() {
             if let Ok(tag_info) = self.get_tag_by_name(&tag) {
                 diesel::insert_into(post_tagging)
                     .values(CreatePostTagging {
