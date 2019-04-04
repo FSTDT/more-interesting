@@ -1,0 +1,10 @@
+{{#*inline "page"}}
+    <form action='' method=POST>
+        <input type=hidden name=post value="{{posts.0.uuid}}">
+        <label>Title and #hashtags <input name=title autofocus value="{{posts.0.title}}"></label>
+        <label>URL <input name=url value="{{posts.0.url}}"></label>
+        <label>Excerpt <textarea name=excerpt>{{posts.0.excerpt}}</textarea></label>
+        <button>Submit</button>
+    </form>
+{{/inline}}
+{{~> (parent)~}}

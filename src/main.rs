@@ -38,7 +38,7 @@ use handlebars::{Helper, Handlebars, Context, RenderContext, Output, HelperResul
 use crate::pid_file_fairing::PidFileFairing;
 use rocket::fairing;
 use rocket::State;
-use session::SeniorUser;
+use session::Moderator;
 
 #[derive(Clone, Serialize)]
 struct SiteConfig {
@@ -300,7 +300,7 @@ fn logout(mut cookies: Cookies) -> impl Responder<'static> {
 }
 
 #[get("/<uuid>")]
-fn get_comments(conn: MoreInterestingConn, user: Option<User>, uuid: Base32, config: State<SiteConfig>) -> Result<impl Responder<'static>, Status> {
+fn get_comments(conn: MoreInterestingConn, user: Option<User>, uuid: Base32, config: State<SiteConfig>, flash: Option<FlashMessage>) -> Result<impl Responder<'static>, Status> {
     let user = user.unwrap_or(User::default());
     if let Ok(post_info) = conn.get_post_info_by_uuid(user.id, uuid) {
         let comments = conn.get_comments_from_post(post_info.id, user.id).unwrap_or_else(|e| {
@@ -312,6 +312,7 @@ fn get_comments(conn: MoreInterestingConn, user: Option<User>, uuid: Base32, con
             title: Cow::Borrowed("home"),
             posts: vec![post_info],
             parent: "layout",
+            alert: flash.map(|f| f.msg().to_owned()),
             starred_by: conn.get_post_starred_by(post_id).unwrap_or(Vec::new()),
             config: config.clone(),
             comments, user,
@@ -440,7 +441,7 @@ fn invite_tree(conn: MoreInterestingConn, user: Option<User>, config: State<Site
 }
 
 #[get("/edit-tags")]
-fn get_edit_tags(_conn: MoreInterestingConn, user: SeniorUser, flash: Option<FlashMessage>, config: State<SiteConfig>) -> impl Responder<'static> {
+fn get_edit_tags(_conn: MoreInterestingConn, user: Moderator, flash: Option<FlashMessage>, config: State<SiteConfig>) -> impl Responder<'static> {
     Template::render("edit-tags", &TemplateContext {
         title: Cow::Borrowed("add or edit tags"),
         parent: "layout",
@@ -458,7 +459,7 @@ struct EditTagsForm {
 }
 
 #[post("/edit-tags", data = "<form>")]
-fn edit_tags(conn: MoreInterestingConn, _user: SeniorUser, form: Form<EditTagsForm>) -> impl Responder<'static> {
+fn edit_tags(conn: MoreInterestingConn, _user: Moderator, form: Form<EditTagsForm>) -> impl Responder<'static> {
     match conn.create_or_update_tag(&NewTag {
         name: &form.name,
         description: form.description.as_ref().map(|d| &d[..])
@@ -470,6 +471,65 @@ fn edit_tags(conn: MoreInterestingConn, _user: SeniorUser, form: Form<EditTagsFo
             debug!("Unable to update site tags: {:?}", e);
             Flash::error(Redirect::to(uri!(get_edit_tags)), "Unable to update site tags")
         }
+    }
+}
+
+#[derive(FromForm)]
+struct GetEditPost {
+    post: Base32,
+}
+
+#[get("/edit-post?<post..>")]
+fn get_edit_post(conn: MoreInterestingConn, user: Moderator, flash: Option<FlashMessage>, post: Form<GetEditPost>, config: State<SiteConfig>) -> Option<impl Responder<'static>> {
+    let post_info = conn.get_post_info_by_uuid(user.0.id, post.post).ok()?;
+    Some(Template::render("edit-post", &TemplateContext {
+        title: Cow::Borrowed("edit post"),
+        parent: "layout",
+        user: user.0,
+        alert: flash.map(|f| f.msg().to_owned()),
+        config: config.clone(),
+        posts: vec![post_info],
+        ..default()
+    }))
+}
+
+#[derive(FromForm)]
+struct EditPostForm {
+    post: Base32,
+    title: String,
+    url: Option<String>,
+    excerpt: Option<String>,
+}
+
+#[post("/edit-post", data = "<form>")]
+fn edit_post(conn: MoreInterestingConn, user: Moderator, form: Form<EditPostForm>) -> Result<impl Responder<'static>, Status> {
+    let post_info = if let Ok(post_info) = conn.get_post_info_by_uuid(user.0.id, form.post) {
+        post_info
+    } else {
+        return Err(Status::NotFound);
+    };
+    let post_id = post_info.id;
+    let url = if let Some(url) = &form.url {
+        if url == "" { None } else { Some(url.clone()) }
+    } else {
+        None
+    };
+    let excerpt = if let Some(excerpt) = &form.excerpt {
+        if excerpt == "" { None } else { Some(excerpt.clone()) }
+    } else {
+        None
+    };
+    match conn.update_post(post_id, &NewPost {
+        title: &form.title,
+        url: url.as_ref().map(|s| &s[..]),
+        submitted_by: user.0.id,
+        excerpt: excerpt.as_ref().map(|s| &s[..]),
+    }) {
+        Ok(_) => Ok(Flash::success(Redirect::to(form.post.to_string()), "Updated post")),
+        Err(e) => {
+            warn!("{:?}", e);
+            Err(Status::InternalServerError)
+        },
     }
 }
 
@@ -583,7 +643,7 @@ fn main() {
             }
             Ok(rocket)
         }))
-        .mount("/", routes![index, login_form, login, logout, create_form, create, get_comments, vote, consume_invite, get_settings, create_invite, invite_tree, change_password, post_comment, vote_comment, get_edit_tags, edit_tags, get_tags])
+        .mount("/", routes![index, login_form, login, logout, create_form, create, get_comments, vote, consume_invite, get_settings, create_invite, invite_tree, change_password, post_comment, vote_comment, get_edit_tags, edit_tags, get_tags, edit_post, get_edit_post])
         .mount("/assets", StaticFiles::from("assets"))
         .attach(Template::custom(|engines| {
             engines.handlebars.register_helper("count", Box::new(count_helper));

@@ -26,14 +26,14 @@ impl<'a, 'r> FromRequest<'a, 'r> for User {
     }
 }
 
-pub struct SeniorUser(pub User);
+pub struct Moderator(pub User);
 
-impl<'a, 'r> FromRequest<'a, 'r> for SeniorUser {
+impl<'a, 'r> FromRequest<'a, 'r> for Moderator {
     type Error = ();
 
-    fn from_request(request: &'a Request<'r>) -> Outcome<SeniorUser, (Status, ()), ()> {
+    fn from_request(request: &'a Request<'r>) -> Outcome<Moderator, (Status, ()), ()> {
         match User::from_request(request) {
-            Outcome::Success(ref mut user) if user.trust_level >= 2 => Outcome::Success(SeniorUser(mem::replace(user, User::default()))),
+            Outcome::Success(ref mut user) if user.trust_level >= 3 => Outcome::Success(Moderator(mem::replace(user, User::default()))),
             Outcome::Success(_junior_user) => Outcome::Failure((Status::BadRequest, ())),
             Outcome::Failure(f) => Outcome::Failure(f),
             Outcome::Forward(f) => Outcome::Forward(f),

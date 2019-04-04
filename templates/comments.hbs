@@ -15,6 +15,9 @@
                 {{/each}}
             {{/if}}
             <form class=module-aside action="vote?redirect={{posts.0.uuid}}" method=POST>
+                {{#if (gte user.trust_level 3)}}
+                    <a href="edit-post?post={{posts.0.uuid}}" class=button>Edit</a>
+                {{/if}}
                 <button name="{{#if posts.0.starred_by_me}}rm_star{{else}}add_star{{/if}}" value={{posts.0.uuid}} title="{{#if posts.0.starred_by_me}}Remove star{{else}}Add star{{/if}}">
                     <span>{{posts.0.score}}</span>
                     <img width=12 height=12 src=assets/{{#if posts.0.starred_by_me}}star_active.svg{{else}}star.svg{{/if}} alt="{{#if posts.0.starred_by_me}}Remove star{{else}}Add star{{/if}}">

@@ -157,6 +157,13 @@ pub struct Tag {
     pub updated_at: NaiveDateTime,
 }
 
+#[derive(Insertable)]
+#[table_name="post_tagging"]
+struct CreatePostTagging {
+    post_id: i32,
+    tag_id: i32,
+}
+
 #[database("more_interesting")]
 pub struct MoreInterestingConn(PgConnection);
 
@@ -277,12 +284,6 @@ impl MoreInterestingConn {
             excerpt: Option<&'a str>,
             excerpt_html: Option<&'a str>,
         }
-        #[derive(Insertable)]
-        #[table_name="post_tagging"]
-        struct CreatePostTagging {
-            post_id: i32,
-            tag_id: i32,
-        }
         let title_html_and_stuff = crate::prettify::prettify_title(new_post.title, "", &mut PrettifyData(self));
         let excerpt_html_and_stuff = if let Some(excerpt) = new_post.excerpt {
             Some(crate::prettify::prettify_body(excerpt, &mut PrettifyData(self)))
@@ -313,6 +314,37 @@ impl MoreInterestingConn {
             }
         }
         result
+    }
+    pub fn update_post(&self, post_id_value: i32, new_post: &NewPost) -> Result<(), DieselError> {
+        let title_html_and_stuff = crate::prettify::prettify_title(new_post.title, "", &mut PrettifyData(self));
+        let excerpt_html_and_stuff = if let Some(e) = new_post.excerpt {
+            Some(crate::prettify::prettify_body(e, &mut PrettifyData(self)))
+        } else {
+            None
+        };
+        use self::posts::dsl::*;
+        use self::post_tagging::dsl::*;
+        diesel::update(posts.find(post_id_value))
+            .set((
+                title.eq(new_post.title),
+                excerpt.eq(new_post.excerpt),
+                url.eq(new_post.url),
+                excerpt_html.eq(excerpt_html_and_stuff.as_ref().map(|x| &x.string[..])),
+            ))
+            .execute(&self.0)?;
+        diesel::delete(post_tagging.filter(post_id.eq(post_id_value)))
+            .execute(&self.0)?;
+        for tag in title_html_and_stuff.hash_tags.iter().chain(excerpt_html_and_stuff.iter().flat_map(|e| e.hash_tags.iter())) {
+            if let Ok(tag_info) = self.get_tag_by_name(&tag) {
+                diesel::insert_into(post_tagging)
+                    .values(CreatePostTagging {
+                        post_id: post_id_value,
+                        tag_id: tag_info.id,
+                    })
+                    .execute(&self.0)?;
+            }
+        }
+        Ok(())
     }
     pub fn add_star(&self, new_star: &NewStar) -> bool {
         let affected_rows = diesel::insert_into(stars::table)
