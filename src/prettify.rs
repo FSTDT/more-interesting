@@ -45,46 +45,97 @@ pub fn prettify_body<D: Data>(text: &str, data: &mut D) -> Output {
     while let Some(c) = text.as_bytes().get(0) {
         match c {
             b'<' => {
-                let (contents, count) = scan_angle_brackets(text);
-                assert_ne!(count, 0);
-                if contents == "" {
-                    for _ in 0..count {
-                        ret_val.push_str("&lt;");
-                    }
-                } else if starts_with_url_protocol(contents) {
+                let (contents, brackets_count, count) = scan_angle_brackets(text);
+                assert_ne!(brackets_count, 0);
+                for _ in 0..brackets_count {
+                    ret_val.push_str("&lt;");
+                }
+                if starts_with_url_protocol(contents) {
                     let html = escape(&contents).to_string();
-                    ret_val.push_str("&lt;<a href=\"");
+                    ret_val.push_str("<a href=\"");
                     ret_val.push_str(&html);
                     ret_val.push_str("\">");
                     ret_val.push_str(&html);
-                    ret_val.push_str("</a>&gt;");
+                    ret_val.push_str("</a>");
                 } else if contents.starts_with("www.") {
                     let html = escape(&contents).to_string();
-                    ret_val.push_str("&lt;<a href=\"https://");
+                    ret_val.push_str("<a href=\"https://");
                     ret_val.push_str(&html);
                     ret_val.push_str("\">");
                     ret_val.push_str(&html);
-                    ret_val.push_str("</a>&gt;");
+                    ret_val.push_str("</a>");
                 } else if contents.starts_with('@') {
-                    ret_val.push_str("&lt;");
                     maybe_write_username(&contents[1..], data, &mut ret_val, None);
-                    ret_val.push_str("&gt;");
                 } else if contents.contains('@') {
                     let html = escape(&contents).to_string();
-                    ret_val.push_str("&lt;<a href=\"mailto:");
+                    ret_val.push_str("<a href=\"mailto:");
                     ret_val.push_str(&html);
                     ret_val.push_str("\">");
                     ret_val.push_str(&html);
-                    ret_val.push_str("</a>&lt;");
+                    ret_val.push_str("</a>");
                 } else if contents.starts_with('#') {
-                    ret_val.push_str("&lt;");
                     maybe_write_number_sign(&contents[1..], data, &mut ret_val, None);
-                    ret_val.push_str("&gt;");
+                } else if contents == "table" {
+                    let mut end_tag = String::new();
+                    let mut end_tag_html = String::new();
+                    for _ in 0..brackets_count {
+                        end_tag.push_str("<");
+                        end_tag_html.push_str("&lt;");
+                    }
+                    end_tag.push_str("/table");
+                    end_tag_html.push_str("/table");
+                    for _ in 0..brackets_count {
+                        end_tag.push_str(">");
+                        end_tag_html.push_str("&gt;");
+                    }
+                    ret_val.push_str("table");
+                    for _ in 0..brackets_count {
+                        ret_val.push_str("&gt;");
+                    }
+                    if let Some(pos) = text.find(&end_tag) {
+                        ret_val.push_str("<table>");
+                        ret_val.push_str(&text[brackets_count + count..pos]);
+                        ret_val.push_str("</table>");
+                        ret_val.push_str(&end_tag_html);
+                        text = &text[pos+end_tag.len()..];
+                        continue;
+                    }
+                } else if contents == "pre" {
+                    let mut end_tag = String::new();
+                    let mut end_tag_html = String::new();
+                    for _ in 0..brackets_count {
+                        end_tag.push_str("<");
+                        end_tag_html.push_str("&lt;");
+                    }
+                    end_tag.push_str("/pre");
+                    end_tag_html.push_str("/pre");
+                    for _ in 0..brackets_count {
+                        end_tag.push_str(">");
+                        end_tag_html.push_str("&gt;");
+                    }
+                    ret_val.push_str("pre");
+                    for _ in 0..brackets_count {
+                        ret_val.push_str("&gt;");
+                    }
+                    if let Some(pos) = text.find(&end_tag) {
+                        ret_val.push_str("<pre>");
+                        ret_val.push_str(&escape(&text[brackets_count+count..pos]).to_string());
+                        ret_val.push_str("</pre>");
+                        ret_val.push_str(&end_tag_html);
+                        text = &text[pos+end_tag.len()..];
+                        continue;
+                    }
                 } else {
-                    ret_val.push_str(&escape(&text[..count]).to_string());
+                    ret_val.push_str(&escape(&text[brackets_count..count]).to_string());
                 }
-                assert_ne!(0, count);
-                text = &text[count..];
+                if contents != "" {
+                    for _ in 0..brackets_count {
+                        ret_val.push_str("&gt;");
+                    }
+                    text = &text[brackets_count+count..];
+                } else {
+                    text = &text[brackets_count..];
+                }
             }
             b'@' => {
                 let contents = scan_lexical_token(&text[1..], false);
@@ -138,7 +189,7 @@ pub fn prettify_body<D: Data>(text: &str, data: &mut D) -> Output {
                     }
                 }
                 while text.as_bytes().get(i).cloned().map(is_normal).unwrap_or(false) {
-                    if starts_with_url_protocol(&text[i..]) || text[i..].starts_with("www.") {
+                    if text.is_char_boundary(i) && (starts_with_url_protocol(&text[i..]) || text[i..].starts_with("www.")) {
                         break;
                     }
                     i += 1;
@@ -161,25 +212,26 @@ pub fn prettify_title<D: Data>(mut text: &str, url: &str, data: &mut D) -> Outpu
     while let Some(c) = text.as_bytes().get(0) {
         match c {
             b'<' => {
-                let (contents, count) = scan_angle_brackets(text);
-                assert_ne!(count, 0);
-                if contents == "" {
-                    for _ in 0..count {
-                        ret_val.push_str("&lt;");
-                    }
-                } else if contents.starts_with('@') {
+                let (contents, brackets_count, count) = scan_angle_brackets(text);
+                assert_ne!(brackets_count, 0);
+                for _ in 0..brackets_count {
                     ret_val.push_str("&lt;");
-                    maybe_write_username(&contents[1..], data, &mut ret_val, Some(url));
-                    ret_val.push_str("&gt;");
-                } else if contents.starts_with('#') {
-                    ret_val.push_str("&lt;");
-                    maybe_write_number_sign(&contents[1..], data, &mut ret_val, Some(url));
-                    ret_val.push_str("&gt;");
-                } else {
-                    ret_val.push_str(&escape(&text[..count]).to_string());
                 }
-                assert_ne!(0, count);
-                text = &text[count..];
+                if contents.starts_with('@') {
+                    maybe_write_username(&contents[1..], data, &mut ret_val, Some(url));
+                } else if contents.starts_with('#') {
+                    maybe_write_number_sign(&contents[1..], data, &mut ret_val, Some(url));
+                } else {
+                    ret_val.push_str(&escape(&text[brackets_count..count]).to_string());
+                }
+                if contents != "" {
+                    for _ in 0..brackets_count {
+                        ret_val.push_str("&gt;");
+                    }
+                    text = &text[brackets_count+count..];
+                } else {
+                    text = &text[brackets_count..];
+                }
             }
             b'@' => {
                 let contents = scan_lexical_token(&text[1..], false);
@@ -301,13 +353,13 @@ fn maybe_write_number_sign<D: Data>(number_without_sign: &str, data: &mut D, out
 /// This function will return the empty string if it can't match them.
 /// It also returns the empty string if the results are `<>`, but that's fine since that's
 /// not a valid syntactic construct either.
-fn scan_angle_brackets(input: &str) -> (&str, usize) {
+fn scan_angle_brackets(input: &str) -> (&str, usize, usize) {
     assert_eq!(input.as_bytes().get(0), Some(&b'<'));
     let mut brackets_count = 1;
     loop {
         match input.as_bytes().get(brackets_count) {
             Some(&b'<') => brackets_count += 1,
-            Some(&b'\n') | Some(&b' ') | None => return ("", brackets_count),
+            Some(&b'\n') | Some(&b' ') | None => return ("", brackets_count, brackets_count),
             _ => break,
         }
     }
@@ -326,11 +378,11 @@ fn scan_angle_brackets(input: &str) -> (&str, usize) {
                 }
                 break 'main;
             },
-            Some(&b'\n') | Some(&b' ') | None => return ("", brackets_count),
+            Some(&b'\n') | Some(&b' ') | None => return ("", brackets_count, brackets_count),
             _ => characters_count += 1,
         }
     }
-    (&input[brackets_count..characters_count+brackets_count], brackets_count + characters_count + brackets_count)
+    (&input[brackets_count..characters_count+brackets_count], brackets_count, brackets_count + characters_count)
 }
 
 /// If we're at the beginning of a syntactical construct, such as a URL or an @mention,
@@ -439,15 +491,15 @@ mod test {
     #[test]
     fn test_scan_angle_brackets() {
         let checks = &[
-            ("<chk", ("", 1)),
-            ("<chk>", ("chk", 5)),
-            ("<chk>>", ("chk", 5)),
-            ("<<chk>>", ("chk", 7)),
-            ("<<ch>k>>", ("ch>k", 8)),
-            ("<>", ("", 2)),
-            ("<www.com>", ("www.com", 9)),
-            ("<test mess>", ("", 1)),
-            ("<<test mess>", ("", 2)),
+            ("<chk", ("", 1, 1)),
+            ("<chk>", ("chk", 1, 4)),
+            ("<chk>>", ("chk", 1, 4)),
+            ("<<chk>>", ("chk", 2, 5)),
+            ("<<ch>k>>", ("ch>k", 2, 6)),
+            ("<>", ("", 1, 1)),
+            ("<www.com>", ("www.com", 1, 8)),
+            ("<test mess>", ("", 1, 1)),
+            ("<<test mess>", ("", 2, 2)),
         ][..];
         for &(input, expected) in checks {
             assert_eq!(scan_angle_brackets(input), expected)
@@ -513,6 +565,60 @@ mod test {
         assert_eq!(prettify_body(comment, &mut MyData).string, CLEANER.clean(html).to_string());
     }
     #[test]
+    fn test_multiple_brackets() {
+        let comment = "<<<http://example.com>>>";
+        let html = "<p>&lt;&lt;&lt;<a href=\"http://example.com\">http://example.com</a>&gt;&gt;&gt;";
+        struct MyData;
+        impl Data for MyData {
+            fn check_comment_ref(&mut self, id: i32) -> bool {
+                id == 12345
+            }
+            fn check_hash_tag(&mut self, tag: &str) -> bool {
+                tag == "words"
+            }
+            fn check_username(&mut self, username: &str) -> bool {
+                username == "mentioning"
+            }
+        }
+        assert_eq!(prettify_body(comment, &mut MyData).string, CLEANER.clean(html).to_string());
+    }
+    #[test]
+    fn test_unicode() {
+        let comment = "finger— inciting the two officers to fire";
+        let html = "<p>finger— inciting the two officers to fire";
+        struct MyData;
+        impl Data for MyData {
+            fn check_comment_ref(&mut self, id: i32) -> bool {
+                id == 12345
+            }
+            fn check_hash_tag(&mut self, tag: &str) -> bool {
+                tag == "words"
+            }
+            fn check_username(&mut self, username: &str) -> bool {
+                username == "mentioning"
+            }
+        }
+        assert_eq!(prettify_body(comment, &mut MyData).string, CLEANER.clean(html).to_string());
+    }
+    #[test]
+    fn test_multiple_brackets_pre() {
+        let comment = "<<<pre>>><pre><<</pre>>>";
+        let html = "<p>&lt;&lt;&lt;pre&gt;&gt;&gt;<pre>&lt;pre&gt;</pre>&lt;&lt;&lt;/pre&gt;&gt;&gt;";
+        struct MyData;
+        impl Data for MyData {
+            fn check_comment_ref(&mut self, id: i32) -> bool {
+                id == 12345
+            }
+            fn check_hash_tag(&mut self, tag: &str) -> bool {
+                tag == "words"
+            }
+            fn check_username(&mut self, username: &str) -> bool {
+                username == "mentioning"
+            }
+        }
+        assert_eq!(prettify_body(comment, &mut MyData).string, CLEANER.clean(html).to_string());
+    }
+    #[test]
     fn test_example() {
 let comment = r####"Write my comment here.
 
@@ -523,6 +629,8 @@ let comment = r####"Write my comment here.
 #words are hash tags, just like on Twitter.
 
 Consecutive line breaks are paragraph breaks, like in Markdown.
+
+<table><tr><td>Left</td><td>Right</td></tr></table>
 
 URL's are automatically linked, following similar rules to GitHub-flavored MD.
 <URL> also works if your URL is too complex, but note that the angle brackets
@@ -539,6 +647,8 @@ let html = r####"<p>Write my comment here.
 <p><a href="/?tag=words">#words</a> are hash tags, just like on Twitter.
 
 <p>Consecutive line breaks are paragraph breaks, like in Markdown.
+
+<p>&lt;table&gt;<table><tr><td>Left</td><td>Right</td></tr></table>&lt;/table&gt;
 
 <p>URL's are automatically linked, following similar rules to GitHub-flavored MD.
 &lt;URL&gt; also works if your URL is too complex, but note that the angle brackets

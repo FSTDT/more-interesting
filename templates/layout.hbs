@@ -1,17 +1,18 @@
 <!DOCTYPE html>
 <meta name=viewport content="width=device-width">
 <link rel=stylesheet href="assets/style.css?3">
+<style>{{{config.custom_css}}}</style>
 <title>{{title}}</title>
 <header class=top-header>
     <nav>
-        <a class=top-header-link href="/">Home</a>
+        <a class=top-header-link href="/">{{{config.site_title_html}}}</a>
         <details-menu-bar class=top-header-aside role=menubar>
             {{#if user.username}}
                 <details class="details-menu-outer backwards" role=menuitem>
                     <summary class="details-menu-summary backwards" aria-haspopup=menu>+</summary>
                     <form class="details-menu-inner backwards" role=menu>
                         <a class=details-menu-item href="submit" role=menuitem>Create post</a>
-                        {{#if (gte user.trust_level 2)}}
+                        {{#if (gte user.trust_level 3)}}
                         <a class=details-menu-item href="edit-tags" role=menuitem>Edit tags</a>
                         {{/if}}
                     </form>
