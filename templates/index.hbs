@@ -6,6 +6,7 @@
         {{#if this.excerpt_html}}
             <main>{{{this.excerpt_html}}}</main>
         {{/if}}
+        <footer>
         submitted by <a href="@{{this.submitted_by_username}}">{{this.submitted_by_username}}</a>
         {{date this.created_at}} and got
         <a href={{this.uuid}}>{{this.comment_count}} comments</a>
@@ -22,6 +23,7 @@
                 <img width=12 height=12 src=assets/flag.svg alt="Add flag">
             </button>
         </form>
+        </footer>
     </article>
 {{/each}}
 </ajax-form>
