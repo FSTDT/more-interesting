@@ -7,7 +7,7 @@ const URL_PROTOCOLS: &[&str] = &["http:", "https:", "ftp:", "gopher:", "mailto:"
 lazy_static!{
     static ref CLEANER: ammonia::Builder<'static> = {
         let mut b = ammonia::Builder::default();
-        b.add_allowed_classes("a", ["inner-link"][..].iter().cloned());
+        b.add_allowed_classes("a", ["inner-link", "article-header-inner"][..].iter().cloned());
         b
     };
 }
@@ -206,7 +206,7 @@ pub fn prettify_body<D: Data>(text: &str, data: &mut D) -> Output {
 /// Prettify a title line: similar to `prettify_body`, but without paragraph breaks
 pub fn prettify_title<D: Data>(mut text: &str, url: &str, data: &mut D) -> Output {
     let mut ret_val = Output::with_capacity(text.len());
-    ret_val.push_str("<a href=\"");
+    ret_val.push_str("<a class=article-header-inner href=\"");
     ret_val.push_str(url);
     ret_val.push_str("\">");
     while let Some(c) = text.as_bytes().get(0) {
@@ -276,7 +276,7 @@ fn maybe_write_username<D: Data>(username_without_at: &str, data: &mut D, out: &
     if data.check_username(username_without_at) {
         out.usernames.push(username_without_at.to_owned());
         if embedded.is_some() {
-            out.push_str("</a><a class=inner-link href=\"@");
+            out.push_str("</a><a class=\"inner-link article-header-inner\" href=\"@");
         } else {
             out.push_str("<a href=\"@");
         }
@@ -284,7 +284,7 @@ fn maybe_write_username<D: Data>(username_without_at: &str, data: &mut D, out: &
         out.push_str("\">@");
         out.push_str(&html);
         if let Some(embedded) = embedded {
-            out.push_str("</a><a href=\"");
+            out.push_str("</a><a class=article-header-inner href=\"");
             out.push_str(embedded);
             out.push_str("\">");
         } else {
@@ -309,7 +309,7 @@ fn maybe_write_number_sign<D: Data>(number_without_sign: &str, data: &mut D, out
         NumberSign::Tag(tag) => {
             out.hash_tags.push(tag.to_owned());
             if embedded.is_some() {
-                out.push_str("</a><a class=inner-link href=\"/?tag=");
+                out.push_str("</a><a class=\"inner-link article-header-inner\" href=\"/?tag=");
             } else {
                 out.push_str("<a href=\"/?tag=");
             }
@@ -317,7 +317,7 @@ fn maybe_write_number_sign<D: Data>(number_without_sign: &str, data: &mut D, out
             out.push_str("\">#");
             out.push_str(&html);
             if let Some(embedded) = embedded {
-                out.push_str("</a><a href=\"");
+                out.push_str("</a><a class=article-header-inner href=\"");
                 out.push_str(embedded);
                 out.push_str("\">");
             } else {
@@ -327,7 +327,7 @@ fn maybe_write_number_sign<D: Data>(number_without_sign: &str, data: &mut D, out
         NumberSign::Comment(id) => {
             out.comment_refs.push(id);
             if embedded.is_some() {
-                out.push_str("</a><a class=inner-link href=\"#");
+                out.push_str("</a><a class=\"inner-link article-header-inner\" href=\"#");
             } else {
                 out.push_str("<a href=\"#");
             }
@@ -335,7 +335,7 @@ fn maybe_write_number_sign<D: Data>(number_without_sign: &str, data: &mut D, out
             out.push_str("\">#");
             out.push_str(&html);
             if let Some(embedded) = embedded {
-                out.push_str("</a><a href=\"");
+                out.push_str("</a><a class=article-header-inner href=\"");
                 out.push_str(embedded);
                 out.push_str("\">");
             } else {
@@ -542,7 +542,7 @@ mod test {
             }
         }
 
-        let html = "<a href=\"url\">this is a #test for </a><a class=inner-link href=\"/?tag=words\">#words</a><a href=\"url\"> here</a>";
+        let html = "<a class=article-header-inner href=\"url\">this is a #test for </a><a class=\"inner-link article-header-inner\" href=\"/?tag=words\">#words</a><a class=article-header-inner href=\"url\"> here</a>";
 
         assert_eq!(prettify_title(title, "url", &mut MyData).string, CLEANER.clean(html).to_string());
     }
@@ -603,7 +603,7 @@ mod test {
     #[test]
     fn test_unicode_title() {
         let comment = "finger— inciting the two officers to fire";
-        let html = "<a href=\"url\">finger— inciting the two officers to fire</a>";
+        let html = "<a class=article-header-inner href=\"url\">finger— inciting the two officers to fire</a>";
         struct MyData;
         impl Data for MyData {
             fn check_comment_ref(&mut self, id: i32) -> bool {

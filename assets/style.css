@@ -362,6 +362,8 @@ article, aside {
 
 .article-header {
     margin-top: -24px;
+    margin-bottom: -8px;
+    padding: 0 12px;
     display: block;
 }
 
@@ -369,6 +371,9 @@ article, aside {
     background: #f9f9fa;
     padding: 8px 8px;
     outline-offset: -8px;
+    display: inline-block;
+    overflow: hidden;
+    margin: 0 -4px;
 }
 
 .top-header {
