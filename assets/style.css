@@ -15,17 +15,79 @@ html {
     line-height: 1.62;
     -ms-text-size-adjust: 100%;
     -webkit-text-size-adjust: 100%;
-    background: #f9f9fa;
-    color:  #0c0c0d;
     height: 100%;
     overflow-x: hidden;
     overflow-y: scroll;
+}
+
+html,
+button,
+input,
+optgroup,
+select,
+textarea,
+:link.button,
+:link:active.button,
+:visited.button,
+:visited:active.button,
+.details-dialog-summary,
+.details-menu-summary,
+article,
+aside,
+details-dialog,
+.details-menu-inner
+{
+    background: #f9f9fa;
+    color:  #0c0c0d;
+}
+
+.article-header-inner {
+    background: #f9f9fa;
+}
+
+html.dark,
+html.dark article,
+html.dark aside,
+html.dark input,
+html.dark textarea,
+html.dark details-dialog,
+html.dark .details-menu-inner
+{
+    background: #202340;
+    color: #f9f9fa;
+}
+
+html.dark button,
+html.dark input[type="submit"],
+html.dark optgroup,
+html.dark select,
+html.dark :link.button,
+html.dark :link:active.button,
+html.dark :visited.button,
+html.dark :visited:active.button,
+html.dark .details-dialog-summary,
+html.dark .details-menu-summary {
+    background: #363959;
+    color: #f9f9fa;
+}
+
+html.dark .article-header-inner {
+    background: #202340;
+}
+
+html.big {
+    font-size: 1.5em;
 }
 
 nav, .main {
     max-width: 700px;
     margin: 0 auto;
     padding: 1em;
+}
+
+html.big nav, html.big .main {
+    max-width: none;
+    margin: 0 1em;
 }
 
 .main-outer {
@@ -66,7 +128,7 @@ main,
 footer {
     display: block;
     overflow: hidden;
-    padding: 8px;
+    padding: 0.5em;
 }
 
 footer {
@@ -74,7 +136,7 @@ footer {
 }
 
 figure {
-    margin: 1em 40px;
+    margin: 1em 2.5px;
 }
 hr {
     box-sizing: content-box;
@@ -182,8 +244,6 @@ textarea,
     font-size: 100%;
     line-height: 1.15;
     margin: 0;
-    background: #f9f9fa;
-    color: #0c0c0d;
     border: solid 1px #737373;
     text-decoration: none;
 }
@@ -203,11 +263,29 @@ select,
 :visited.button,
 .details-dialog-summary,
 .details-menu-summary {
-    border: solid 2px #ccc;
+    border: solid 2px #eee;
+    border-bottom-color: #0c0c0d;
+    border-right-color: #0c0c0d;
     border-image: url("outset.svg") 2;
     width: auto;
-    outline-offset: -5px;
-    padding: 4px 8px;
+    outline-offset: -0.25em;
+    outline-offset: calc(-0.25em + -2px);
+    outline-color: currentColor;
+    padding: 0.25em 0.5em;
+}
+
+html.dark button,
+html.dark html [type="button"],
+html.dark html [type="submit"],
+html.dark select,
+html.dark :link.button,
+html.dark :visited.button,
+html.dark .details-dialog-summary,
+html.dark .details-menu-summary {
+    border: solid 2px #737373;
+    border-bottom-color: #0f1126;
+    border-right-color: #0f1126;
+    border-image: url("outset-dark.svg") 2;
 }
 
 input,
@@ -220,11 +298,29 @@ select:active,
 .details-menu-summary:active,
 details[open] .details-menu-summary,
 .details-dialog-summary:active {
-    border: solid 2px #ccc;
+    border: solid 2px #eee;
+    border-top-color: #0c0c0d;
+    border-left-color: #0c0c0d;
     border-image: url("inset.svg") 2;
     position: relative;
     top: 1px;
     left: 1px;
+}
+
+html.dark input,
+html.dark textarea,
+html.dark button:active,
+html.dark html [type="button"]:active,
+html.dark html [type="submit"]:active,
+html.dark select:active,
+html.dark .button:active,
+html.dark .details-menu-summary:active,
+html.dark details[open] .details-menu-summary,
+html.dark .details-dialog-summary:active {
+    border: solid 2px #737373;
+    border-top-color: #0f1126;
+    border-left-color: #0f1126;
+    border-image: url("inset-dark.svg") 2;
 }
 
 button,
@@ -342,38 +438,55 @@ template {
 :link {
     color: #0060df;
 }
+html.dark :link {
+    color: #45a1ff;
+}
 :visited {
     color: #8000d7;
 }
+html.dark :visited {
+    color: #c069ff;
+}
 :link:active, :visited:active {
     color: #d70022;
+}
+html.dark :link:active, html.dark :visited:active {
+    color: #ff0039;
 }
 
 .inner-link:link {
     color: #058b00;
 }
+html.dark .inner-link:link {
+    color: #30e60b;
+}
 
 article, aside {
     display: block;
     border: solid 1px #0c0c0d;
-    background: #f9f9fa;
-    margin: 24px 0;
+    margin: 1.5em 0;
+}
+
+html.dark article, html.dark aside {
+    border-color: #737373;
 }
 
 .article-header {
-    margin-top: -24px;
-    margin-bottom: -8px;
-    padding: 0 12px;
+    margin-top: -1.5em;
+    margin-bottom: -0.5px;
+    padding: 0 0.75em;
     display: block;
 }
 
 .article-header-inner {
-    background: #f9f9fa;
-    padding: 8px 8px;
-    outline-offset: -8px;
+    padding: 0.5em;
+    padding: calc(0.5em - 1px);
+    outline-offset: -0.5em;
+    outline-offset: calc(-0.5em - -1px);
     display: inline-block;
     overflow: hidden;
-    margin: 0 -4px;
+    margin: 0 -0.25em;
+    margin: 0 calc(-0.25em + 1px);
 }
 
 .top-header {
@@ -384,7 +497,7 @@ article, aside {
     padding: 0;
     overflow: visible;
 }
-.top-header-link {
+.top-header-link, html.dark .top-header-link {
     color: #fff;
 }
 .top-header-aside {
@@ -396,14 +509,12 @@ article, aside {
 }
 
 details-dialog, .details-menu-inner {
-    background: #f9f9fa;
-    color: #0c0c0d;
-    box-shadow: 3px 3px 0 #0c0c0d;
+    box-shadow: 0.25em 0.25em 0 #0c0c0d;
     border: solid 1px #fff;
     border-bottom: solid 1px #737373;
     border-right: solid 1px #737373;
-    padding: 4px 8px;
-    margin: 4px 0;
+    padding: 0.25em 0.5em;
+    margin: 0.5em 0;
 }
 
 details-dialog {
@@ -489,14 +600,14 @@ get anything reasonable-looking.
 */
 .details-menu-item {
     background: transparent !important;
-    color: #0c0c0d !important;
+    color: inherit !important;
     box-shadow: none !important;
     border: none !important;
     outline: none !important;
     text-decoration: none !important;
     display: block !important;
     white-space: nowrap !important;
-    padding: 4px 8px !important;
+    padding: 0.25em 0.5em !important;
     width: auto !important;
     -webkit-appearance: none !important;
     text-align: left !important;
@@ -508,6 +619,9 @@ button.details-menu-item {
 .details-menu-item:focus {
     background: #45a1ff !important;
 }
+html.dark .details-menu-item:focus {
+    background: #003eaa !important;
+}
 
 .tree, .subtree {
     margin: 0;
@@ -518,8 +632,8 @@ button.details-menu-item {
 }
 .subtree li {
     border-left: solid 1px #0f1126;
-    padding-left: 4px;
-    margin-left: 4px;
+    padding-left: 0.25em;
+    margin-left: 0.25em;
 }
 
 details-dialog {
@@ -544,4 +658,9 @@ p {
 
 local-date {
     border-bottom: dotted 1px currentColor;
+}
+
+.good-img {
+    width: 0.75em;
+    height: 0.75em;
 }

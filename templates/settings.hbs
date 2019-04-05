@@ -1,20 +1,47 @@
 {{#*inline "page"}}
     <h2>Settings</h2>
-    <details-menu-bar>
-        <form class=inline-form action=create-invite method=post>
-            <button>Invite someone to this instance</button>
-        </form>
-        <details class=details-dialog-outer>
-            <summary class=details-dialog-summary>Change password</summary>
-            <details-dialog>
-                <form action=change-password method=POST>
-                    <label>Make sure you know your old password <input name=old_password autofocus type=password></label>
-                    <label>New Password <input name=new_password type=password></label>
-                    <button>Submit</button>
-                    <details-dialog-close><a href="settings" class=button>Cancel</a></details-dialog-close>
+    <article>
+        <header class="article-header"><span class="article-header-inner">Authentication</span></header>
+        <main>
+            <details-menu-bar>
+                <form class=inline-form action=create-invite method=post>
+                    <button>Invite someone to this instance</button>
                 </form>
-            </details-dialog>
-        </details>
-    </details-menu-bar>
+                <details class=details-dialog-outer>
+                    <summary class=details-dialog-summary>Change password</summary>
+                    <details-dialog>
+                        <form action=change-password method=POST>
+                            <label>Make sure you know your old password <input name=old_password autofocus type=password></label>
+                            <label>New Password <input name=new_password type=password></label>
+                            <button>Submit</button>
+                            <details-dialog-close><a href="settings" class=button>Cancel</a></details-dialog-close>
+                        </form>
+                    </details-dialog>
+                </details>
+            </details-menu-bar>
+        </main>
+    </article>
+    <article>
+        <header class="article-header"><div class="article-header-inner">Accessibility</div></header>
+        <main>
+            <details-menu-bar>
+                <details class=details-menu-outer>
+                    <summary class=details-menu-summary aria-haspopup=menu>Dark mode</summary>
+                    <form class=details-menu-inner method=POST action=set-dark-mode role=menu>
+                        <button class=details-menu-item name=active value=false role=menuitem aria-checked="{{#if user.dark_mode}}false{{else}}true{{/if}}">Turn off</button>
+                        <button class=details-menu-item name=active value=true role=menuitem aria-checked="{{#if user.dark_mode}}true{{else}}false{{/if}}">Turn on</button>
+                    </form>
+                </details>
+                <details class=details-menu-outer>
+                    <summary class=details-menu-summary>Big mode</summary>
+                    <form class=details-menu-inner method=POST action=set-big-mode role=menu>
+                        <button class=details-menu-item name=active value=false role=menuitem aria-checked="{{#if user.big_mode}}false{{else}}true{{/if}}">Turn off</button>
+                        <button class=details-menu-item name=active value=true role=menuitem aria-checked="{{#if user.big_mode}}true{{else}}false{{/if}}">Turn on</button>
+                    </form>
+                </details>
+            </details-menu-bar>
+        </main>
+    </article>
+
 {{/inline}}
 {{~> (parent)~}}

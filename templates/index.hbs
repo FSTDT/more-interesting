@@ -16,11 +16,11 @@
             {{/if}}
             <button name="{{#if this.starred_by_me}}rm_star{{else}}add_star{{/if}}" value={{this.uuid}} title="{{#if this.starred_by_me}}Remove star{{else}}Add star{{/if}}">
                 <span>{{this.score}}</span>
-                <img width=12 height=12 src=assets/{{#if this.starred_by_me}}star_active.svg{{else}}star.svg{{/if}} alt="{{#if this.starred_by_me}}Remove star{{else}}Add star{{/if}}">
+                <img width=12 height=12 class=good-img src=assets/{{#if this.starred_by_me}}star_active.svg{{else}}star.svg{{/if}} alt="{{#if this.starred_by_me}}Remove star{{else}}Add star{{/if}}">
             </button>
             <!-- flagging is not yet implemented -->
             <button name=add_flag value={{this.uuid}} title="Add flag">
-                <img width=12 height=12 src=assets/flag.svg alt="Add flag">
+                <img width=12 height=12 class=good-img src=assets/flag.svg alt="Add flag">
             </button>
         </form>
         </footer>

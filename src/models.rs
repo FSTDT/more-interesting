@@ -37,6 +37,8 @@ pub struct User {
     pub password_hash: Vec<u8>,
     pub created_at: NaiveDateTime,
     pub invited_by: Option<i32>,
+    pub dark_mode: bool,
+    pub big_mode: bool,
 }
 
 impl Default for User {
@@ -49,6 +51,8 @@ impl Default for User {
             password_hash: vec![],
             created_at: NaiveDateTime::from_timestamp(0, 0),
             invited_by: None,
+            dark_mode: false,
+            big_mode: false,
         }
     }
 }
@@ -616,6 +620,20 @@ impl MoreInterestingConn {
     pub fn get_all_tags(&self) -> Result<Vec<Tag>, DieselError> {
         use self::tags::dsl::*;
         tags.get_results::<Tag>(&self.0)
+    }
+    pub fn set_dark_mode(&self, user_id_value: i32, dark_mode_value: bool) -> Result<(), DieselError> {
+        use self::users::dsl::*;
+        diesel::update(users.find(user_id_value))
+            .set(dark_mode.eq(dark_mode_value))
+            .execute(&self.0)
+            .map(|_| ())
+    }
+    pub fn set_big_mode(&self, user_id_value: i32, big_mode_value: bool) -> Result<(), DieselError> {
+        use self::users::dsl::*;
+        diesel::update(users.find(user_id_value))
+            .set(big_mode.eq(big_mode_value))
+            .execute(&self.0)
+            .map(|_| ())
     }
 }
 

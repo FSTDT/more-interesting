@@ -383,6 +383,37 @@ fn get_settings(_conn: MoreInterestingConn, user: User, flash: Option<FlashMessa
     })
 }
 
+#[derive(FromForm)]
+struct DarkModeForm {
+    active: bool,
+}
+
+#[post("/set-dark-mode", data="<form>")]
+fn set_dark_mode<'a>(conn: MoreInterestingConn, user: User, form: Form<DarkModeForm>) -> impl Responder<'static> {
+    match conn.set_dark_mode(user.id, form.active) {
+        Ok(()) => {
+            Flash::success(Redirect::to(uri!(get_settings)), "")
+        }
+        Err(e) => {
+            dbg!(e);
+            Flash::error(Redirect::to(uri!(get_settings)), "Something went horribly wrong")
+        }
+    }
+}
+
+#[post("/set-big-mode", data="<form>")]
+fn set_big_mode<'a>(conn: MoreInterestingConn, user: User, form: Form<DarkModeForm>) -> impl Responder<'static> {
+    match conn.set_big_mode(user.id, form.active) {
+        Ok(()) => {
+            Flash::success(Redirect::to(uri!(get_settings)), "")
+        }
+        Err(e) => {
+            dbg!(e);
+            Flash::error(Redirect::to(uri!(get_settings)), "Something went horribly wrong")
+        }
+    }
+}
+
 #[post("/create-invite")]
 fn create_invite<'a>(conn: MoreInterestingConn, user: User, config: State<SiteConfig>) -> impl Responder<'static> {
     match conn.create_invite_token(user.id) {
@@ -688,7 +719,7 @@ fn main() {
             }
             Ok(rocket)
         }))
-        .mount("/", routes![index, login_form, login, logout, create_form, create, get_comments, vote, consume_invite, get_settings, create_invite, invite_tree, change_password, post_comment, vote_comment, get_edit_tags, edit_tags, get_tags, edit_post, get_edit_post, edit_comment, get_edit_comment])
+        .mount("/", routes![index, login_form, login, logout, create_form, create, get_comments, vote, consume_invite, get_settings, create_invite, invite_tree, change_password, post_comment, vote_comment, get_edit_tags, edit_tags, get_tags, edit_post, get_edit_post, edit_comment, get_edit_comment, set_dark_mode, set_big_mode])
         .mount("/assets", StaticFiles::from("assets"))
         .attach(Template::custom(|engines| {
             engines.handlebars.register_helper("count", Box::new(count_helper));
