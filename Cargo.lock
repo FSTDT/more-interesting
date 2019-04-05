@@ -338,7 +338,7 @@ dependencies = [
  "diesel_derives 1.4.0 (registry+https://github.com/rust-lang/crates.io-index)",
  "pq-sys 0.4.6 (registry+https://github.com/rust-lang/crates.io-index)",
  "r2d2 0.8.3 (registry+https://github.com/rust-lang/crates.io-index)",
- "uuid 0.6.5 (registry+https://github.com/rust-lang/crates.io-index)",
+ "serde_json 1.0.39 (registry+https://github.com/rust-lang/crates.io-index)",
 ]
 
 [[package]]
@@ -982,7 +982,6 @@ dependencies = [
  "unicode-normalization 0.1.8 (registry+https://github.com/rust-lang/crates.io-index)",
  "url 1.7.2 (registry+https://github.com/rust-lang/crates.io-index)",
  "url_serde 0.2.0 (registry+https://github.com/rust-lang/crates.io-index)",
- "uuid 0.6.5 (registry+https://github.com/rust-lang/crates.io-index)",
  "v_htmlescape 0.4.3 (registry+https://github.com/rust-lang/crates.io-index)",
 ]
 
@@ -2340,7 +2339,6 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 dependencies = [
  "cfg-if 0.1.6 (registry+https://github.com/rust-lang/crates.io-index)",
  "rand 0.4.6 (registry+https://github.com/rust-lang/crates.io-index)",
- "serde 1.0.89 (registry+https://github.com/rust-lang/crates.io-index)",
 ]
 
 [[package]]

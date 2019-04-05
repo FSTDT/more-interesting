@@ -2,7 +2,7 @@ use rocket_contrib::databases::diesel::PgConnection;
 use diesel::prelude::*;
 use diesel::result::Error as DieselError;
 use chrono::NaiveDateTime;
-use crate::schema::{users, posts, stars, invite_tokens, comments, comment_stars, tags, post_tagging};
+use crate::schema::{users, posts, stars, invite_tokens, comments, comment_stars, tags, post_tagging, moderation};
 use crate::password::{password_hash, password_verify, PasswordResult};
 use serde::Serialize;
 use crate::base32::Base32;
@@ -10,6 +10,24 @@ use std::cmp::max;
 use ordered_float::OrderedFloat;
 use std::collections::{HashMap, HashSet};
 use crate::prettify::{self, prettify_title};
+use serde_json::{self as json, json};
+
+#[derive(Queryable, Serialize)]
+pub struct Moderation {
+    pub id: i32,
+    pub payload: json::Value,
+    pub created_at: NaiveDateTime,
+    pub created_by: i32,
+}
+
+#[derive(Serialize)]
+pub struct ModerationInfo {
+    pub id: i32,
+    pub payload: json::Value,
+    pub created_at: NaiveDateTime,
+    pub created_by: i32,
+    pub created_by_username: String,
+}
 
 #[derive(Queryable, Serialize)]
 pub struct Post {
@@ -26,6 +44,7 @@ pub struct Post {
     pub submitted_by: i32,
     pub excerpt: Option<String>,
     pub excerpt_html: Option<String>,
+    pub updated_at: NaiveDateTime,
 }
 
 #[derive(Queryable, Serialize)]
@@ -166,6 +185,13 @@ pub struct Tag {
 struct CreatePostTagging {
     post_id: i32,
     tag_id: i32,
+}
+
+#[derive(Insertable)]
+#[table_name="moderation"]
+struct CreateModeration {
+    pub payload: json::Value,
+    pub created_by: i32,
 }
 
 #[database("more_interesting")]
@@ -635,6 +661,95 @@ impl MoreInterestingConn {
             .execute(&self.0)
             .map(|_| ())
     }
+    pub fn get_mod_log_recent(&self) -> Result<Vec<ModerationInfo>, DieselError> {
+        use self::moderation::dsl::*;
+        Ok(moderation
+            .inner_join(users::table)
+            .select((
+                id,
+                payload,
+                created_at,
+                created_by,
+                self::users::dsl::username,
+            ))
+            .order_by(id.desc())
+            .limit(200)
+            .get_results::<(i32, json::Value, NaiveDateTime, i32, String)>(&self.0)?
+            .into_iter()
+            .map(|t| tuple_to_moderation(t))
+            .collect()
+        )
+    }
+    pub fn get_mod_log_starting_with(&self, starting_with_id: i32) -> Result<Vec<ModerationInfo>, DieselError> {
+        use self::moderation::dsl::*;
+        Ok(moderation
+            .inner_join(users::table)
+            .select((
+                id,
+                payload,
+                created_at,
+                created_by,
+                self::users::dsl::username,
+            ))
+            .filter(id.lt(starting_with_id))
+            .order_by(id.desc())
+            .limit(200)
+            .get_results::<(i32, json::Value, NaiveDateTime, i32, String)>(&self.0)?
+            .into_iter()
+            .map(|t| tuple_to_moderation(t))
+            .collect()
+        )
+    }
+    pub fn mod_log_edit_comment(
+        &self,
+        user_id_value: i32,
+        comment_id_value: i32,
+        post_uuid_value: Base32,
+        old_text_value: &str,
+        new_text_value: &str
+    ) -> Result<(), DieselError> {
+        diesel::insert_into(moderation::table)
+            .values(CreateModeration{
+                payload: json!{{
+                    "type": "edit_comment",
+                    "comment_id": comment_id_value,
+                    "post_uuid": post_uuid_value,
+                    "old_text": old_text_value,
+                    "new_text": new_text_value,
+                }},
+                created_by: user_id_value,
+            })
+            .execute(&self.0)
+            .map(|_| ())
+    }
+    pub fn mod_log_edit_post(
+        &self,
+        user_id_value: i32,
+        post_uuid_value: Base32,
+        old_title_value: &str,
+        new_title_value: &str,
+        old_url_value: &str,
+        new_url_value: &str,
+        old_excerpt_value: &str,
+        new_excerpt_value: &str,
+    ) -> Result<(), DieselError> {
+        diesel::insert_into(moderation::table)
+            .values(CreateModeration{
+                payload: json!{{
+                    "type": "edit_post",
+                    "post_uuid": post_uuid_value,
+                    "old_title": old_title_value,
+                    "new_title": new_title_value,
+                    "old_url": old_url_value,
+                    "new_url": new_url_value,
+                    "old_excerpt": old_excerpt_value,
+                    "new_excerpt": new_excerpt_value,
+                }},
+                created_by: user_id_value,
+            })
+            .execute(&self.0)
+            .map(|_| ())
+    }
 }
 
 fn tuple_to_post_info(conn: &MoreInterestingConn, (id, uuid, title, url, visible, initial_stellar_time, score, comment_count, authored_by_submitter, created_at, submitted_by, excerpt, excerpt_html, starred_post_id, submitted_by_username): (i32, Base32, String, Option<String>, bool, i32, i32, i32, bool, NaiveDateTime, i32, Option<String>, Option<String>, Option<i32>, String), current_stellar_time: i32) -> PostInfo {
@@ -659,6 +774,16 @@ fn tuple_to_comment_info(conn: &MoreInterestingConn, (id, text, html, visible, p
         id, text, html, visible, post_id, created_at, created_by, created_by_username,
         starred_by: conn.get_comment_starred_by(id).unwrap_or(Vec::new()),
         starred_by_me: starred_comment_id.is_some(),
+    }
+}
+
+fn tuple_to_moderation((id, payload, created_at, created_by, created_by_username): (i32, json::Value, NaiveDateTime, i32, String)) -> ModerationInfo {
+    ModerationInfo {
+        id,
+        payload,
+        created_at,
+        created_by,
+        created_by_username,
     }
 }
 

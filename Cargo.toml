@@ -8,13 +8,12 @@ license = "MIT OR Apache-2.0"
 [dependencies]
 rocket = "0.4.0"
 rocket_contrib = { version = "0.4.0", default-features = false, features = ["diesel_postgres_pool", "serve", "handlebars_templates"] }
-diesel = { version = "1.0.0", features = ["postgres", "chrono", "uuid"] }
+diesel = { version = "1.0.0", features = ["postgres", "chrono", "serde_json"] }
 chrono = { version = "0.4.6", features = ["serde"] }
 chrono-humanize = "0.0.11"
 ring = "0.13.5"
 rand = "0.6.5"
 serde = { version = "1.0.89", features = ["derive"] }
-uuid = { version = "0.6", features = ["serde"] }
 unicode-normalization = "0.1.8"
 lazy_static = "1"
 quickcheck = "0.8"

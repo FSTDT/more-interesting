@@ -27,6 +27,15 @@ table! {
 }
 
 table! {
+    moderation (id) {
+        id -> Int4,
+        payload -> Jsonb,
+        created_at -> Timestamp,
+        created_by -> Int4,
+    }
+}
+
+table! {
     post_tagging (post_id, tag_id) {
         post_id -> Int4,
         tag_id -> Int4,
@@ -48,6 +57,7 @@ table! {
         submitted_by -> Int4,
         excerpt -> Nullable<Varchar>,
         excerpt_html -> Nullable<Varchar>,
+        updated_at -> Timestamp,
     }
 }
 
@@ -88,6 +98,7 @@ joinable!(comment_stars -> users (user_id));
 joinable!(comments -> posts (post_id));
 joinable!(comments -> users (created_by));
 joinable!(invite_tokens -> users (invited_by));
+joinable!(moderation -> users (created_by));
 joinable!(post_tagging -> posts (post_id));
 joinable!(post_tagging -> tags (tag_id));
 joinable!(posts -> users (submitted_by));
@@ -98,6 +109,7 @@ allow_tables_to_appear_in_same_query!(
     comment_stars,
     comments,
     invite_tokens,
+    moderation,
     post_tagging,
     posts,
     stars,
