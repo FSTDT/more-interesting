@@ -18,9 +18,9 @@ mod prettify;
 mod pid_file_fairing;
 mod extract_excerpt;
 
-use rocket::request::{Form, FlashMessage};
+use rocket::request::{Form, FlashMessage, FromParam};
 use rocket::response::{Responder, Redirect, Flash};
-use rocket::http::{Cookies, Cookie};
+use rocket::http::{Cookies, Cookie, RawStr};
 pub use models::MoreInterestingConn;
 use models::User;
 use models::UserAuth;
@@ -29,7 +29,7 @@ use rocket_contrib::serve::StaticFiles;
 use rocket_contrib::templates::{Template, handlebars};
 use serde::Serialize;
 use std::borrow::Cow;
-use crate::models::{PostInfo, NewStar, NewUser, CommentInfo, NewPost, NewComment, NewStarComment, NewTag, Tag, Comment};
+use crate::models::{PostInfo, NewStar, NewUser, CommentInfo, NewPost, NewComment, NewStarComment, NewTag, Tag, Comment, ModerationInfo};
 use base32::Base32;
 use url::Url;
 use std::collections::HashMap;
@@ -74,6 +74,7 @@ struct TemplateContext {
     raw_html: String,
     tags: Vec<Tag>,
     config: SiteConfig,
+    log: Vec<ModerationInfo>,
 }
 
 fn default<T: Default>() -> T { T::default() }
@@ -206,6 +207,29 @@ fn index(conn: MoreInterestingConn, user: Option<User>, flash: Option<FlashMessa
     })
 }
 
+#[derive(FromForm)]
+struct ModLogParams {
+    before: Option<i32>,
+}
+
+#[get("/mod-log?<params..>")]
+fn mod_log(conn: MoreInterestingConn, user: Option<User>, flash: Option<FlashMessage>, params: Option<Form<ModLogParams>>, config: State<SiteConfig>) -> impl Responder<'static> {
+    let user = user.unwrap_or(User::default());
+    let log = if let Some(before) = params.as_ref().and_then(|params| params.before) {
+        conn.get_mod_log_starting_with(before)
+    } else {
+        conn.get_mod_log_recent()
+    }.unwrap_or(Vec::new());
+    Template::render("mod-log", &TemplateContext {
+        title: Cow::Borrowed("moderation"),
+        parent: "layout",
+        alert: flash.map(|f| f.msg().to_owned()),
+        config: config.clone(),
+        user, log,
+        ..default()
+    })
+}
+
 #[get("/submit")]
 fn create_form(user: User, config: State<SiteConfig>) -> impl Responder<'static> {
     Template::render("submit", &TemplateContext {
@@ -300,7 +324,43 @@ fn logout(mut cookies: Cookies) -> impl Responder<'static> {
     Redirect::to("/")
 }
 
-#[get("/<uuid>")]
+struct UserInfoName(String);
+
+impl<'a> FromParam<'a> for UserInfoName {
+    type Error = &'a RawStr;
+
+    fn from_param(param: &'a RawStr) -> Result<UserInfoName, &'a RawStr> {
+        match param.starts_with("@") {
+            true => Ok(UserInfoName(param[1..].to_string())),
+            false => Err(param)
+        }
+    }
+}
+
+#[get("/<username>")]
+fn get_user_info(conn: MoreInterestingConn, user: Option<User>, username: UserInfoName, config: State<SiteConfig>, flash: Option<FlashMessage>) -> Result<impl Responder<'static>, Status> {
+    let user = user.unwrap_or(User::default());
+    let user_info = if let Ok(user_info) = conn.get_user_by_username(&username.0) {
+        user_info
+    } else {
+        return Err(Status::NotFound);
+    };
+    let posts = if let Ok(posts) = conn.get_post_info_recent_by_user(user.id, user_info.id) {
+        posts
+    } else {
+        return Err(Status::InternalServerError);
+    };
+    Ok(Template::render("index", &TemplateContext {
+        title: Cow::Owned(username.0),
+        parent: "layout",
+        alert: flash.map(|f| f.msg().to_owned()),
+        config: config.clone(),
+        posts, user,
+        ..default()
+    }))
+}
+
+#[get("/<uuid>", rank = 1)]
 fn get_comments(conn: MoreInterestingConn, user: Option<User>, uuid: Base32, config: State<SiteConfig>, flash: Option<FlashMessage>) -> Result<impl Responder<'static>, Status> {
     let user = user.unwrap_or(User::default());
     if let Ok(post_info) = conn.get_post_info_by_uuid(user.id, uuid) {
@@ -557,7 +617,19 @@ fn edit_post(conn: MoreInterestingConn, user: Moderator, form: Form<EditPostForm
         submitted_by: user.0.id,
         excerpt: excerpt.as_ref().map(|s| &s[..]),
     }) {
-        Ok(_) => Ok(Flash::success(Redirect::to(form.post.to_string()), "Updated post")),
+        Ok(_) => {
+            conn.mod_log_edit_post(
+                user.0.id,
+                post_info.uuid,
+                &post_info.title,
+                &form.title,
+                post_info.url.as_ref().map(|x| &x[..]).unwrap_or(""),
+                url.as_ref().map(|x| &x[..]).unwrap_or(""),
+                post_info.excerpt.as_ref().map(|x| &x[..]).unwrap_or(""),
+                form.excerpt.as_ref().map(|x| &x[..]).unwrap_or(""),
+            ).expect("if updating the post worked, then so should logging");
+            Ok(Flash::success(Redirect::to(form.post.to_string()), "Updated post"))
+        },
         Err(e) => {
             warn!("{:?}", e);
             Err(Status::InternalServerError)
@@ -597,11 +669,22 @@ struct EditCommentForm {
 fn edit_comment(conn: MoreInterestingConn, user: User, form: Form<EditCommentForm>) -> Result<impl Responder<'static>, Status> {
     let comment = conn.get_comment_by_id(form.comment).map_err(|_| Status::NotFound)?;
     let post = conn.get_post_uuid_from_comment(form.comment).map_err(|_| Status::NotFound)?;
-    if !user.trust_level < 3 && comment.created_by != user.id {
+    if user.trust_level < 3 && comment.created_by != user.id {
         return Err(Status::NotFound);
     }
     match conn.update_comment(form.comment, &form.text) {
-        Ok(_) => Ok(Flash::success(Redirect::to(post.to_string()), "Updated comment")),
+        Ok(_) => {
+            if user.trust_level >= 3 && comment.created_by != user.id {
+                conn.mod_log_edit_comment(
+                    user.id,
+                    comment.id,
+                    post,
+                    &comment.text,
+                    &form.text,
+                ).expect("if updating the comment worked, then so should logging");
+            }
+            Ok(Flash::success(Redirect::to(post.to_string()), "Updated comment"))
+        },
         Err(e) => {
             warn!("{:?}", e);
             Err(Status::InternalServerError)
@@ -719,7 +802,7 @@ fn main() {
             }
             Ok(rocket)
         }))
-        .mount("/", routes![index, login_form, login, logout, create_form, create, get_comments, vote, consume_invite, get_settings, create_invite, invite_tree, change_password, post_comment, vote_comment, get_edit_tags, edit_tags, get_tags, edit_post, get_edit_post, edit_comment, get_edit_comment, set_dark_mode, set_big_mode])
+        .mount("/", routes![index, login_form, login, logout, create_form, create, get_comments, vote, consume_invite, get_settings, create_invite, invite_tree, change_password, post_comment, vote_comment, get_edit_tags, edit_tags, get_tags, edit_post, get_edit_post, edit_comment, get_edit_comment, set_dark_mode, set_big_mode, mod_log, get_user_info])
         .mount("/assets", StaticFiles::from("assets"))
         .attach(Template::custom(|engines| {
             engines.handlebars.register_helper("count", Box::new(count_helper));

@@ -1,0 +1,30 @@
+{{#*inline "page"}}
+    <table class=good-table>
+        <thead>
+            <tr>
+                <th>Date</th>
+                <th>Moderator</th>
+                <th>Action</th>
+            </tr>
+        </thead>
+        <tbody>
+        {{#each log}}
+            <tr>
+                <td>{{date this.created_at}}</td>
+                <td>{{this.created_by_username}}</td>
+                <td>
+                    <dl>
+                        {{#each this.payload}}
+                            <dt>{{@key}}</dt>
+                            <dd>
+                                <pre>{{this}}</pre>
+                            </dd>
+                        {{/each}}
+                    </dl>
+                </td>
+            </tr>
+        {{/each}}
+        </tbody>
+    </table>
+{{/inline}}
+{{~> (parent)~}}
