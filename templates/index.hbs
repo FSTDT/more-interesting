@@ -2,7 +2,7 @@
 <ajax-form>
 {{#each posts}}
     <article>
-        <header class=article-header><span class="article-header-inner">{{{this.title_html}}}</span></header>
+        <header class=article-header>{{{this.title_html}}}</header>
         {{#if this.excerpt_html}}
             <main>{{{this.excerpt_html}}}</main>
         {{/if}}
