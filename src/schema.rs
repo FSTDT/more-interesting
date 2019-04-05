@@ -78,6 +78,8 @@ table! {
         password_hash -> Bytea,
         created_at -> Timestamp,
         invited_by -> Nullable<Int4>,
+        dark_mode -> Bool,
+        big_mode -> Bool,
     }
 }
 

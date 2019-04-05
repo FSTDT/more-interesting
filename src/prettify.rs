@@ -8,6 +8,7 @@ lazy_static!{
     static ref CLEANER: ammonia::Builder<'static> = {
         let mut b = ammonia::Builder::default();
         b.add_allowed_classes("a", ["inner-link", "article-header-inner"][..].iter().cloned());
+        b.tags(["a", "p"][..].iter().cloned().collect());
         b
     };
 }
@@ -75,56 +76,6 @@ pub fn prettify_body<D: Data>(text: &str, data: &mut D) -> Output {
                     ret_val.push_str("</a>");
                 } else if contents.starts_with('#') {
                     maybe_write_number_sign(&contents[1..], data, &mut ret_val, None);
-                } else if contents == "table" {
-                    let mut end_tag = String::new();
-                    let mut end_tag_html = String::new();
-                    for _ in 0..brackets_count {
-                        end_tag.push_str("<");
-                        end_tag_html.push_str("&lt;");
-                    }
-                    end_tag.push_str("/table");
-                    end_tag_html.push_str("/table");
-                    for _ in 0..brackets_count {
-                        end_tag.push_str(">");
-                        end_tag_html.push_str("&gt;");
-                    }
-                    ret_val.push_str("table");
-                    for _ in 0..brackets_count {
-                        ret_val.push_str("&gt;");
-                    }
-                    if let Some(pos) = text.find(&end_tag) {
-                        ret_val.push_str("<table>");
-                        ret_val.push_str(&text[brackets_count + count..pos]);
-                        ret_val.push_str("</table>");
-                        ret_val.push_str(&end_tag_html);
-                        text = &text[pos+end_tag.len()..];
-                        continue;
-                    }
-                } else if contents == "pre" {
-                    let mut end_tag = String::new();
-                    let mut end_tag_html = String::new();
-                    for _ in 0..brackets_count {
-                        end_tag.push_str("<");
-                        end_tag_html.push_str("&lt;");
-                    }
-                    end_tag.push_str("/pre");
-                    end_tag_html.push_str("/pre");
-                    for _ in 0..brackets_count {
-                        end_tag.push_str(">");
-                        end_tag_html.push_str("&gt;");
-                    }
-                    ret_val.push_str("pre");
-                    for _ in 0..brackets_count {
-                        ret_val.push_str("&gt;");
-                    }
-                    if let Some(pos) = text.find(&end_tag) {
-                        ret_val.push_str("<pre>");
-                        ret_val.push_str(&escape(&text[brackets_count+count..pos]).to_string());
-                        ret_val.push_str("</pre>");
-                        ret_val.push_str(&end_tag_html);
-                        text = &text[pos+end_tag.len()..];
-                        continue;
-                    }
                 } else {
                     ret_val.push_str(&escape(&text[brackets_count..count]).to_string());
                 }
@@ -206,9 +157,8 @@ pub fn prettify_body<D: Data>(text: &str, data: &mut D) -> Output {
 /// Prettify a title line: similar to `prettify_body`, but without paragraph breaks
 pub fn prettify_title<D: Data>(mut text: &str, url: &str, data: &mut D) -> Output {
     let mut ret_val = Output::with_capacity(text.len());
-    ret_val.push_str("<a class=article-header-inner href=\"");
-    ret_val.push_str(url);
-    ret_val.push_str("\">");
+    let link = format!("<a class=article-header-inner href=\"{}\">", url);
+    ret_val.push_str(&link);
     while let Some(c) = text.as_bytes().get(0) {
         match c {
             b'<' => {
@@ -218,9 +168,9 @@ pub fn prettify_title<D: Data>(mut text: &str, url: &str, data: &mut D) -> Outpu
                     ret_val.push_str("&lt;");
                 }
                 if contents.starts_with('@') {
-                    maybe_write_username(&contents[1..], data, &mut ret_val, Some(url));
+                    maybe_write_username(&contents[1..], data, &mut ret_val, Some(&link));
                 } else if contents.starts_with('#') {
-                    maybe_write_number_sign(&contents[1..], data, &mut ret_val, Some(url));
+                    maybe_write_number_sign(&contents[1..], data, &mut ret_val, Some(&link));
                 } else {
                     ret_val.push_str(&escape(&text[brackets_count..count]).to_string());
                 }
@@ -235,12 +185,12 @@ pub fn prettify_title<D: Data>(mut text: &str, url: &str, data: &mut D) -> Outpu
             }
             b'@' => {
                 let contents = scan_lexical_token(&text[1..], false);
-                maybe_write_username(contents, data, &mut ret_val, Some(url));
+                maybe_write_username(contents, data, &mut ret_val, Some(&link));
                 text = &text[(1 + contents.len())..];
             }
             b'#' => {
                 let contents = scan_lexical_token(&text[1..], false);
-                maybe_write_number_sign(contents, data, &mut ret_val, Some(url));
+                maybe_write_number_sign(contents, data, &mut ret_val, Some(&link));
                 text = &text[(1 + contents.len())..];
             }
             b' ' => {
@@ -266,7 +216,11 @@ pub fn prettify_title<D: Data>(mut text: &str, url: &str, data: &mut D) -> Outpu
             }
         }
     }
-    ret_val.push_str("</a>");
+    if ret_val.string.ends_with(&link) {
+        ret_val.string.truncate(ret_val.string.len() - link.len());
+    } else {
+        ret_val.push_str("</a>");
+    }
     ret_val.string = CLEANER.clean(&ret_val.string).to_string();
     ret_val
 }
@@ -283,12 +237,9 @@ fn maybe_write_username<D: Data>(username_without_at: &str, data: &mut D, out: &
         out.push_str(&html);
         out.push_str("\">@");
         out.push_str(&html);
+        out.push_str("</a>");
         if let Some(embedded) = embedded {
-            out.push_str("</a><a class=article-header-inner href=\"");
             out.push_str(embedded);
-            out.push_str("\">");
-        } else {
-            out.push_str("</a>");
         }
     } else {
         out.push_str("@");
@@ -316,12 +267,9 @@ fn maybe_write_number_sign<D: Data>(number_without_sign: &str, data: &mut D, out
             out.push_str(&html);
             out.push_str("\">#");
             out.push_str(&html);
+            out.push_str("</a>");
             if let Some(embedded) = embedded {
-                out.push_str("</a><a class=article-header-inner href=\"");
                 out.push_str(embedded);
-                out.push_str("\">");
-            } else {
-                out.push_str("</a>");
             }
         }
         NumberSign::Comment(id) => {
@@ -334,12 +282,9 @@ fn maybe_write_number_sign<D: Data>(number_without_sign: &str, data: &mut D, out
             out.push_str(&html);
             out.push_str("\">#");
             out.push_str(&html);
+            out.push_str("</a>");
             if let Some(embedded) = embedded {
-                out.push_str("</a><a class=article-header-inner href=\"");
                 out.push_str(embedded);
-                out.push_str("\">");
-            } else {
-                out.push_str("</a>");
             }
         }
         NumberSign::None => {
@@ -619,9 +564,9 @@ mod test {
         assert_eq!(prettify_title(comment, "url", &mut MyData).string, CLEANER.clean(html).to_string());
     }
     #[test]
-    fn test_multiple_brackets_pre() {
-        let comment = "<<<pre>>><pre><<</pre>>>";
-        let html = "<p>&lt;&lt;&lt;pre&gt;&gt;&gt;<pre>&lt;pre&gt;</pre>&lt;&lt;&lt;/pre&gt;&gt;&gt;";
+    fn test_ends_with_hash_title() {
+        let comment = "finger— inciting the two officers to fire #words";
+        let html = "<a class=article-header-inner href=\"url\">finger— inciting the two officers to fire </a><a class=\"inner-link article-header-inner\" href=\"/?tag=words\">#words</a>";
         struct MyData;
         impl Data for MyData {
             fn check_comment_ref(&mut self, id: i32) -> bool {
@@ -634,7 +579,7 @@ mod test {
                 username == "mentioning"
             }
         }
-        assert_eq!(prettify_body(comment, &mut MyData).string, CLEANER.clean(html).to_string());
+        assert_eq!(prettify_title(comment, "url", &mut MyData).string, CLEANER.clean(html).to_string());
     }
     #[test]
     fn test_example() {
@@ -647,8 +592,6 @@ let comment = r####"Write my comment here.
 #words are hash tags, just like on Twitter.
 
 Consecutive line breaks are paragraph breaks, like in Markdown.
-
-<table><tr><td>Left</td><td>Right</td></tr></table>
 
 URL's are automatically linked, following similar rules to GitHub-flavored MD.
 <URL> also works if your URL is too complex, but note that the angle brackets
@@ -665,8 +608,6 @@ let html = r####"<p>Write my comment here.
 <p><a href="/?tag=words">#words</a> are hash tags, just like on Twitter.
 
 <p>Consecutive line breaks are paragraph breaks, like in Markdown.
-
-<p>&lt;table&gt;<table><tr><td>Left</td><td>Right</td></tr></table>&lt;/table&gt;
 
 <p>URL's are automatically linked, following similar rules to GitHub-flavored MD.
 &lt;URL&gt; also works if your URL is too complex, but note that the angle brackets
