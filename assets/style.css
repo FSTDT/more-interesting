@@ -236,6 +236,7 @@ input,
 optgroup,
 select,
 textarea,
+.smart-textarea,
 :link.button,
 :visited.button,
 .details-dialog-summary,
@@ -249,7 +250,8 @@ textarea,
 }
 
 input,
-textarea {
+textarea,
+.smart-textarea {
     width: 100%;
     background: #fff;
     box-sizing: border-box;
@@ -282,7 +284,7 @@ html.dark :link.button,
 html.dark :visited.button,
 html.dark .details-dialog-summary,
 html.dark .details-menu-summary {
-    border: solid 2px #737373;
+    border: solid 2px #575765;
     border-bottom-color: #0f1126;
     border-right-color: #0f1126;
     border-image: url("outset-dark.svg") 2;
@@ -290,6 +292,7 @@ html.dark .details-menu-summary {
 
 input,
 textarea,
+.smart-textarea,
 button:active,
 html [type="button"]:active,
 html [type="submit"]:active,
@@ -317,7 +320,7 @@ html.dark .button:active,
 html.dark .details-menu-summary:active,
 html.dark details[open] .details-menu-summary,
 html.dark .details-dialog-summary:active {
-    border: solid 2px #737373;
+    border: solid 2px #575765;
     border-top-color: #0f1126;
     border-left-color: #0f1126;
     border-image: url("inset-dark.svg") 2;
@@ -385,8 +388,28 @@ progress {
     vertical-align: baseline;
 }
 
-textarea {
+textarea,
+.smart-textarea {
     overflow: auto;
+    min-height: 8em;
+}
+
+textarea.smart-textarea {
+    overflow: hidden;
+    z-index: 2;
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    resize: none;
+}
+pre.smart-textarea {
+    overflow: hidden;
+    visibility: hidden;
+}
+.smart-textarea-wrapper {
+    position: relative;
 }
 
 [type="checkbox"],

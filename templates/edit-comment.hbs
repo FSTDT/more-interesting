@@ -2,7 +2,7 @@
     <form action='' method=POST>
         <input type=hidden name=comment value="{{comment.id}}">
         <label>Edit comment
-        <textarea name=text>{{comment.text}}</textarea>
+        <smart-textarea><textarea name=text>{{comment.text}}</textarea></smart-textarea>
         </label>
         <button>Submit</button>
     </form>
