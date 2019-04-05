@@ -18,9 +18,9 @@ mod prettify;
 mod pid_file_fairing;
 mod extract_excerpt;
 
-use rocket::request::{Form, FlashMessage};
+use rocket::request::{Form, FlashMessage, FromParam};
 use rocket::response::{Responder, Redirect, Flash};
-use rocket::http::{Cookies, Cookie};
+use rocket::http::{Cookies, Cookie, RawStr};
 pub use models::MoreInterestingConn;
 use models::User;
 use models::UserAuth;
@@ -324,7 +324,43 @@ fn logout(mut cookies: Cookies) -> impl Responder<'static> {
     Redirect::to("/")
 }
 
-#[get("/<uuid>")]
+struct UserInfoName(String);
+
+impl<'a> FromParam<'a> for UserInfoName {
+    type Error = &'a RawStr;
+
+    fn from_param(param: &'a RawStr) -> Result<UserInfoName, &'a RawStr> {
+        match param.starts_with("@") {
+            true => Ok(UserInfoName(param[1..].to_string())),
+            false => Err(param)
+        }
+    }
+}
+
+#[get("/<username>")]
+fn get_user_info(conn: MoreInterestingConn, user: Option<User>, username: UserInfoName, config: State<SiteConfig>, flash: Option<FlashMessage>) -> Result<impl Responder<'static>, Status> {
+    let user = user.unwrap_or(User::default());
+    let user_info = if let Ok(user_info) = conn.get_user_by_username(&username.0) {
+        user_info
+    } else {
+        return Err(Status::NotFound);
+    };
+    let posts = if let Ok(posts) = conn.get_post_info_recent_by_user(user.id, user_info.id) {
+        posts
+    } else {
+        return Err(Status::InternalServerError);
+    };
+    Ok(Template::render("index", &TemplateContext {
+        title: Cow::Owned(username.0),
+        parent: "layout",
+        alert: flash.map(|f| f.msg().to_owned()),
+        config: config.clone(),
+        posts, user,
+        ..default()
+    }))
+}
+
+#[get("/<uuid>", rank = 1)]
 fn get_comments(conn: MoreInterestingConn, user: Option<User>, uuid: Base32, config: State<SiteConfig>, flash: Option<FlashMessage>) -> Result<impl Responder<'static>, Status> {
     let user = user.unwrap_or(User::default());
     if let Ok(post_info) = conn.get_post_info_by_uuid(user.id, uuid) {
@@ -766,7 +802,7 @@ fn main() {
             }
             Ok(rocket)
         }))
-        .mount("/", routes![index, login_form, login, logout, create_form, create, get_comments, vote, consume_invite, get_settings, create_invite, invite_tree, change_password, post_comment, vote_comment, get_edit_tags, edit_tags, get_tags, edit_post, get_edit_post, edit_comment, get_edit_comment, set_dark_mode, set_big_mode, mod_log])
+        .mount("/", routes![index, login_form, login, logout, create_form, create, get_comments, vote, consume_invite, get_settings, create_invite, invite_tree, change_password, post_comment, vote_comment, get_edit_tags, edit_tags, get_tags, edit_post, get_edit_post, edit_comment, get_edit_comment, set_dark_mode, set_big_mode, mod_log, get_user_info])
         .mount("/assets", StaticFiles::from("assets"))
         .attach(Template::custom(|engines| {
             engines.handlebars.register_helper("count", Box::new(count_helper));
