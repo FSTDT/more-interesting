@@ -8,6 +8,7 @@ lazy_static!{
     static ref CLEANER: ammonia::Builder<'static> = {
         let mut b = ammonia::Builder::default();
         b.add_allowed_classes("a", ["inner-link", "article-header-inner"][..].iter().cloned());
+        b.tags(["a", "p"][..].iter().cloned())
         b
     };
 }
@@ -75,56 +76,6 @@ pub fn prettify_body<D: Data>(text: &str, data: &mut D) -> Output {
                     ret_val.push_str("</a>");
                 } else if contents.starts_with('#') {
                     maybe_write_number_sign(&contents[1..], data, &mut ret_val, None);
-                } else if contents == "table" {
-                    let mut end_tag = String::new();
-                    let mut end_tag_html = String::new();
-                    for _ in 0..brackets_count {
-                        end_tag.push_str("<");
-                        end_tag_html.push_str("&lt;");
-                    }
-                    end_tag.push_str("/table");
-                    end_tag_html.push_str("/table");
-                    for _ in 0..brackets_count {
-                        end_tag.push_str(">");
-                        end_tag_html.push_str("&gt;");
-                    }
-                    ret_val.push_str("table");
-                    for _ in 0..brackets_count {
-                        ret_val.push_str("&gt;");
-                    }
-                    if let Some(pos) = text.find(&end_tag) {
-                        ret_val.push_str("<table>");
-                        ret_val.push_str(&text[brackets_count + count..pos]);
-                        ret_val.push_str("</table>");
-                        ret_val.push_str(&end_tag_html);
-                        text = &text[pos+end_tag.len()..];
-                        continue;
-                    }
-                } else if contents == "pre" {
-                    let mut end_tag = String::new();
-                    let mut end_tag_html = String::new();
-                    for _ in 0..brackets_count {
-                        end_tag.push_str("<");
-                        end_tag_html.push_str("&lt;");
-                    }
-                    end_tag.push_str("/pre");
-                    end_tag_html.push_str("/pre");
-                    for _ in 0..brackets_count {
-                        end_tag.push_str(">");
-                        end_tag_html.push_str("&gt;");
-                    }
-                    ret_val.push_str("pre");
-                    for _ in 0..brackets_count {
-                        ret_val.push_str("&gt;");
-                    }
-                    if let Some(pos) = text.find(&end_tag) {
-                        ret_val.push_str("<pre>");
-                        ret_val.push_str(&escape(&text[brackets_count+count..pos]).to_string());
-                        ret_val.push_str("</pre>");
-                        ret_val.push_str(&end_tag_html);
-                        text = &text[pos+end_tag.len()..];
-                        continue;
-                    }
                 } else {
                     ret_val.push_str(&escape(&text[brackets_count..count]).to_string());
                 }
@@ -619,24 +570,6 @@ mod test {
         assert_eq!(prettify_title(comment, "url", &mut MyData).string, CLEANER.clean(html).to_string());
     }
     #[test]
-    fn test_multiple_brackets_pre() {
-        let comment = "<<<pre>>><pre><<</pre>>>";
-        let html = "<p>&lt;&lt;&lt;pre&gt;&gt;&gt;<pre>&lt;pre&gt;</pre>&lt;&lt;&lt;/pre&gt;&gt;&gt;";
-        struct MyData;
-        impl Data for MyData {
-            fn check_comment_ref(&mut self, id: i32) -> bool {
-                id == 12345
-            }
-            fn check_hash_tag(&mut self, tag: &str) -> bool {
-                tag == "words"
-            }
-            fn check_username(&mut self, username: &str) -> bool {
-                username == "mentioning"
-            }
-        }
-        assert_eq!(prettify_body(comment, &mut MyData).string, CLEANER.clean(html).to_string());
-    }
-    #[test]
     fn test_example() {
 let comment = r####"Write my comment here.
 
@@ -647,8 +580,6 @@ let comment = r####"Write my comment here.
 #words are hash tags, just like on Twitter.
 
 Consecutive line breaks are paragraph breaks, like in Markdown.
-
-<table><tr><td>Left</td><td>Right</td></tr></table>
 
 URL's are automatically linked, following similar rules to GitHub-flavored MD.
 <URL> also works if your URL is too complex, but note that the angle brackets
@@ -665,8 +596,6 @@ let html = r####"<p>Write my comment here.
 <p><a href="/?tag=words">#words</a> are hash tags, just like on Twitter.
 
 <p>Consecutive line breaks are paragraph breaks, like in Markdown.
-
-<p>&lt;table&gt;<table><tr><td>Left</td><td>Right</td></tr></table>&lt;/table&gt;
 
 <p>URL's are automatically linked, following similar rules to GitHub-flavored MD.
 &lt;URL&gt; also works if your URL is too complex, but note that the angle brackets
