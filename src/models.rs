@@ -1099,8 +1099,10 @@ impl MoreInterestingConn {
     }
     pub fn user_has_received_a_star(&self, user_id_param: i32) -> bool {
         use self::stars::dsl::*;
+        use self::comment_stars::dsl::*;
         use diesel::{select, dsl::exists};
-        select(exists(stars.filter(user_id.eq(user_id_param)))).get_result(&self.0).unwrap_or(false)
+        select(exists(stars.filter(self::stars::dsl::user_id.eq(user_id_param)))).get_result(&self.0).unwrap_or(false) ||
+            select(exists(comment_stars.filter(self::comment_stars::dsl::user_id.eq(user_id_param)))).get_result(&self.0).unwrap_or(false)
     }
 }
 

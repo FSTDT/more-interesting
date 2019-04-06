@@ -210,6 +210,12 @@ fn vote_comment(conn: MoreInterestingConn, user: User, redirect: Form<MaybeRedir
         _ => false,
     };
     if result {
+        use chrono::{Utc, Duration};
+        if user.trust_level == 0 &&
+            (Utc::now().naive_utc() - user.created_at) > Duration::seconds(60 * 60 * 24) &&
+            conn.user_has_received_a_star(user.id) {
+            conn.change_user_trust_level(user.id, 1).expect("if voting works, then so should switching trust level")
+        }
         redirect.maybe_redirect()
     } else {
         Err(Status::BadRequest)
@@ -487,7 +493,6 @@ fn consume_invite(conn: MoreInterestingConn, form: Form<ConsumeInviteForm>, mut 
             password: &form.password,
             invited_by: Some(invite_token.invited_by),
         }) {
-            let _ = conn.change_user_trust_level(user.id, 1);
             cookies.add_private(Cookie::new("user_id", user.id.to_string()));
             return Ok(Flash::success(Redirect::to("/"), "Congrats, you're in!"));
         }

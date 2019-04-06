@@ -65,6 +65,7 @@
             </aside>
         {{/each}}
     </ajax-form>
+    {{#if (gte user.trust_level 0)}}
     <form action="comment" method=POST>
         <label>
             <h3>Post your comment</h3>
@@ -73,5 +74,6 @@
         <input type=hidden name=post value="{{posts.0.uuid}}">
         <button>Submit</button>
     </form>
+    {{/if}}
 {{/inline}}
 {{~> (parent)~}}
