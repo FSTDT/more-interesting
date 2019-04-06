@@ -1,0 +1,54 @@
+{{#*inline "page"}}
+    {{#if comments}}
+        <aside>
+            <main>{{{comments.0.html}}}</main>
+            <footer>
+                posted by <a href="@{{comments.0.created_by_username}}">{{this.created_by_username}}</a>
+                {{date comments.0.created_at}}
+                {{#if comments.0.starred_by}}
+                    starred by
+                    {{#each comments.0.starred_by}}
+                        <a href="@{{this}}">{{this}}</a>
+                        {{#unless @last}},{{/unless}}
+                    {{/each}}
+                {{/if}}
+                <form class=module-aside action=moderate-comment method=POST>
+                    <input type="hidden" name="comment" value="{{comments.0.id}}">
+                    <button name="action" value="approve">Approve</button>
+                    <a href="edit-comment?comment={{comments.0.id}}" class=button>Edit</a>
+                    <button name="action" value="delete">Delete</button>
+                </form>
+            </footer>
+        </aside>
+    {{else}}
+    {{#if posts}}
+        <article>
+            <header class=article-header>{{{posts.0.title_html}}}</header>
+            {{#if posts.0.excerpt_html}}
+                <main>{{{posts.0.excerpt_html}}}</main>
+            {{/if}}
+            <footer>
+                submitted by <a href="@{{posts.0.submitted_by_username}}">{{posts.0.submitted_by_username}}</a>
+                {{date posts.0.created_at}}
+                {{#if starred_by}}
+                    starred by
+                    {{#each starred_by}}
+                        <a href="@{{this}}">{{this}}</a>
+                        {{#unless @last}},{{/unless}}
+                    {{/each}}
+                {{/if}}
+                <form class=module-aside action=moderate-post method=POST>
+                    <input type="hidden" name="post" value="{{posts.0.uuid}}">
+                    <button name="action" value="approve">Approve</button>
+                    <a href="edit-post?post={{posts.0.uuid}}" class=button>Edit</a>
+                    <button name="action" value="delete">Delete</button>
+                </form>
+            </footer>
+        </article>
+    {{else}}
+        <div class=alert>No items found in the moderation queue</div>
+        <p>You can go back to reading <a href=".">from the home page</a> if you want.</p>
+    {{/if}}
+    {{/if}}
+{{/inline}}
+{{~> (parent)~}}

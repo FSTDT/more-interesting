@@ -29,7 +29,7 @@ use rocket_contrib::serve::StaticFiles;
 use rocket_contrib::templates::{Template, handlebars};
 use serde::Serialize;
 use std::borrow::Cow;
-use crate::models::{PostInfo, NewStar, NewUser, CommentInfo, NewPost, NewComment, NewStarComment, NewTag, Tag, Comment, ModerationInfo};
+use crate::models::{PostInfo, NewStar, NewUser, CommentInfo, NewPost, NewComment, NewStarComment, NewTag, Tag, Comment, ModerationInfo, NewFlag, NewFlagComment};
 use base32::Base32;
 use url::Url;
 use std::collections::HashMap;
@@ -43,6 +43,7 @@ use session::Moderator;
 #[derive(Clone, Serialize)]
 struct SiteConfig {
     enable_user_directory: bool,
+    enable_anonymous_submissions: bool,
     #[serde(with = "url_serde")]
     public_url: Url,
     custom_css: String,
@@ -53,6 +54,7 @@ impl Default for SiteConfig {
     fn default() -> Self {
         SiteConfig {
             enable_user_directory: false,
+            enable_anonymous_submissions: false,
             public_url: Url::parse("http://localhost").unwrap(),
             site_title_html: String::new(),
             custom_css: String::new(),
@@ -128,21 +130,37 @@ It helps keep the URLs short and easy-to-remember.
 struct VoteForm {
     rm_star: Option<Base32>,
     add_star: Option<Base32>,
+    rm_flag: Option<Base32>,
+    add_flag: Option<Base32>,
 }
 
 #[post("/vote?<redirect..>", data = "<post>")]
 fn vote(conn: MoreInterestingConn, user: User, redirect: Form<MaybeRedirect>, post: Form<VoteForm>) -> Result<impl Responder<'static>, Status> {
-    let result = match (post.add_star, post.rm_star) {
-        (Some(post), None) => {
+    let result = match (post.add_star, post.rm_star, post.add_flag, post.rm_flag) {
+        (Some(post), None, None, None) => {
             let post = conn.get_post_info_by_uuid(user.id, post).map_err(|_| Status::NotFound)?;
             conn.add_star(&NewStar {
                 user_id: user.id,
                 post_id: post.id,
             })
         }
-        (None, Some(post)) => {
+        (None, Some(post), None, None) => {
             let post = conn.get_post_info_by_uuid(user.id, post).map_err(|_| Status::NotFound)?;
             conn.rm_star(&NewStar {
+                user_id: user.id,
+                post_id: post.id,
+            })
+        }
+        (None, None, Some(post), None) => {
+            let post = conn.get_post_info_by_uuid(user.id, post).map_err(|_| Status::NotFound)?;
+            conn.add_flag(&NewFlag {
+                user_id: user.id,
+                post_id: post.id,
+            })
+        }
+        (None, None, None, Some(post)) => {
+            let post = conn.get_post_info_by_uuid(user.id, post).map_err(|_| Status::NotFound)?;
+            conn.rm_flag(&NewFlag {
                 user_id: user.id,
                 post_id: post.id,
             })
@@ -150,6 +168,12 @@ fn vote(conn: MoreInterestingConn, user: User, redirect: Form<MaybeRedirect>, po
         _ => false,
     };
     if result {
+        use chrono::{Utc, Duration};
+        if user.trust_level == 0 &&
+            (Utc::now().naive_utc() - user.created_at) > Duration::seconds(60 * 60 * 24) &&
+            conn.user_has_received_a_star(user.id) {
+            conn.change_user_trust_level(user.id, 1).expect("if voting works, then so should switching trust level")
+        }
         redirect.maybe_redirect()
     } else {
         Err(Status::BadRequest)
@@ -160,16 +184,26 @@ fn vote(conn: MoreInterestingConn, user: User, redirect: Form<MaybeRedirect>, po
 struct VoteCommentForm {
     add_star_comment: Option<i32>,
     rm_star_comment: Option<i32>,
+    add_flag_comment: Option<i32>,
+    rm_flag_comment: Option<i32>,
 }
 
 #[post("/vote-comment?<redirect..>", data = "<comment>")]
 fn vote_comment(conn: MoreInterestingConn, user: User, redirect: Form<MaybeRedirect>, comment: Form<VoteCommentForm>) -> Result<impl Responder<'static>, Status> {
-    let result = match (comment.add_star_comment, comment.rm_star_comment) {
-        (Some(comment), None) => conn.add_star_comment(&NewStarComment{
+    let result = match (comment.add_star_comment, comment.rm_star_comment, comment.add_flag_comment, comment.rm_flag_comment) {
+        (Some(comment), None, None, None) => conn.add_star_comment(&NewStarComment{
             user_id: user.id,
             comment_id: comment,
         }),
-        (None, Some(comment)) => conn.rm_star_comment(&NewStarComment{
+        (None, Some(comment), None, None) => conn.rm_star_comment(&NewStarComment{
+            user_id: user.id,
+            comment_id: comment,
+        }),
+        (None, None, Some(comment), None) if user.trust_level >= 1 => conn.add_flag_comment(&NewFlagComment{
+            user_id: user.id,
+            comment_id: comment,
+        }),
+        (None, None, None, Some(comment)) => conn.rm_flag_comment(&NewFlagComment{
             user_id: user.id,
             comment_id: comment,
         }),
@@ -209,14 +243,14 @@ fn index(conn: MoreInterestingConn, user: Option<User>, flash: Option<FlashMessa
 
 #[derive(FromForm)]
 struct ModLogParams {
-    before: Option<i32>,
+    after: Option<i32>,
 }
 
 #[get("/mod-log?<params..>")]
 fn mod_log(conn: MoreInterestingConn, user: Option<User>, flash: Option<FlashMessage>, params: Option<Form<ModLogParams>>, config: State<SiteConfig>) -> impl Responder<'static> {
     let user = user.unwrap_or(User::default());
-    let log = if let Some(before) = params.as_ref().and_then(|params| params.before) {
-        conn.get_mod_log_starting_with(before)
+    let log = if let Some(after) = params.as_ref().and_then(|params| params.after) {
+        conn.get_mod_log_starting_with(after)
     } else {
         conn.get_mod_log_recent()
     }.unwrap_or(Vec::new());
@@ -231,12 +265,12 @@ fn mod_log(conn: MoreInterestingConn, user: Option<User>, flash: Option<FlashMes
 }
 
 #[get("/submit")]
-fn create_form(user: User, config: State<SiteConfig>) -> impl Responder<'static> {
+fn create_form(user: Option<User>, config: State<SiteConfig>) -> impl Responder<'static> {
     Template::render("submit", &TemplateContext {
         title: Cow::Borrowed("submit"),
         parent: "layout",
         config: config.clone(),
-        user,
+        user: user.unwrap_or(User::default()),
         ..default()
     })
 }
@@ -249,7 +283,28 @@ struct NewPostForm {
 }
 
 #[post("/submit", data = "<post>")]
-fn create(user: User, conn: MoreInterestingConn, post: Form<NewPostForm>) -> Result<impl Responder<'static>, Status> {
+fn create(user: Option<User>, conn: MoreInterestingConn, post: Form<NewPostForm>, config: State<SiteConfig>) -> Result<impl Responder<'static>, Status> {
+    let user = if let Some(user) = user {
+        if user.trust_level < 0 {
+            return Err(Status::InternalServerError);
+        }
+        user
+    } else if config.enable_anonymous_submissions {
+        conn.get_user_by_username("anonymous").or_else(|_| {
+            let p: [char; 16] = rand::random();
+            let mut password = String::new();
+            password.extend(p.iter());
+            let user = conn.register_user(&NewUser{
+                username: "anonymous",
+                password: &password,
+                invited_by: None,
+            })?;
+            conn.change_user_trust_level(user.id, -1)?;
+            Ok(user)
+        }).map_err(|_: diesel::result::Error| Status::InternalServerError)?
+    } else {
+        return Err(Status::BadRequest);
+    };
     let NewPostForm { title, url, excerpt } = &*post;
     let url = url.as_ref().and_then(|u| {
         if u == "" {
@@ -274,9 +329,10 @@ fn create(user: User, conn: MoreInterestingConn, post: Form<NewPostForm>) -> Res
         title: &title,
         url: url.as_ref().map(|s| &s[..]),
         submitted_by: user.id,
+        visible: user.trust_level > 0,
         excerpt
     }) {
-        Ok(_) => Ok(Redirect::to("/")),
+        Ok(post) => Ok(Redirect::to(post.uuid.to_string())),
         Err(e) => {
             warn!("{:?}", e);
             Err(Status::InternalServerError)
@@ -307,6 +363,9 @@ fn login(conn: MoreInterestingConn, post: Form<UserForm>, mut cookies: Cookies) 
         password: &post.password,
     }) {
         Some(user) => {
+            if user.trust_level < 0 {
+                return Flash::error(Redirect::to("/"), "Sorry. Not sorry. You're banned.");
+            }
             cookies.add_private(Cookie::new("user_id", user.id.to_string()));
             Flash::success(Redirect::to("/"), "Congrats, you're in!")
         },
@@ -405,6 +464,7 @@ fn post_comment(conn: MoreInterestingConn, user: User, comment: Form<CommentForm
         post_id: post_info.id,
         text: &comment.text,
         created_by: user.id,
+        visible: user.trust_level > 0,
     }).into_option()?;
     Some(Redirect::to(uri!(get_comments: comment.post)))
 }
@@ -418,12 +478,16 @@ struct ConsumeInviteForm {
 
 #[post("/consume-invite", data = "<form>")]
 fn consume_invite(conn: MoreInterestingConn, form: Form<ConsumeInviteForm>, mut cookies: Cookies) -> Result<impl Responder<'static>, Status> {
+    if form.username == "" || form.username == "anonymous" {
+        return Err(Status::BadRequest);
+    }
     if let Ok(invite_token) = conn.consume_invite_token(form.invite_token) {
         if let Ok(user) = conn.register_user(&NewUser {
             username: &form.username,
             password: &form.password,
             invited_by: Some(invite_token.invited_by),
         }) {
+            let _ = conn.change_user_trust_level(user.id, 1);
             cookies.add_private(Cookie::new("user_id", user.id.to_string()));
             return Ok(Flash::success(Redirect::to("/"), "Congrats, you're in!"));
         }
@@ -616,6 +680,7 @@ fn edit_post(conn: MoreInterestingConn, user: Moderator, form: Form<EditPostForm
         url: url.as_ref().map(|s| &s[..]),
         submitted_by: user.0.id,
         excerpt: excerpt.as_ref().map(|s| &s[..]),
+        visible: user.0.trust_level >= 3,
     }) {
         Ok(_) => {
             conn.mod_log_edit_post(
@@ -715,6 +780,147 @@ fn change_password(conn: MoreInterestingConn, user: User, form: Form<ChangePassw
     }
 }
 
+#[get("/mod-queue")]
+fn get_mod_queue(conn: MoreInterestingConn, user: Moderator, flash: Option<FlashMessage>, config: State<SiteConfig>) -> Result<impl Responder<'static>, Status> {
+    let mod_a_comment: bool = rand::random();
+    if mod_a_comment {
+        if let Some(comment_info) = conn.find_moderated_comment(user.0.id) {
+            let post_uuid = conn.get_post_uuid_from_comment(comment_info.id).unwrap();
+            let post_info = conn.get_post_info_by_uuid(user.0.id, post_uuid).unwrap();
+            return Ok(Template::render("mod-queue", &TemplateContext {
+                title: Cow::Borrowed("moderate comment"),
+                parent: "layout",
+                alert: flash.map(|f| f.msg().to_owned()),
+                config: config.clone(),
+                comments: vec![comment_info],
+                posts: vec![post_info],
+                user: user.0,
+                ..default()
+            }))
+        }
+    }
+    if let Some(post_info) = conn.find_moderated_post(user.0.id) {
+        return Ok(Template::render("mod-queue", &TemplateContext {
+            title: Cow::Borrowed("moderate post"),
+            parent: "layout",
+            alert: flash.map(|f| f.msg().to_owned()),
+            config: config.clone(),
+            posts: vec![post_info],
+            user: user.0,
+            ..default()
+        }))
+    }
+    Ok(Template::render("mod-queue", &TemplateContext {
+        title: Cow::Borrowed("moderator queue is empty!"),
+        parent: "layout",
+        alert: flash.map(|f| f.msg().to_owned()),
+        config: config.clone(),
+        user: user.0,
+        ..default()
+    }))
+}
+
+#[derive(FromForm)]
+struct ModeratePostForm {
+    post: Base32,
+    action: String,
+}
+
+#[post("/moderate-post", data = "<form>")]
+fn moderate_post(conn: MoreInterestingConn, user: Moderator, form: Form<ModeratePostForm>) -> Result<impl Responder<'static>, Status> {
+    let post_info = if let Ok(post_info) = conn.get_post_info_by_uuid(user.0.id, form.post) {
+        post_info
+    } else {
+        return Err(Status::NotFound);
+    };
+    let post_id = post_info.id;
+    if form.action == "approve" {
+        match conn.approve_post(post_id) {
+            Ok(_) => {
+                conn.mod_log_approve_post(
+                    user.0.id,
+                    post_info.uuid,
+                    &post_info.title,
+                    post_info.url.as_ref().map(|x| &x[..]).unwrap_or(""),
+                    post_info.excerpt.as_ref().map(|x| &x[..]).unwrap_or(""),
+                ).expect("if updating the post worked, then so should logging");
+                Ok(Flash::success(Redirect::to(uri!(get_mod_queue)), "Approved post"))
+            },
+            Err(e) => {
+                warn!("{:?}", e);
+                Err(Status::InternalServerError)
+            },
+        }
+    } else {
+        match conn.delete_post(post_id) {
+            Ok(_) => {
+                conn.mod_log_delete_post(
+                    user.0.id,
+                    post_info.uuid,
+                    &post_info.title,
+                    post_info.url.as_ref().map(|x| &x[..]).unwrap_or(""),
+                    post_info.excerpt.as_ref().map(|x| &x[..]).unwrap_or(""),
+                ).expect("if updating the post worked, then so should logging");
+                Ok(Flash::success(Redirect::to(uri!(get_mod_queue)), "Deleted post"))
+            },
+            Err(e) => {
+                warn!("{:?}", e);
+                Err(Status::InternalServerError)
+            },
+        }
+    }
+}
+
+#[derive(FromForm)]
+struct ModerateCommentForm {
+    comment: i32,
+    action: String,
+}
+
+#[post("/moderate-comment", data = "<form>")]
+fn moderate_comment(conn: MoreInterestingConn, user: Moderator, form: Form<ModerateCommentForm>) -> Result<impl Responder<'static>, Status> {
+    let comment_info = if let Ok(comment) = conn.get_comment_by_id(form.comment) {
+        comment
+    } else {
+        return Err(Status::NotFound);
+    };
+    let post_uuid = conn.get_post_uuid_from_comment(comment_info.id).unwrap();
+    let post_info = conn.get_post_info_by_uuid(user.0.id, post_uuid).unwrap();
+    if form.action == "approve" {
+        match conn.approve_comment(comment_info.id) {
+            Ok(_) => {
+                conn.mod_log_approve_comment(
+                    user.0.id,
+                    comment_info.id,
+                    post_info.uuid,
+                    &comment_info.text,
+                ).expect("if updating the comment worked, then so should logging");
+                Ok(Flash::success(Redirect::to(uri!(get_mod_queue)), "Approved comment"))
+            },
+            Err(e) => {
+                warn!("{:?}", e);
+                Err(Status::InternalServerError)
+            },
+        }
+    } else {
+        match conn.delete_comment(comment_info.id) {
+            Ok(_) => {
+                conn.mod_log_delete_comment(
+                    user.0.id,
+                    comment_info.id,
+                    post_info.uuid,
+                    &comment_info.text,
+                ).expect("if updating the comment worked, then so should logging");
+                Ok(Flash::success(Redirect::to(uri!(get_mod_queue)), "Deleted comment"))
+            },
+            Err(e) => {
+                warn!("{:?}", e);
+                Err(Status::InternalServerError)
+            },
+        }
+    }
+}
+
 fn count_helper(
     h: &Helper,
     _: &Handlebars,
@@ -778,11 +984,13 @@ fn main() {
             }
             let public_url = Url::parse(&public_url).expect("public_url configuration must be valid");
             let enable_user_directory = rocket.config().get_bool("enable_user_directory").unwrap_or(true);
+            let enable_anonymous_submissions = rocket.config().get_bool("enable_anonymous_submissions").unwrap_or(false);
             let site_title_html = rocket.config().get_str("site_title_html").unwrap_or("More Interesting").to_owned();
             let custom_css = rocket.config().get_str("custom_css").unwrap_or("").to_owned();
             Ok(rocket.manage(SiteConfig {
                 enable_user_directory, public_url,
                 site_title_html, custom_css,
+                enable_anonymous_submissions,
             }))
         }))
         .attach(fairing::AdHoc::on_attach("setup", |rocket| {
@@ -802,7 +1010,7 @@ fn main() {
             }
             Ok(rocket)
         }))
-        .mount("/", routes![index, login_form, login, logout, create_form, create, get_comments, vote, consume_invite, get_settings, create_invite, invite_tree, change_password, post_comment, vote_comment, get_edit_tags, edit_tags, get_tags, edit_post, get_edit_post, edit_comment, get_edit_comment, set_dark_mode, set_big_mode, mod_log, get_user_info])
+        .mount("/", routes![index, login_form, login, logout, create_form, create, get_comments, vote, consume_invite, get_settings, create_invite, invite_tree, change_password, post_comment, vote_comment, get_edit_tags, edit_tags, get_tags, edit_post, get_edit_post, edit_comment, get_edit_comment, set_dark_mode, set_big_mode, mod_log, get_user_info, get_mod_queue, moderate_post, moderate_comment])
         .mount("/assets", StaticFiles::from("assets"))
         .attach(Template::custom(|engines| {
             engines.handlebars.register_helper("count", Box::new(count_helper));

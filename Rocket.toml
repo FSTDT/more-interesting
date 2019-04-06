@@ -11,6 +11,7 @@ secret_key = "+n4YMZHfGEIyejl0qD9QDlUi1x/uqExtTskUUObXVcI="
 public_url = "http://localhost"
 init_username = "root"
 init_password = "ready2go"
+enable_anonymous_submissions = true
 
 [production]
 pid_file = "/tmp/app-initialized"

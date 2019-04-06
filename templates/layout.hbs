@@ -8,11 +8,14 @@
     <nav>
         <a class=top-header-link href="/">{{{config.site_title_html}}}</a>
         <details-menu-bar class=top-header-aside role=menubar>
+            {{#if (gte user.trust_level 3)}}
+                <a class=top-header-link href="mod-queue">Mod queue</a>
+            {{/if}}
             {{#if user.username}}
                 <details class="details-menu-outer backwards" role=menuitem>
                     <summary class="details-menu-summary backwards" aria-haspopup=menu>+</summary>
                     <form class="details-menu-inner backwards" role=menu>
-                        <a class=details-menu-item href="submit" role=menuitem>Create post</a>
+                        <a class=details-menu-item href="submit" role=menuitem>Submit a link</a>
                         {{#if (gte user.trust_level 3)}}
                         <a class=details-menu-item href="edit-tags" role=menuitem>Edit tags</a>
                         {{/if}}
@@ -28,6 +31,9 @@
                 </details>
             {{else}}
                 <a class=button href=login role=menuitem>Sign in</a>
+                {{#if config.enable_anonymous_submissions}}
+                    <a class=button href=submit role=menuitem>Submit a link</a>
+                {{/if}}
             {{/if}}
         </details-menu-bar>
     </nav>

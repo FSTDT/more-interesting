@@ -1,4 +1,7 @@
 {{#*inline "page"}}
+    {{#if (not posts.0.visible)}}
+    <div class="alert">This post is waiting for moderator attention.</div>
+    {{/if}}
     <ajax-form>
         <article>
             <header class=article-header>{{{posts.0.title_html}}}</header>
@@ -23,10 +26,11 @@
                     <span>{{posts.0.score}}</span>
                     <img width=12 height=12 class=good-img src=assets/{{#if posts.0.starred_by_me}}star_active.svg{{else}}star.svg{{/if}} alt="{{#if posts.0.starred_by_me}}Remove star{{else}}Add star{{/if}}">
                 </button>
-                <!-- flagging is not yet implemented -->
-                <button name=post value={{posts.0.uuid}} title="Add flag">
-                    <img width=12 height=12 class=good-img src=assets/flag.svg alt="Add flag">
-                </button>
+                {{#if (gte user.trust_level 1)}}
+                    <button name="{{#if posts.0.flagged_by_me}}rm_flag{{else}}add_flag{{/if}}" value={{posts.0.uuid}} title="{{#if posts.0.flagged_by_me}}Remove flag{{else}}Add flag{{/if}}">
+                        <img width=12 height=12 class=good-img src=assets/{{#if posts.0.flagged_by_me}}flag_active.svg{{else}}flag.svg{{/if}} alt="{{#if posts.0.flagged_by_me}}Remove flag{{else}}Add flag{{/if}}">
+                    </button>
+                {{/if}}
             </form>
             </footer>
         </article>
@@ -51,10 +55,11 @@
                         <span>{{count this.starred_by}}</span>
                         <img width=12 height=12 class=good-img src=assets/{{#if this.starred_by_me}}star_active.svg{{else}}star.svg{{/if}} alt="{{#if this.starred_by_me}}Remove star{{else}}Add star{{/if}}">
                     </button>
-                    <!-- flagging is not yet implemented -->
-                    <button name=add_flag_comment value={{this.id}} title="Add flag">
-                        <img width=12 height=12 class=good-img src=assets/flag.svg alt="Add flag">
-                    </button>
+                    {{#if (gte ../user.trust_level 1)}}
+                        <button name="{{#if this.flagged_by_me}}rm_flag_comment{{else}}add_flag_comment{{/if}}" value={{this.uuid}} title="{{#if this.flagged_by_me}}Remove flag{{else}}Add flag{{/if}}">
+                            <img width=12 height=12 class=good-img src=assets/{{#if this.flagged_by_me}}flag_active.svg{{else}}flag.svg{{/if}} alt="{{#if this.flagged_by_me}}Remove flag{{else}}Add flag{{/if}}">
+                        </button>
+                    {{/if}}
                     </form>
                 </footer>
             </aside>

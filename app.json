@@ -24,6 +24,10 @@
     "ROCKET_SITE_TITLE_HTML": {
       "description": "What to put in the header"
     },
+    "ROCKET_ENABLE_ANONYMOUS_SUBMISSIONS": {
+      "description": "If set to true, users with no account can submit posts that will be subject to manual review",
+      "value": "false"
+    },
     "ROCKET_CUSTOM_CSS": {
       "description": "Site theme"
     },
