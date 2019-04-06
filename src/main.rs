@@ -44,6 +44,7 @@ use session::Moderator;
 struct SiteConfig {
     enable_user_directory: bool,
     enable_anonymous_submissions: bool,
+    enable_public_signup: bool,
     #[serde(with = "url_serde")]
     public_url: Url,
     custom_css: String,
@@ -55,6 +56,7 @@ impl Default for SiteConfig {
         SiteConfig {
             enable_user_directory: false,
             enable_anonymous_submissions: false,
+            enable_public_signup: false,
             public_url: Url::parse("http://localhost").unwrap(),
             site_title_html: String::new(),
             custom_css: String::new(),
@@ -466,38 +468,67 @@ struct CommentForm {
 #[post("/comment", data = "<comment>")]
 fn post_comment(conn: MoreInterestingConn, user: User, comment: Form<CommentForm>) -> Option<impl Responder<'static>> {
     let post_info = conn.get_post_info_by_uuid(user.id, comment.post).into_option()?;
+    let visible = user.trust_level > 0;
     conn.comment_on_post(NewComment {
         post_id: post_info.id,
         text: &comment.text,
         created_by: user.id,
-        visible: user.trust_level > 0,
+        visible,
     }).into_option()?;
-    Some(Redirect::to(uri!(get_comments: comment.post)))
+    Some(Flash::success(
+        Redirect::to(uri!(get_comments: comment.post)),
+        if visible { "Your comment has been posted" } else { "Your comment will be posted after a mod gets a chance to look at it" }
+    ))
 }
 
 #[derive(FromForm)]
-struct ConsumeInviteForm {
+struct SignupForm {
     username: String,
     password: String,
-    invite_token: Base32,
+    invite_token: Option<Base32>,
 }
 
-#[post("/consume-invite", data = "<form>")]
-fn consume_invite(conn: MoreInterestingConn, form: Form<ConsumeInviteForm>, mut cookies: Cookies) -> Result<impl Responder<'static>, Status> {
+#[post("/signup", data = "<form>")]
+fn signup(conn: MoreInterestingConn, form: Form<SignupForm>, mut cookies: Cookies, config: State<SiteConfig>) -> Result<impl Responder<'static>, Status> {
     if form.username == "" || form.username == "anonymous" {
         return Err(Status::BadRequest);
     }
-    if let Ok(invite_token) = conn.consume_invite_token(form.invite_token) {
-        if let Ok(user) = conn.register_user(&NewUser {
-            username: &form.username,
-            password: &form.password,
-            invited_by: Some(invite_token.invited_by),
-        }) {
-            cookies.add_private(Cookie::new("user_id", user.id.to_string()));
-            return Ok(Flash::success(Redirect::to("/"), "Congrats, you're in!"));
+    let invited_by = if let Some(invite_token) = form.invite_token {
+        if let Ok(invite_token) = conn.consume_invite_token(invite_token) {
+            Some(invite_token.invited_by)
+        } else {
+            return Err(Status::BadRequest)
         }
+    } else {
+        if config.enable_public_signup {
+            None
+        } else {
+            return Err(Status::BadRequest)
+        }
+    };
+    if let Ok(user) = conn.register_user(&NewUser {
+        username: &form.username,
+        password: &form.password,
+        invited_by,
+    }) {
+        cookies.add_private(Cookie::new("user_id", user.id.to_string()));
+        return Ok(Flash::success(Redirect::to("/"), "Congrats, you're in!"));
     }
     Err(Status::BadRequest)
+}
+
+#[get("/signup")]
+fn get_public_signup(flash: Option<FlashMessage>, config: State<SiteConfig>) -> Result<impl Responder<'static>, Status> {
+    if !config.enable_public_signup {
+        return Err(Status::NotFound);
+    }
+    Ok(Template::render("signup", &TemplateContext {
+        title: Cow::Borrowed("sign up"),
+        parent: "layout",
+        alert: flash.map(|f| f.msg().to_owned()),
+        config: config.clone(),
+        ..default()
+    }))
 }
 
 #[get("/settings")]
@@ -990,12 +1021,14 @@ fn main() {
             let public_url = Url::parse(&public_url).expect("public_url configuration must be valid");
             let enable_user_directory = rocket.config().get_bool("enable_user_directory").unwrap_or(true);
             let enable_anonymous_submissions = rocket.config().get_bool("enable_anonymous_submissions").unwrap_or(false);
+            let enable_public_signup = rocket.config().get_bool("enable_public_signup").unwrap_or(false);
             let site_title_html = rocket.config().get_str("site_title_html").unwrap_or("More Interesting").to_owned();
             let custom_css = rocket.config().get_str("custom_css").unwrap_or("").to_owned();
             Ok(rocket.manage(SiteConfig {
                 enable_user_directory, public_url,
                 site_title_html, custom_css,
                 enable_anonymous_submissions,
+                enable_public_signup,
             }))
         }))
         .attach(fairing::AdHoc::on_attach("setup", |rocket| {
@@ -1015,7 +1048,7 @@ fn main() {
             }
             Ok(rocket)
         }))
-        .mount("/", routes![index, login_form, login, logout, create_form, create, get_comments, vote, consume_invite, get_settings, create_invite, invite_tree, change_password, post_comment, vote_comment, get_edit_tags, edit_tags, get_tags, edit_post, get_edit_post, edit_comment, get_edit_comment, set_dark_mode, set_big_mode, mod_log, get_user_info, get_mod_queue, moderate_post, moderate_comment])
+        .mount("/", routes![index, login_form, login, logout, create_form, create, get_comments, vote, signup, get_settings, create_invite, invite_tree, change_password, post_comment, vote_comment, get_edit_tags, edit_tags, get_tags, edit_post, get_edit_post, edit_comment, get_edit_comment, set_dark_mode, set_big_mode, mod_log, get_user_info, get_mod_queue, moderate_post, moderate_comment, get_public_signup])
         .mount("/assets", StaticFiles::from("assets"))
         .attach(Template::custom(|engines| {
             engines.handlebars.register_helper("count", Box::new(count_helper));

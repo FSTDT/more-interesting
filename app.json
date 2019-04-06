@@ -28,6 +28,10 @@
       "description": "If set to true, users with no account can submit posts that will be subject to manual review",
       "value": "false"
     },
+    "ROCKET_ENABLE_PUBLIC_SIGNUP": {
+      "description": "If set to true, users can sign up without being invited",
+      "value": "false"
+    },
     "ROCKET_CUSTOM_CSS": {
       "description": "Site theme"
     },

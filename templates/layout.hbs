@@ -31,6 +31,9 @@
                 </details>
             {{else}}
                 <a class=button href=login role=menuitem>Sign in</a>
+                {{#if config.enable_public_signup}}
+                    <a class=button href=signup role=menuitem>Register</a>
+                {{/if}}
                 {{#if config.enable_anonymous_submissions}}
                     <a class=button href=submit role=menuitem>Submit a link</a>
                 {{/if}}
