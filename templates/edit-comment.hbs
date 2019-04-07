@@ -6,5 +6,12 @@
         </label>
         <button>Submit</button>
     </form>
+    {{#if (gte user.trust_level 3)}}
+        <br><br>
+    <form action=moderate-comment method=POST>
+        <input type=hidden name=comment value="{{comment.id}}">
+        <button name=action value=delete>Delete</button>
+    </form>
+    {{/if}}
 {{/inline}}
 {{~> (parent)~}}

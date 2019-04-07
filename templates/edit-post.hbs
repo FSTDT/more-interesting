@@ -8,5 +8,12 @@
         </label>
         <button>Submit</button>
     </form>
+    {{#if (gte user.trust_level 3)}}
+        <br><br>
+        <form action=moderate-post method=POST>
+            <input type=hidden name=post value="{{posts.0.uuid}}">
+            <button name=action value=delete>Delete</button>
+        </form>
+    {{/if}}
 {{/inline}}
 {{~> (parent)~}}

@@ -23,6 +23,9 @@
                     </dl>
                 </td>
             </tr>
+        {{#if @last}}
+            <tr><td colspan="3"><a href="?after={{this.id}}">Next page</a></td></tr>
+        {{/if}}
         {{/each}}
         </tbody>
     </table>
