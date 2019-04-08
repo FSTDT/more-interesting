@@ -338,32 +338,26 @@ fn scan_lexical_token(input: &str, is_url: bool) -> &str {
     let mut bytes = input.bytes().peekable();
     while let Some(c) = bytes.next() {
         match c {
-            b' ' | b'\n' | b'<' => break,
+            b' ' | b'\n' | b'<' | b'>' => break,
             b'#' | b'@' if !is_url => break,
             b'(' | b'[' => stack.push(c),
             b')' => {
                 if stack.last() == Some(&b'(') {
                     stack.pop();
                 } else {
-                    match bytes.peek() {
-                        Some(b' ') | Some(b'\n') | Some(b'<') | None => break,
-                        _ => (),
-                    }
+                    break;
                 }
             }
             b']' => {
                 if stack.last() == Some(&b'[') {
                     stack.pop();
                 } else {
-                    match bytes.peek() {
-                        Some(b' ') | Some(b'\n') | Some(b'<') | None => break,
-                        _ => (),
-                    }
+                    break;
                 }
             }
             b'.' | b',' | b'?' | b'\'' | b'"' | b'!' | b':' | b'*' => {
                 match bytes.peek() {
-                    Some(&b'\n') | Some(&b' ') | Some(&b'<') | Some(&b'.') | Some(&b',') | Some(&b'?') | Some(&b'\'') | Some(&b'"') | Some(&b'!') | Some(&b':') | Some(&b'*') | None => break,
+                    Some(&b'\n') | Some(&b' ') | Some(&b']') | Some(&b'>') | Some(&b'<') | Some(&b'.') | Some(&b',') | Some(&b'?') | Some(&b'\'') | Some(&b'"') | Some(&b'!') | Some(&b':') | Some(&b'*') | None => break,
                     _ => (),
                 }
             }
@@ -463,6 +457,8 @@ mod test {
             ("www.com/Ace_[hardware]", "www.com/Ace_[hardware]"),
             ("www.com/Ace]", "www.com/Ace"),
             ("www.com/Ace]_hardware", "www.com/Ace]_hardware"),
+            ("www.com/Ace\"]", "www.com/Ace"),
+            ("www.com/Ace\">", "www.com/Ace"),
             ("ace hardware", "ace"),
             ("ace<http://www.com>", "ace"),
         ][..];
