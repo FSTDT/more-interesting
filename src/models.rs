@@ -69,7 +69,7 @@ impl Default for User {
         User {
             id: 0,
             banned: false,
-            trust_level: 0,
+            trust_level: -2,
             username: "".to_string(),
             password_hash: vec![],
             created_at: NaiveDateTime::from_timestamp(0, 0),
