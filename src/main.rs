@@ -915,19 +915,21 @@ struct ModerateCommentForm {
 
 #[get("/rebake-all-posts")]
 fn rebake_all_posts(conn: MoreInterestingConn, _user: Moderator) -> &'static str {
-    let max = conn.maximum_post_id();
-    for i in 0 ..= max {
-        if let Ok(post) = conn.get_post_by_id(i) {
-            let _ = conn.update_post(i, &NewPost{
-                title: &post.title[..],
-                url: post.url.as_ref().map(|t| &t[..]),
-                excerpt: post.excerpt.as_ref().map(|t| &t[..]),
-                submitted_by: post.submitted_by,
-                visible: post.visible
-            });
+    std::thread::spawn(move || {
+        let max = conn.maximum_post_id();
+        for i in 0..=max {
+            if let Ok(post) = conn.get_post_by_id(i) {
+                let _ = conn.update_post(i, &NewPost {
+                    title: &post.title[..],
+                    url: post.url.as_ref().map(|t| &t[..]),
+                    excerpt: post.excerpt.as_ref().map(|t| &t[..]),
+                    submitted_by: post.submitted_by,
+                    visible: post.visible
+                });
+            }
         }
-    }
-    "done"
+    });
+    "started"
 }
 
 #[post("/moderate-comment", data = "<form>")]
