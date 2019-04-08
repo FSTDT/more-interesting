@@ -132,7 +132,7 @@ pub fn prettify_body<D: Data>(text: &str, data: &mut D) -> Output {
                 text = &text[4..];
             }
             b'[' if text[1..].starts_with("/U]") || text[1..].starts_with("/u]") => {
-                ret_val.push_str("</u>");
+                ret_val.push_str("</i>");
                 text = &text[4..];
             }
             // bbcode links
