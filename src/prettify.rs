@@ -119,12 +119,20 @@ pub fn prettify_body<D: Data>(text: &str, data: &mut D) -> Output {
                 ret_val.push_str("<i>");
                 text = &text[3..];
             }
+            b'[' if text[1..].starts_with("U]") || text[1..].starts_with("u]") => {
+                ret_val.push_str("<i>");
+                text = &text[3..];
+            }
             b'[' if text[1..].starts_with("/B]") || text[1..].starts_with("/b]") => {
                 ret_val.push_str("</b>");
                 text = &text[4..];
             }
             b'[' if text[1..].starts_with("/I]") || text[1..].starts_with("/i]") => {
                 ret_val.push_str("</i>");
+                text = &text[4..];
+            }
+            b'[' if text[1..].starts_with("/U]") || text[1..].starts_with("/u]") => {
+                ret_val.push_str("</u>");
                 text = &text[4..];
             }
             // bbcode links
