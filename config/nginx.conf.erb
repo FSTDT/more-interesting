@@ -63,5 +63,13 @@ http {
 		location / {
 			proxy_pass http://app_server;
 		}
+
+    location ~* ^/QuoteComment.aspx {
+      rewrite ^ /id/$arg_QID;
+    }
+
+		location ~* ^/RandomQuotes.aspx {
+			rewrite ^ /random;
+    }
 	}
 }
