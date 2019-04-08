@@ -913,6 +913,23 @@ struct ModerateCommentForm {
     action: String,
 }
 
+#[get("/rebake-all-posts")]
+fn rebake_all_posts(conn: MoreInterestingConn, _user: Moderator) -> &'static str {
+    let max = conn.maximum_post_id();
+    for i in 0 ..= max {
+        if let Ok(post) = conn.get_post_by_id(i) {
+            let _ = conn.update_post(i, &NewPost{
+                title: &post.title[..],
+                url: post.url.as_ref().map(|t| &t[..]),
+                excerpt: post.excerpt.as_ref().map(|t| &t[..]),
+                submitted_by: post.submitted_by,
+                visible: post.visible
+            });
+        }
+    }
+    "done"
+}
+
 #[post("/moderate-comment", data = "<form>")]
 fn moderate_comment(conn: MoreInterestingConn, user: Moderator, form: Form<ModerateCommentForm>) -> Result<impl Responder<'static>, Status> {
     let comment_info = if let Ok(comment) = conn.get_comment_by_id(form.comment) {
@@ -955,6 +972,21 @@ fn moderate_comment(conn: MoreInterestingConn, user: Moderator, form: Form<Moder
             },
         }
     }
+}
+
+#[get("/random")]
+fn random(conn: MoreInterestingConn) -> Option<impl Responder<'static>> {
+    let post = conn.random_post();
+    if let Ok(Some(post)) = post {
+        Some(Redirect::to(post.uuid.to_string()))
+    } else {
+        None
+    }
+}
+
+#[get("/id/<id>")]
+fn redirect_legacy_id(id: i64) -> impl Responder<'static> {
+    Redirect::to(Base32::from(id).to_string())
 }
 
 fn count_helper(
@@ -1048,7 +1080,7 @@ fn main() {
             }
             Ok(rocket)
         }))
-        .mount("/", routes![index, login_form, login, logout, create_form, create, get_comments, vote, signup, get_settings, create_invite, invite_tree, change_password, post_comment, vote_comment, get_edit_tags, edit_tags, get_tags, edit_post, get_edit_post, edit_comment, get_edit_comment, set_dark_mode, set_big_mode, mod_log, get_user_info, get_mod_queue, moderate_post, moderate_comment, get_public_signup])
+        .mount("/", routes![index, login_form, login, logout, create_form, create, get_comments, vote, signup, get_settings, create_invite, invite_tree, change_password, post_comment, vote_comment, get_edit_tags, edit_tags, get_tags, edit_post, get_edit_post, edit_comment, get_edit_comment, set_dark_mode, set_big_mode, mod_log, get_user_info, get_mod_queue, moderate_post, moderate_comment, get_public_signup, rebake_all_posts, random, redirect_legacy_id])
         .mount("/assets", StaticFiles::from("assets"))
         .attach(Template::custom(|engines| {
             engines.handlebars.register_helper("count", Box::new(count_helper));
