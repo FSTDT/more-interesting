@@ -1104,6 +1104,20 @@ impl MoreInterestingConn {
         select(exists(stars.filter(self::stars::dsl::user_id.eq(user_id_param)))).get_result(&self.0).unwrap_or(false) ||
             select(exists(comment_stars.filter(self::comment_stars::dsl::user_id.eq(user_id_param)))).get_result(&self.0).unwrap_or(false)
     }
+    pub fn maximum_post_id(&self) -> i32 {
+        use self::posts::dsl::*;
+        use diesel::dsl::max;
+        posts.select(max(id)).get_result::<Option<i32>>(&self.0).unwrap_or(Some(0)).unwrap_or(0)
+    }
+    pub fn random_post_uuid(&self) -> Base32 {
+        use self::posts::dsl::*;
+        use diesel::dsl::max;
+        posts.select(max(id)).get_result::<Option<i32>>(&self.0).unwrap_or(Some(0)).unwrap_or(0)
+    }
+    pub fn get_post_by_id(&self, post_id_value: i32) -> Result<Post, DieselError> {
+        use self::posts::dsl::*;
+        posts.find(post_id_value).get_result::<Post>(&self.0)
+    }
 }
 
 fn tuple_to_post_info(conn: &MoreInterestingConn, (id, uuid, title, url, visible, initial_stellar_time, score, comment_count, authored_by_submitter, created_at, submitted_by, excerpt, excerpt_html, starred_post_id, flagged_post_id, submitted_by_username): (i32, Base32, String, Option<String>, bool, i32, i32, i32, bool, NaiveDateTime, i32, Option<String>, Option<String>, Option<i32>, Option<i32>, String), current_stellar_time: i32) -> PostInfo {
