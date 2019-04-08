@@ -31,7 +31,8 @@ pub struct ModerationInfo {
     pub created_by_username: String,
 }
 
-#[derive(Queryable, Serialize)]
+#[derive(Queryable, QueryableByName, Serialize)]
+#[table_name="posts"]
 pub struct Post {
     pub id: i32,
     pub uuid: Base32,
@@ -1109,10 +1110,9 @@ impl MoreInterestingConn {
         use diesel::dsl::max;
         posts.select(max(id)).get_result::<Option<i32>>(&self.0).unwrap_or(Some(0)).unwrap_or(0)
     }
-    pub fn random_post_uuid(&self) -> Base32 {
-        use self::posts::dsl::*;
-        use diesel::dsl::max;
-        posts.select(max(id)).get_result::<Option<i32>>(&self.0).unwrap_or(Some(0)).unwrap_or(0)
+    pub fn random_post(&self) -> Result<Option<Post>, DieselError> {
+        use diesel::sql_query;
+        sql_query("SELECT * FROM posts ORDER BY RANDOM() LIMIT 1").load(&self.0).map(|mut x: Vec<_>| x.pop())
     }
     pub fn get_post_by_id(&self, post_id_value: i32) -> Result<Post, DieselError> {
         use self::posts::dsl::*;

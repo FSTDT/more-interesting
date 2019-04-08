@@ -974,6 +974,16 @@ fn moderate_comment(conn: MoreInterestingConn, user: Moderator, form: Form<Moder
     }
 }
 
+#[get("/random")]
+fn random(conn: MoreInterestingConn) -> Option<impl Responder<'static>> {
+    let post = conn.random_post();
+    if let Ok(Some(post)) = post {
+        Some(Redirect::to(post.uuid.to_string()))
+    } else {
+        None
+    }
+}
+
 fn count_helper(
     h: &Helper,
     _: &Handlebars,
@@ -1065,7 +1075,7 @@ fn main() {
             }
             Ok(rocket)
         }))
-        .mount("/", routes![index, login_form, login, logout, create_form, create, get_comments, vote, signup, get_settings, create_invite, invite_tree, change_password, post_comment, vote_comment, get_edit_tags, edit_tags, get_tags, edit_post, get_edit_post, edit_comment, get_edit_comment, set_dark_mode, set_big_mode, mod_log, get_user_info, get_mod_queue, moderate_post, moderate_comment, get_public_signup, rebake_all_posts])
+        .mount("/", routes![index, login_form, login, logout, create_form, create, get_comments, vote, signup, get_settings, create_invite, invite_tree, change_password, post_comment, vote_comment, get_edit_tags, edit_tags, get_tags, edit_post, get_edit_post, edit_comment, get_edit_comment, set_dark_mode, set_big_mode, mod_log, get_user_info, get_mod_queue, moderate_post, moderate_comment, get_public_signup, rebake_all_posts, random])
         .mount("/assets", StaticFiles::from("assets"))
         .attach(Template::custom(|engines| {
             engines.handlebars.register_helper("count", Box::new(count_helper));
