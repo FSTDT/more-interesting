@@ -35,11 +35,12 @@
             </footer>
         </article>
         {{#each comments}}
-            <aside>
+            <aside id="{{this.id}}">
                 <main>{{{this.html}}}</main>
                 <footer>
                     posted by <a href="@{{this.created_by_username}}">{{this.created_by_username}}</a>
                     {{date this.created_at}}
+                    <a href="#{{this.id}}">#{{this.id}}</a>
                     {{#if this.starred_by}}
                         starred by
                         {{#each this.starred_by}}
