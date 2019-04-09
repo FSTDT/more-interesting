@@ -70,7 +70,7 @@
     <form action="comment" method=POST>
         <label>
             <h3>Post your comment</h3>
-            <smart-textarea><textarea name=text></textarea></smart-textarea>
+            <smart-textarea><textarea name=text required></textarea></smart-textarea>
         </label>
         <input type=hidden name=post value="{{posts.0.uuid}}">
         <button>Submit</button>
