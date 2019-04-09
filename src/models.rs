@@ -390,9 +390,9 @@ impl MoreInterestingConn {
             excerpt_html: Option<&'a str>,
             visible: bool,
         }
-        let title_html_and_stuff = crate::prettify::prettify_title(new_post.title, "", &mut PrettifyData(self));
+        let title_html_and_stuff = crate::prettify::prettify_title(new_post.title, "", &mut PrettifyData(self, 0));
         let excerpt_html_and_stuff = if let Some(excerpt) = new_post.excerpt {
-            Some(crate::prettify::prettify_body(excerpt, &mut PrettifyData(self)))
+            Some(crate::prettify::prettify_body(excerpt, &mut PrettifyData(self, 0)))
         } else {
             None
         };
@@ -423,9 +423,9 @@ impl MoreInterestingConn {
         result
     }
     pub fn update_post(&self, post_id_value: i32, new_post: &NewPost) -> Result<(), DieselError> {
-        let title_html_and_stuff = crate::prettify::prettify_title(new_post.title, "", &mut PrettifyData(self));
+        let title_html_and_stuff = crate::prettify::prettify_title(new_post.title, "", &mut PrettifyData(self, 0));
         let excerpt_html_and_stuff = if let Some(e) = new_post.excerpt {
-            Some(crate::prettify::prettify_body(e, &mut PrettifyData(self)))
+            Some(crate::prettify::prettify_body(e, &mut PrettifyData(self, 0)))
         } else {
             None
         };
@@ -660,7 +660,7 @@ impl MoreInterestingConn {
             created_by: i32,
             visible: bool,
         }
-        let html_and_stuff = crate::prettify::prettify_body(new_post.text, &mut PrettifyData(self));
+        let html_and_stuff = crate::prettify::prettify_body(new_post.text, &mut PrettifyData(self, new_post.post_id));
         self.update_comment_count_on_post(new_post.post_id, 1)?;
         diesel::insert_into(comments::table)
             .values(CreateComment{
@@ -672,8 +672,8 @@ impl MoreInterestingConn {
             })
             .get_result(&self.0)
     }
-    pub fn update_comment(&self, comment_id_value: i32, text_value: &str) -> Result<(), DieselError> {
-        let html_and_stuff = crate::prettify::prettify_body(text_value, &mut PrettifyData(self));
+    pub fn update_comment(&self, post_id_value: i32, comment_id_value: i32, text_value: &str) -> Result<(), DieselError> {
+        let html_and_stuff = crate::prettify::prettify_body(text_value, &mut PrettifyData(self, post_id_value));
         use self::comments::dsl::*;
         diesel::update(comments.find(comment_id_value))
             .set((
@@ -714,14 +714,38 @@ impl MoreInterestingConn {
             .collect();
         Ok(all)
     }
-    pub fn get_post_uuid_from_comment(&self, comment_id_param: i32) -> Result<Base32, DieselError> {
-        use self::comments::dsl::*;
+    pub fn get_post_info_from_comment(&self, user_id_param: i32, comment_id_param: i32) -> Result<PostInfo, DieselError> {
         use self::posts::dsl::*;
-        comments
-            .inner_join(posts)
-            .select(self::posts::dsl::uuid)
+        use self::stars::dsl::*;
+        use self::flags::dsl::*;
+        use self::users::dsl::*;
+        use self::comments::dsl::*;
+        // This is a bunch of duplicate code.
+        Ok(tuple_to_post_info(self, posts
+            .left_outer_join(stars.on(self::stars::dsl::post_id.eq(self::posts::dsl::id).and(self::stars::dsl::user_id.eq(user_id_param))))
+            .left_outer_join(flags.on(self::flags::dsl::post_id.eq(self::posts::dsl::id).and(self::flags::dsl::user_id.eq(user_id_param))))
+            .inner_join(users)
+            .inner_join(comments)
+            .select((
+                self::posts::dsl::id,
+                self::posts::dsl::uuid,
+                self::posts::dsl::title,
+                self::posts::dsl::url,
+                self::posts::dsl::visible,
+                self::posts::dsl::initial_stellar_time,
+                self::posts::dsl::score,
+                self::posts::dsl::comment_count,
+                self::posts::dsl::authored_by_submitter,
+                self::posts::dsl::created_at,
+                self::posts::dsl::submitted_by,
+                self::posts::dsl::excerpt,
+                self::posts::dsl::excerpt_html,
+                self::stars::dsl::post_id.nullable(),
+                self::flags::dsl::post_id.nullable(),
+                self::users::dsl::username,
+            ))
             .filter(self::comments::dsl::id.eq(comment_id_param))
-            .get_result::<Base32>(&self.0)
+            .first::<(i32, Base32, String, Option<String>, bool, i32, i32, i32, bool, NaiveDateTime, i32, Option<String>, Option<String>, Option<i32>, Option<i32>, String)>(&self.0)?, self.get_current_stellar_time()))
     }
     pub fn get_post_starred_by(&self, post_id_param: i32) -> Result<Vec<String>, DieselError> {
         use self::stars::dsl::*;
@@ -1126,7 +1150,7 @@ fn tuple_to_post_info(conn: &MoreInterestingConn, (id, uuid, title, url, visible
     } else {
         uuid.to_string()
     };
-    let title_html_output = prettify_title(&title, &link_url, &mut PrettifyData(conn));
+    let title_html_output = prettify_title(&title, &link_url, &mut PrettifyData(conn, 0));
     let title_html = title_html_output.string;
     PostInfo {
         id, uuid, title, url, visible, score, authored_by_submitter, created_at,
@@ -1164,10 +1188,19 @@ fn compute_hotness(initial_stellar_time: i32, current_stellar_time: i32, score: 
     (boost + (score as f64) + 1.0) / (stellar_age + 1.0).powf(gravity)
 }
 
-struct PrettifyData<'a>(&'a MoreInterestingConn);
+struct PrettifyData<'a>(&'a MoreInterestingConn, i32);
 impl<'a> prettify::Data for PrettifyData<'a> {
-    fn check_comment_ref(&mut self, _id: i32) -> bool {
-        false
+    fn check_comment_ref(&mut self, comment_id: i32) -> bool {
+        let post_id = self.1;
+        if post_id == 0 {
+            false
+        } else {
+            if let Ok(comment) = self.0.get_comment_by_id(comment_id) {
+                comment.post_id == post_id
+            } else {
+                false
+            }
+        }
     }
     fn check_hash_tag(&mut self, tag: &str) -> bool {
         self.0.get_tag_by_name(tag).is_ok()
