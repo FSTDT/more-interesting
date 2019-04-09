@@ -68,6 +68,9 @@ http {
       rewrite ^ /id/$arg_QID;
     }
 
+    location ~* ^/Default.aspx {
+      rewrite ^ /;
+    }
 		location ~* ^/RandomQuotes.aspx {
 			rewrite ^ /random;
     }
