@@ -713,14 +713,38 @@ impl MoreInterestingConn {
             .collect();
         Ok(all)
     }
-    pub fn get_post_uuid_from_comment(&self, comment_id_param: i32) -> Result<Base32, DieselError> {
-        use self::comments::dsl::*;
+    pub fn get_post_info_from_comment(&self, user_id_param: i32, comment_id_param: i32) -> Result<PostInfo, DieselError> {
         use self::posts::dsl::*;
-        comments
-            .inner_join(posts)
-            .select(self::posts::dsl::uuid)
+        use self::stars::dsl::*;
+        use self::flags::dsl::*;
+        use self::users::dsl::*;
+        use self::comments::dsl::*;
+        // This is a bunch of duplicate code.
+        Ok(tuple_to_post_info(self, posts
+            .left_outer_join(stars.on(self::stars::dsl::post_id.eq(self::posts::dsl::id).and(self::stars::dsl::user_id.eq(user_id_param))))
+            .left_outer_join(flags.on(self::flags::dsl::post_id.eq(self::posts::dsl::id).and(self::flags::dsl::user_id.eq(user_id_param))))
+            .inner_join(users)
+            .inner_join(comments)
+            .select((
+                self::posts::dsl::id,
+                self::posts::dsl::uuid,
+                self::posts::dsl::title,
+                self::posts::dsl::url,
+                self::posts::dsl::visible,
+                self::posts::dsl::initial_stellar_time,
+                self::posts::dsl::score,
+                self::posts::dsl::comment_count,
+                self::posts::dsl::authored_by_submitter,
+                self::posts::dsl::created_at,
+                self::posts::dsl::submitted_by,
+                self::posts::dsl::excerpt,
+                self::posts::dsl::excerpt_html,
+                self::stars::dsl::post_id.nullable(),
+                self::flags::dsl::post_id.nullable(),
+                self::users::dsl::username,
+            ))
             .filter(self::comments::dsl::id.eq(comment_id_param))
-            .get_result::<Base32>(&self.0)
+            .first::<(i32, Base32, String, Option<String>, bool, i32, i32, i32, bool, NaiveDateTime, i32, Option<String>, Option<String>, Option<i32>, Option<i32>, String)>(&self.0)?, self.get_current_stellar_time()))
     }
     pub fn get_post_starred_by(&self, post_id_param: i32) -> Result<Vec<String>, DieselError> {
         use self::stars::dsl::*;
@@ -1153,7 +1177,7 @@ fn compute_hotness(initial_stellar_time: i32, current_stellar_time: i32, score: 
 struct PrettifyData<'a>(&'a MoreInterestingConn, i32);
 impl<'a> prettify::Data for PrettifyData<'a> {
     fn check_comment_ref(&mut self, comment_id: i32) -> bool {
-        let post_id = self.0;
+        let post_id = self.1;
         if post_id == 0 {
             false
         } else {

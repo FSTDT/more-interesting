@@ -769,7 +769,7 @@ struct EditCommentForm {
 #[post("/edit-comment", data = "<form>")]
 fn edit_comment(conn: MoreInterestingConn, user: User, form: Form<EditCommentForm>) -> Result<impl Responder<'static>, Status> {
     let comment = conn.get_comment_by_id(form.comment).map_err(|_| Status::NotFound)?;
-    let post = conn.get_post_uuid_from_comment(form.comment).map_err(|_| Status::NotFound)?;
+    let post = conn.get_post_info_from_comment(user.id, form.comment).map_err(|_| Status::NotFound)?;
     if user.trust_level < 3 && comment.created_by != user.id {
         return Err(Status::NotFound);
     }
@@ -779,12 +779,12 @@ fn edit_comment(conn: MoreInterestingConn, user: User, form: Form<EditCommentFor
                 conn.mod_log_edit_comment(
                     user.id,
                     comment.id,
-                    post,
+                    post.uuid,
                     &comment.text,
                     &form.text,
                 ).expect("if updating the comment worked, then so should logging");
             }
-            Ok(Flash::success(Redirect::to(post.to_string()), "Updated comment"))
+            Ok(Flash::success(Redirect::to(post.uuid.to_string()), "Updated comment"))
         },
         Err(e) => {
             warn!("{:?}", e);
@@ -821,8 +821,7 @@ fn get_mod_queue(conn: MoreInterestingConn, user: Moderator, flash: Option<Flash
     let mod_a_comment: bool = rand::random();
     if mod_a_comment {
         if let Some(comment_info) = conn.find_moderated_comment(user.0.id) {
-            let post_uuid = conn.get_post_uuid_from_comment(comment_info.id).unwrap();
-            let post_info = conn.get_post_info_by_uuid(user.0.id, post_uuid).unwrap();
+            let post_info = conn.get_post_info_from_comment(user.0.id, comment_info.id).unwrap();
             return Ok(Template::render("mod-queue", &TemplateContext {
                 title: Cow::Borrowed("moderate comment"),
                 parent: "layout",
@@ -920,8 +919,7 @@ fn moderate_comment(conn: MoreInterestingConn, user: Moderator, form: Form<Moder
     } else {
         return Err(Status::NotFound);
     };
-    let post_uuid = conn.get_post_uuid_from_comment(comment_info.id).unwrap();
-    let post_info = conn.get_post_info_by_uuid(user.0.id, post_uuid).unwrap();
+    let post_info = conn.get_post_info_from_comment(user.0.id, comment_info.id).unwrap();
     if form.action == "approve" {
         match conn.approve_comment(comment_info.id) {
             Ok(_) => {
