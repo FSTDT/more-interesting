@@ -773,7 +773,7 @@ fn edit_comment(conn: MoreInterestingConn, user: User, form: Form<EditCommentFor
     if user.trust_level < 3 && comment.created_by != user.id {
         return Err(Status::NotFound);
     }
-    match conn.update_comment(form.comment, &form.text) {
+    match conn.update_comment(post.id, form.comment, &form.text) {
         Ok(_) => {
             if user.trust_level >= 3 && comment.created_by != user.id {
                 conn.mod_log_edit_comment(
