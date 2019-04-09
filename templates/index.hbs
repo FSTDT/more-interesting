@@ -1,7 +1,7 @@
 {{#*inline "page"}}
 <ajax-form>
 {{#each posts}}
-    <article><details open><summary title="Hide post" class=module-summary>Show article</summary>
+    <article><details open><summary title="Hide post" class=module-summary>Show post</summary>
         <header class=article-header>{{{this.title_html}}}</header>
         {{#if this.excerpt_html}}
             <main>{{{this.excerpt_html}}}</main>
