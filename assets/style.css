@@ -490,6 +490,7 @@ article, aside {
     display: block;
     border: solid 1px #0c0c0d;
     margin: 1.5em 0;
+    position: relative;
 }
 
 html.dark article, html.dark aside {
@@ -531,6 +532,21 @@ html.dark article, html.dark aside {
 
 .module-aside {
     float: right;
+}
+
+details[open] .module-summary {
+    position: absolute;
+    top: 0;
+    bottom: 0;
+    right: 100%;
+    width: 1em;
+    white-space: nowrap;
+    overflow: hidden;
+    margin-left: 0;
+}
+
+.module-summary {
+    margin-left: -1em;
 }
 
 details-dialog, .details-menu-inner {
@@ -693,5 +709,4 @@ local-date {
 .good-table td {
     vertical-align: top;
     border: solid 1px currentColor;
-
 }

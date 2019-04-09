@@ -35,7 +35,7 @@
             </footer>
         </article>
         {{#each comments}}
-            <aside id="{{this.id}}">
+            <aside id="{{this.id}}"><details open><summary title="Hide comment" class=module-summary>Show comment</summary>
                 <main>{{{this.html}}}</main>
                 <footer>
                     posted by <a href="@{{this.created_by_username}}">{{this.created_by_username}}</a>
@@ -63,7 +63,7 @@
                     {{/if}}
                     </form>
                 </footer>
-            </aside>
+            </details></aside>
         {{/each}}
     </ajax-form>
     {{#if (gte user.trust_level 0)}}
