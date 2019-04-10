@@ -251,13 +251,13 @@ impl MoreInterestingConn {
             ))
             .filter(visible.eq(true))
             .order_by((initial_stellar_time.desc(), self::posts::dsl::created_at.desc()))
-            .limit(400)
+            .limit(200)
             .get_results::<(i32, Base32, String, Option<String>, bool, i32, i32, i32, bool, NaiveDateTime, i32, Option<String>, Option<String>, Option<i32>, Option<i32>, String)>(&self.0)?
             .into_iter()
             .map(|t| tuple_to_post_info(self, t, self.get_current_stellar_time()))
             .collect();
         all.sort_by_key(|info| OrderedFloat(-info.hotness));
-        all.truncate(200);
+        all.truncate(100);
         Ok(all)
     }
     pub fn get_post_info_recent_by_tag(&self, user_id_param: i32, tag_id_param: i32) -> Result<Vec<PostInfo>, DieselError> {
@@ -292,13 +292,13 @@ impl MoreInterestingConn {
             .filter(visible.eq(true))
             .filter(self::post_tagging::tag_id.eq(tag_id_param))
             .order_by((initial_stellar_time.desc(), self::posts::dsl::created_at.desc()))
-            .limit(400)
+            .limit(200)
             .get_results::<(i32, Base32, String, Option<String>, bool, i32, i32, i32, bool, NaiveDateTime, i32, Option<String>, Option<String>, Option<i32>, Option<i32>, String)>(&self.0)?
             .into_iter()
             .map(|t| tuple_to_post_info(self, t, self.get_current_stellar_time()))
             .collect();
         all.sort_by_key(|info| OrderedFloat(-info.hotness));
-        all.truncate(200);
+        all.truncate(100);
         Ok(all)
     }
     pub fn get_post_info_recent_by_user(&self, user_id_param: i32, user_info_id_param: i32) -> Result<Vec<PostInfo>, DieselError> {
