@@ -15,7 +15,12 @@
                 <details class="details-menu-outer backwards" role=menuitem>
                     <summary class="details-menu-summary backwards" aria-haspopup=menu>+</summary>
                     <form class="details-menu-inner backwards" role=menu>
+                        {{#if (not config.hide_link_post)}}
                         <a class=details-menu-item href="submit" role=menuitem>Submit a link</a>
+                        {{/if}}
+                        {{#if (not config.hide_text_post)}}
+                        <a class=details-menu-item href="post" role=menuitem>Make a blog post</a>
+                        {{/if}}
                         {{#if (gte user.trust_level 3)}}
                         <a class=details-menu-item href="edit-tags" role=menuitem>Edit tags</a>
                         {{/if}}

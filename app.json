@@ -10,10 +10,6 @@
       "description": "Username for the root account",
       "value": "root"
     },
-    "ROCKET_ENABLE_USER_DIRECTORY": {
-      "description": "Allow people to see everyone who's signed up",
-      "value": "true"
-    },
     "ROCKET_INIT_PASSWORD": {
       "description": "Password for the root account",
       "value": ""
@@ -31,9 +27,6 @@
     "ROCKET_ENABLE_PUBLIC_SIGNUP": {
       "description": "If set to true, users can sign up without being invited",
       "value": "false"
-    },
-    "ROCKET_CUSTOM_CSS": {
-      "description": "Site theme"
     },
     "SECRET_KEY": {
       "description": "A secret key for verifying the integrity of cookies",
