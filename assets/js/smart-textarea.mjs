@@ -2,11 +2,11 @@ export class SmartTextAreaElement extends HTMLElement {
     constructor() {
         super();
         this.textarea = this.firstElementChild;
-        this.textarea.className = "smart-textarea";
+        this.textarea.className = "smart-textarea " + this.textarea.className;
         this.wrapper = document.createElement("div");
         this.wrapper.className = "smart-textarea-wrapper";
         this.pre = document.createElement("pre");
-        this.pre.className = "smart-textarea";
+        this.pre.className = this.textarea.className;
         this.textarea.parentElement.insertBefore(this.wrapper, this.textarea);
         this.textarea.parentElement.removeChild(this.textarea);
         this.wrapper.appendChild(this.pre);
