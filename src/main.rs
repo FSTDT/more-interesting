@@ -49,6 +49,8 @@ struct SiteConfig {
     public_url: Url,
     custom_css: String,
     site_title_html: String,
+    hide_text_post: bool,
+    hide_link_post: bool,
 }
 
 impl Default for SiteConfig {
@@ -60,6 +62,8 @@ impl Default for SiteConfig {
             public_url: Url::parse("http://localhost").unwrap(),
             site_title_html: String::new(),
             custom_css: String::new(),
+            hide_text_post: false,
+            hide_link_post: false,
         }
     }
 }
@@ -272,8 +276,18 @@ fn mod_log(conn: MoreInterestingConn, user: Option<User>, flash: Option<FlashMes
     })
 }
 
+#[get("/post")]
+fn create_post_form(user: Option<User>, config: State<SiteConfig>) -> impl Responder<'static> {
+    Template::render("post", &TemplateContext {
+        title: Cow::Borrowed("post"),
+        parent: "layout",
+        config: config.clone(),
+        user: user.unwrap_or(User::default()),
+        ..default()
+    })
+}
 #[get("/submit")]
-fn create_form(user: Option<User>, config: State<SiteConfig>) -> impl Responder<'static> {
+fn create_link_form(user: Option<User>, config: State<SiteConfig>) -> impl Responder<'static> {
     Template::render("submit", &TemplateContext {
         title: Cow::Borrowed("submit"),
         parent: "layout",
@@ -1054,11 +1068,14 @@ fn main() {
             let enable_public_signup = rocket.config().get_bool("enable_public_signup").unwrap_or(false);
             let site_title_html = rocket.config().get_str("site_title_html").unwrap_or("More Interesting").to_owned();
             let custom_css = rocket.config().get_str("custom_css").unwrap_or("").to_owned();
+            let hide_text_post = rocket.config().get_bool("hide_text_post").unwrap_or(false);
+            let hide_link_post = rocket.config().get_bool("hide_link_post").unwrap_or(false);
             Ok(rocket.manage(SiteConfig {
                 enable_user_directory, public_url,
                 site_title_html, custom_css,
                 enable_anonymous_submissions,
                 enable_public_signup,
+                hide_text_post, hide_link_post,
             }))
         }))
         .attach(fairing::AdHoc::on_attach("setup", |rocket| {
@@ -1078,7 +1095,7 @@ fn main() {
             }
             Ok(rocket)
         }))
-        .mount("/", routes![index, login_form, login, logout, create_form, create, get_comments, vote, signup, get_settings, create_invite, invite_tree, change_password, post_comment, vote_comment, get_edit_tags, edit_tags, get_tags, edit_post, get_edit_post, edit_comment, get_edit_comment, set_dark_mode, set_big_mode, mod_log, get_user_info, get_mod_queue, moderate_post, moderate_comment, get_public_signup, rebake_all_posts, random, redirect_legacy_id])
+        .mount("/", routes![index, login_form, login, logout, create_link_form, create_post_form, create, get_comments, vote, signup, get_settings, create_invite, invite_tree, change_password, post_comment, vote_comment, get_edit_tags, edit_tags, get_tags, edit_post, get_edit_post, edit_comment, get_edit_comment, set_dark_mode, set_big_mode, mod_log, get_user_info, get_mod_queue, moderate_post, moderate_comment, get_public_signup, rebake_all_posts, random, redirect_legacy_id])
         .mount("/assets", StaticFiles::from("assets"))
         .attach(Template::custom(|engines| {
             engines.handlebars.register_helper("count", Box::new(count_helper));
