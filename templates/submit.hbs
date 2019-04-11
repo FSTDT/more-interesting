@@ -1,9 +1,9 @@
 {{#*inline "page"}}
   <form action='' method=POST>
-      <label>Title and #hashtags <input name=title autofocus required></label>
+      <label>Title and #hashtags <input name=title autofocus required is="smart-punct-input"></label>
       <label>URL <input name=url></label>
       <label>Excerpt
-          <smart-textarea><textarea name=excerpt placeholder="If you leave this empty, we'll try to automatically pull it from the page."></textarea></smart-textarea>
+          <smart-textarea><textarea name=excerpt placeholder="If you leave this empty, we'll try to automatically pull it from the page." is="smart-punct-textarea" class="main"></textarea></smart-textarea>
       </label>
       <button>Submit</button>
   </form>

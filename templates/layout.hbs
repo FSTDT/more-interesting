@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <html class="{{#if user.dark_mode}}dark{{/if}} {{#if user.big_mode}}big{{/if}}">
 <meta name=viewport content="width=device-width">
-<link rel=stylesheet href="assets/style.css?7">
+<link rel=stylesheet href="assets/style.css?8">
 <style>{{{config.custom_css}}}</style>
 <title>{{title}}</title>
 <header class=top-header>
@@ -41,12 +41,12 @@
         </details-menu-bar>
     </nav>
 </header>
-<main class=main-outer><div class=main>
+<div class=page-wrapper-outer><div class=page-wrapper>
     {{#if alert}}
         <div class=alert role=alert>{{alert}}</div>
     {{/if}}
 {{~> page}}
-</div></main>
+</div></div>
 <footer class=top-header>
     <nav>
         {{# if config.enable_user_directory}}<a href="@" class=top-header-link>All users</a>{{/if}}
@@ -63,9 +63,9 @@
 <script>
     var s = document.createElement("script");
     if (window.HTMLDetailsElement && window.URLSearchParams && window.customElements && window.moreInterestingIsAsyncAvailable && window.fetch) {
-        s.src = "assets/dist/modern.min.js?7";
+        s.src = "assets/dist/modern.min.js?8";
     } else {
-        s.src = "assets/dist/legacy.min.js?7";
+        s.src = "assets/dist/legacy.min.js?8";
     }
     s.defer = true;
     s.async = true;
