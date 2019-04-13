@@ -260,9 +260,9 @@ fn maybe_write_number_sign<D: Data>(number_without_sign: &str, data: &mut D, out
         NumberSign::Tag(tag) => {
             out.hash_tags.push(tag.to_owned());
             if embedded.is_some() {
-                out.push_str("</a><a class=\"inner-link article-header-inner\" href=\"/?tag=");
+                out.push_str("</a><a class=\"inner-link article-header-inner\" href=\"./?tag=");
             } else {
-                out.push_str("<a href=\"/?tag=");
+                out.push_str("<a href=\"./?tag=");
             }
             out.push_str(&html);
             out.push_str("\">#");
@@ -506,7 +506,7 @@ mod test {
             }
         }
 
-        let html = "<a class=article-header-inner href=\"url\">this is a #test for </a><a class=\"inner-link article-header-inner\" href=\"/?tag=words\">#words</a><a class=article-header-inner href=\"url\"> here</a>";
+        let html = "<a class=article-header-inner href=\"url\">this is a #test for </a><a class=\"inner-link article-header-inner\" href=\"./?tag=words\">#words</a><a class=article-header-inner href=\"url\"> here</a>";
 
         assert_eq!(prettify_title(title, "url", &mut MyData).string, CLEANER.clean(html).to_string());
     }
@@ -585,7 +585,7 @@ mod test {
     #[test]
     fn test_ends_with_hash_title() {
         let comment = "finger— inciting the two officers to fire #words";
-        let html = "<a class=article-header-inner href=\"url\">finger— inciting the two officers to fire </a><a class=\"inner-link article-header-inner\" href=\"/?tag=words\">#words</a>";
+        let html = "<a class=article-header-inner href=\"url\">finger— inciting the two officers to fire </a><a class=\"inner-link article-header-inner\" href=\"./?tag=words\">#words</a>";
         struct MyData;
         impl Data for MyData {
             fn check_comment_ref(&mut self, id: i32) -> bool {
@@ -624,7 +624,7 @@ let html = r####"<p>Write my comment here.
 
 <p><a href="#12345">#12345</a> numbers will link to another comment on the same post.
 
-<p><a href="/?tag=words">#words</a> are hash tags, just like on Twitter.
+<p><a href="./?tag=words">#words</a> are hash tags, just like on Twitter.
 
 <p>Consecutive line breaks are paragraph breaks, like in Markdown.
 

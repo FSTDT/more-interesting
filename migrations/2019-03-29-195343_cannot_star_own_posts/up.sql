@@ -2,7 +2,6 @@ CREATE FUNCTION check_stars_post() RETURNS trigger AS $emp_stamp$
   DECLARE
     post_id INTEGER;
   BEGIN
-  -- Check that empname and salary are given
   post_id := NEW.post_id;
   IF NEW.user_id = (SELECT posts.submitted_by FROM posts WHERE post_id = posts.id) THEN
     RAISE EXCEPTION 'users cannot star their own posts';
@@ -15,7 +14,6 @@ CREATE FUNCTION check_stars_comment() RETURNS trigger AS $emp_stamp$
   DECLARE
     comment_id INTEGER;
   BEGIN
-  -- Check that empname and salary are given
   comment_id := NEW.comment_id;
   IF NEW.user_id = (SELECT "comments".created_by FROM "comments" WHERE comment_id = "comments".id) THEN
     RAISE EXCEPTION 'users cannot star their own posts';

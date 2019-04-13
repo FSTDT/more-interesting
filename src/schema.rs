@@ -1,4 +1,6 @@
 table! {
+    use crate::sql_types::*;
+
     comment_flags (user_id, comment_id) {
         user_id -> Int4,
         comment_id -> Int4,
@@ -7,6 +9,8 @@ table! {
 }
 
 table! {
+    use crate::sql_types::*;
+
     comment_stars (user_id, comment_id) {
         user_id -> Int4,
         comment_id -> Int4,
@@ -15,6 +19,8 @@ table! {
 }
 
 table! {
+    use crate::sql_types::*;
+
     comments (id) {
         id -> Int4,
         text -> Varchar,
@@ -29,6 +35,8 @@ table! {
 }
 
 table! {
+    use crate::sql_types::*;
+
     flags (user_id, post_id) {
         user_id -> Int4,
         post_id -> Int4,
@@ -37,6 +45,8 @@ table! {
 }
 
 table! {
+    use crate::sql_types::*;
+
     invite_tokens (uuid) {
         uuid -> Int8,
         created_at -> Timestamp,
@@ -45,6 +55,8 @@ table! {
 }
 
 table! {
+    use crate::sql_types::*;
+
     moderation (id) {
         id -> Int4,
         payload -> Jsonb,
@@ -54,6 +66,17 @@ table! {
 }
 
 table! {
+    use crate::sql_types::*;
+
+    post_search_index (post_id) {
+        post_id -> Int4,
+        search_index -> Tsvector,
+    }
+}
+
+table! {
+    use crate::sql_types::*;
+
     post_tagging (post_id, tag_id) {
         post_id -> Int4,
         tag_id -> Int4,
@@ -61,6 +84,8 @@ table! {
 }
 
 table! {
+    use crate::sql_types::*;
+
     posts (id) {
         id -> Int4,
         uuid -> Int8,
@@ -81,6 +106,8 @@ table! {
 }
 
 table! {
+    use crate::sql_types::*;
+
     stars (user_id, post_id) {
         user_id -> Int4,
         post_id -> Int4,
@@ -89,6 +116,8 @@ table! {
 }
 
 table! {
+    use crate::sql_types::*;
+
     tags (id) {
         id -> Int4,
         name -> Varchar,
@@ -99,6 +128,8 @@ table! {
 }
 
 table! {
+    use crate::sql_types::*;
+
     users (id) {
         id -> Int4,
         banned -> Bool,
@@ -122,6 +153,7 @@ joinable!(flags -> posts (post_id));
 joinable!(flags -> users (user_id));
 joinable!(invite_tokens -> users (invited_by));
 joinable!(moderation -> users (created_by));
+joinable!(post_search_index -> posts (post_id));
 joinable!(post_tagging -> posts (post_id));
 joinable!(post_tagging -> tags (tag_id));
 joinable!(posts -> users (submitted_by));
@@ -135,6 +167,7 @@ allow_tables_to_appear_in_same_query!(
     flags,
     invite_tokens,
     moderation,
+    post_search_index,
     post_tagging,
     posts,
     stars,

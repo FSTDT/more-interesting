@@ -334,6 +334,18 @@ html.dark .details-dialog-summary:active {
     border-image: url("data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAgAAAAICAYAAADED76LAAAABHNCSVQICAgIfAhkiAAAAAlwSFlzAAAOxAAADsQBlSsOGwAAABl0RVh0U29mdHdhcmUAd3d3Lmlua3NjYXBlLm9yZ5vuPBoAAABGSURBVBjTY2BgYPhPADP85xdUw4nhChjQgJlFxPH8/MK3hBS8p4ICU4uI/yBsZhn5BwVbRPzLzi74wFBUVPQfFy4uLv4PAOyYS1KSeGvQAAAAAElFTkSuQmCC") 2;
 }
 
+.button-default {
+    box-shadow: inset -1px -1px 0 0 #b1b1b3;
+}
+
+html.dark .button-default {
+    box-shadow: inset -1px -1px 0 0 #4a4a4f;
+}
+
+html .button-default:active {
+    box-shadow: none;
+}
+
 button,
 :link.button,
 :visited.button,
@@ -352,6 +364,8 @@ select {
     text-transform: none;
 }
 
+:link.button,
+:visited.button,
 button,
 html [type="button"],
 [type="reset"],
@@ -599,6 +613,7 @@ details-dialog, .details-menu-inner {
     border-right: solid 1px #737373;
     padding: 0.25em 0.5em;
     margin: 0.5em 0;
+    overflow: hidden;
 }
 
 details-dialog {
@@ -761,4 +776,28 @@ main, .main {
     overflow: hidden;
     padding: 0.5em;
     padding-bottom: 0;
+}
+
+.main-mini {
+    font-size: inherit;
+    font-family: inherit;
+    padding: 0.5em;
+    padding-top: 0;
+}
+
+.form-footer {
+    margin-top: 0.75em;
+    padding-top: 0.25em;
+    margin-left: -2em;
+    padding-left: 2em;
+    margin-right: -2em;
+    padding-right: 2em;
+    border-top: solid 2px #fff;
+    box-shadow: 0 -1px 0 0 #d7d7db;
+    display: block;
+}
+
+html.dark .form-footer {
+    border-color: #363959;
+    box-shadow: 0 -1px 0 0 #000;
 }
