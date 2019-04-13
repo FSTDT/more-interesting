@@ -69,11 +69,13 @@
     {{#if (gte user.trust_level 0)}}
     <form action="comment" method=POST>
         <label>
-            <h3>Post your comment</h3>
+            <h3>Add your comment</h3>
             <smart-textarea><textarea name=text required is="smart-punct-textarea" class="main"></textarea></smart-textarea>
         </label>
         <input type=hidden name=post value="{{posts.0.uuid}}">
-        <button>Submit</button>
+        <div class=form-footer>
+            <button>Add comment</button>
+        </div>
     </form>
     {{/if}}
 {{/inline}}

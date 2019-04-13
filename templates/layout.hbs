@@ -1,16 +1,14 @@
 <!DOCTYPE html>
 <html class="{{#if user.dark_mode}}dark{{/if}} {{#if user.big_mode}}big{{/if}}">
 <meta name=viewport content="width=device-width">
-<link rel=stylesheet href="assets/style.css?8">
+<link rel=stylesheet href="assets/style.css?9">
 <style>{{{config.custom_css}}}</style>
 <title>{{title}}</title>
 <header class=top-header>
     <nav>
         <a class=top-header-link href="/">{{{config.site_title_html}}}</a>
         <details-menu-bar class=top-header-aside role=menubar>
-            {{#if (gte user.trust_level 3)}}
-                <a class=top-header-link href="mod-queue">Mod queue</a>
-            {{/if}}
+            {{~> view-search-box ~}}
             {{#if user.username}}
                 <details class="details-menu-outer backwards" role=menuitem>
                     <summary class="details-menu-summary backwards" aria-haspopup=menu>+</summary>
@@ -29,6 +27,9 @@
                 <details class="details-menu-outer backwards" role=menuitem>
                     <summary class="details-menu-summary backwards" aria-haspopup=menu>{{user.username}}</summary>
                     <form class="details-menu-inner backwards" role=menu action=logout method=POST>
+                        {{#if (gte user.trust_level 3)}}
+                            <a class=details-menu-item href="mod-queue">Mod queue</a>
+                        {{/if}}
                         <a class=details-menu-item href=settings role=menuitem>Settings</a>
                         <a class=details-menu-item href="@{{user.username}}" role=menuitem>Your profile</a>
                         <button class=details-menu-item role=menuitem>Sign out</button>
@@ -68,9 +69,9 @@
 <script>
     var s = document.createElement("script");
     if (window.HTMLDetailsElement && window.URLSearchParams && window.customElements && window.moreInterestingIsAsyncAvailable && window.fetch) {
-        s.src = "assets/dist/modern.min.js?8";
+        s.src = "assets/dist/modern.min.js?9";
     } else {
-        s.src = "assets/dist/legacy.min.js?8";
+        s.src = "assets/dist/legacy.min.js?9";
     }
     s.defer = true;
     s.async = true;

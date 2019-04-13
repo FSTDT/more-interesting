@@ -4,7 +4,9 @@
         {{#if invite_token}}<input type=hidden name=invite_token value="{{invite_token}}">{{/if}}
         <label>Pick your new username <input name=username autofocus required pattern="^[^#@\s]+$"></label>
         <label>Pick your new password <input name=password type=password required></label>
-        <button>Log in</button>
+        <div class=form-footer>
+            <button>Create account</button>
+        </div>
     </form>
 {{/inline}}
 {{~> (parent)~}}

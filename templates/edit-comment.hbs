@@ -4,14 +4,21 @@
         <label>Edit comment
         <smart-textarea><textarea name=text required is="smart-punct-textarea" class="main">{{comment.text}}</textarea></smart-textarea>
         </label>
-        <button>Submit</button>
+        <details-menu-bar class=form-footer>
+            <button class=button-default>Change comment</button>
+            {{#if (gte user.trust_level 3)}}
+                <details class=details-dialog-outer>
+                    <summary class=details-dialog-summary>Delete</summary>
+                    <details-dialog>
+                        Are you sure you want to delete this comment?
+                        <div class=form-footer>
+                            <button class=button-default name=delete value=delete>Delete it</button>
+                            <details-dialog-close><a href="." class=button>Cancel</a></details-dialog-close>
+                        </div>
+                    </details-dialog>
+                </details>
+            {{/if}}
+        </details-menu-bar>
     </form>
-    {{#if (gte user.trust_level 3)}}
-        <br><br>
-    <form action=moderate-comment method=POST>
-        <input type=hidden name=comment value="{{comment.id}}">
-        <button name=action value=delete>Delete</button>
-    </form>
-    {{/if}}
 {{/inline}}
 {{~> (parent)~}}
