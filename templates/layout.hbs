@@ -60,6 +60,11 @@
         <a href=mod-log class=top-header-link>Moderation log</a>
         <a href=random class=top-header-link>Random</a>
     </nav>
+    {{# if config.custom_footer_html}}
+        <div class=page-wrapper>
+            {{{config.custom_footer_html}}}
+        </div>
+    {{/if}}
 </footer>
 <script>
     const a = async () => {};

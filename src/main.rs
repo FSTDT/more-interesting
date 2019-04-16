@@ -50,6 +50,7 @@ struct SiteConfig {
     public_url: Url,
     custom_css: String,
     site_title_html: String,
+    custom_footer_html: String,
     hide_text_post: bool,
     hide_link_post: bool,
 }
@@ -62,6 +63,7 @@ impl Default for SiteConfig {
             enable_public_signup: false,
             public_url: Url::parse("http://localhost").unwrap(),
             site_title_html: String::new(),
+            custom_footer_html: String::new(),
             custom_css: String::new(),
             hide_text_post: false,
             hide_link_post: false,
@@ -1116,12 +1118,14 @@ fn main() {
             let custom_css = rocket.config().get_str("custom_css").unwrap_or("").to_owned();
             let hide_text_post = rocket.config().get_bool("hide_text_post").unwrap_or(false);
             let hide_link_post = rocket.config().get_bool("hide_link_post").unwrap_or(false);
+            let custom_footer_html = rocket.config().get_str("custom_footer_html").unwrap_or("").to_owned();
             Ok(rocket.manage(SiteConfig {
                 enable_user_directory, public_url,
                 site_title_html, custom_css,
                 enable_anonymous_submissions,
                 enable_public_signup,
                 hide_text_post, hide_link_post,
+                custom_footer_html,
             }))
         }))
         .attach(fairing::AdHoc::on_attach("setup", |rocket| {
