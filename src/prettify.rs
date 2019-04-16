@@ -8,7 +8,9 @@ lazy_static!{
     static ref CLEANER: ammonia::Builder<'static> = {
         let mut b = ammonia::Builder::default();
         b.add_allowed_classes("a", ["inner-link", "article-header-inner"][..].iter().cloned());
-        b.tags(["a", "p"][..].iter().cloned().collect());
+        b.add_allowed_classes("pre", ["good-code"][..].iter().cloned());
+        b.add_allowed_classes("table", ["good-table"][..].iter().cloned());
+        b.tags(["a", "p", "pre", "table", "thead", "tbody", "tr", "th", "td", "caption"][..].iter().cloned().collect());
         b
     };
 }
@@ -76,6 +78,46 @@ pub fn prettify_body<D: Data>(text: &str, data: &mut D) -> Output {
                     ret_val.push_str("</a>");
                 } else if contents.starts_with('#') {
                     maybe_write_number_sign(&contents[1..], data, &mut ret_val, None);
+                } else if contents == "table" {
+                    ret_val.push_str("<a href=assets/how-to-table.html>table</a>");
+                    for _ in 0..brackets_count {
+                        ret_val.push_str("&gt;");
+                    }
+                    ret_val.push_str("<table class=good-table>");
+                    let mut end_tag_html = String::new();
+                    for _ in 0..brackets_count {
+                        end_tag_html.push_str("<");
+                    }
+                    end_tag_html.push_str("/table");
+                    for _ in 0..brackets_count {
+                        end_tag_html.push_str(">");
+                    }
+                    let end_tag_pos = text.find(&end_tag_html).unwrap_or(text.len());
+                    let start_tag_len = 5 + brackets_count * 2;
+                    ret_val.push_str(&text[start_tag_len..end_tag_pos]);
+                    ret_val.push_str("</table><p>");
+                    text = &text[end_tag_pos+start_tag_len+1..];
+                    continue;
+                }  else if contents == "code" {
+                    ret_val.push_str("<a href=assets/how-to-code.html>code</a>");
+                    for _ in 0..brackets_count {
+                        ret_val.push_str("&gt;");
+                    }
+                    ret_val.push_str("<pre class=good-code><code>");
+                    let mut end_tag_html = String::new();
+                    for _ in 0..brackets_count {
+                        end_tag_html.push_str("<");
+                    }
+                    end_tag_html.push_str("/code");
+                    for _ in 0..brackets_count {
+                        end_tag_html.push_str(">");
+                    }
+                    let end_tag_pos = text.find(&end_tag_html).unwrap_or(text.len());
+                    let start_tag_len = 4 + brackets_count * 2;
+                    ret_val.push_str(&escape(&text[start_tag_len..end_tag_pos]).to_string());
+                    ret_val.push_str("</code></pre><p>");
+                    text = &text[end_tag_pos+start_tag_len+1..];
+                    continue;
                 } else {
                     ret_val.push_str(&escape(&text[brackets_count..count]).to_string());
                 }
@@ -612,6 +654,24 @@ let comment = r####"Write my comment here.
 
 Consecutive line breaks are paragraph breaks, like in Markdown.
 
+As special allowances, you can write tables in HTML, like this:
+
+<table>
+<tr>
+<td>Hi
+<td>There
+</table>
+
+You can also write code tags. The contents of code tags are automatically escaped.
+
+<code>
+<table>
+<tr>
+<td>Hi
+<td>There
+</table>
+</code>
+
 URL's are automatically linked, following similar rules to GitHub-flavored MD.
 <URL> also works if your URL is too complex, but note that the angle brackets
 will still be shown! It also includes GitHub's WWW special case, like
@@ -627,6 +687,24 @@ let html = r####"<p>Write my comment here.
 <p><a href="./?tag=words">#words</a> are hash tags, just like on Twitter.
 
 <p>Consecutive line breaks are paragraph breaks, like in Markdown.
+
+<p>As special allowances, you can write tables in HTML, like this:</p>
+
+&lt;<a href="assets/how-to-table.html">table</a>&gt;<table class=good-table>
+<tr>
+<td>Hi
+<td>There
+</table>&lt;/table&gt;
+
+<p>You can also write code tags. The contents of code tags are automatically escaped.</p>
+
+&lt;<a href="assets/how-to-code.html">code</a>&gt;<pre><code>
+&lt;table&gt;
+&lt;tr&gt;
+&lt;td&gt;Hi
+&lt;td&gt;There
+&lt;/table&gt;
+</code></pre>&lt;/code&gt;
 
 <p>URL's are automatically linked, following similar rules to GitHub-flavored MD.
 &lt;URL&gt; also works if your URL is too complex, but note that the angle brackets
