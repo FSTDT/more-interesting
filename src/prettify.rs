@@ -688,25 +688,25 @@ let html = r####"<p>Write my comment here.
 
 <p>Consecutive line breaks are paragraph breaks, like in Markdown.
 
-<p>As special allowances, you can write tables in HTML, like this:</p>
+<p>As special allowances, you can write tables in HTML, like this:
 
-&lt;<a href="assets/how-to-table.html">table</a>&gt;<table class=good-table>
+</p><p>&lt;<a href="assets/how-to-table.html">table</a>&gt;</p><table class=good-table>
 <tr>
 <td>Hi
 <td>There
-</table>&lt;/table&gt;
+</table><p>
 
-<p>You can also write code tags. The contents of code tags are automatically escaped.</p>
+</p><p>You can also write code tags. The contents of code tags are automatically escaped.
 
-&lt;<a href="assets/how-to-code.html">code</a>&gt;<pre><code>
+</p><p>&lt;<a href="assets/how-to-code.html">code</a>&gt;</p><pre class=good-code><code>
 &lt;table&gt;
 &lt;tr&gt;
 &lt;td&gt;Hi
 &lt;td&gt;There
 &lt;/table&gt;
-</code></pre>&lt;/code&gt;
+</code></pre><p>
 
-<p>URL's are automatically linked, following similar rules to GitHub-flavored MD.
+</p><p>URL's are automatically linked, following similar rules to GitHub-flavored MD.
 &lt;URL&gt; also works if your URL is too complex, but note that the angle brackets
 will still be shown! It also includes GitHub's WWW special case, like
 <a href="https://www.example.com">www.example.com</a>, &lt;<a href="https://www.example.com">www.example.com</a>&gt;, <a href="http://example.com">http://example.com</a>, and &lt;<a href="http://example.com">http://example.com</a>&gt;
