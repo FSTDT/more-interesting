@@ -18,7 +18,7 @@ describe("testing javascript in the browser", function() {
             .build();
         await this.browser.get("http://localhost:3001/login");
         await this.browser.wait(until.elementLocated(By.css('input[type="password"]')));
-        var username = await this.browser.findElement(By.css('input'));
+        var username = await this.browser.findElement(By.css('input[name="username"]'));
         await username.sendKeys("root");
         var password = await this.browser.findElement(By.css('input[type="password"]'));
         await password.sendKeys("ready2go");

@@ -17,6 +17,7 @@ mod base32;
 mod prettify;
 mod pid_file_fairing;
 mod extract_excerpt;
+mod sql_types;
 
 use rocket::request::{Form, FlashMessage, FromParam};
 use rocket::response::{Responder, Redirect, Flash};
@@ -49,6 +50,9 @@ struct SiteConfig {
     public_url: Url,
     custom_css: String,
     site_title_html: String,
+    custom_footer_html: String,
+    hide_text_post: bool,
+    hide_link_post: bool,
 }
 
 impl Default for SiteConfig {
@@ -59,7 +63,10 @@ impl Default for SiteConfig {
             enable_public_signup: false,
             public_url: Url::parse("http://localhost").unwrap(),
             site_title_html: String::new(),
+            custom_footer_html: String::new(),
             custom_css: String::new(),
+            hide_text_post: false,
+            hide_link_post: false,
         }
     }
 }
@@ -227,6 +234,7 @@ fn vote_comment(conn: MoreInterestingConn, user: User, redirect: Form<MaybeRedir
 #[derive(FromForm)]
 struct IndexParams {
     tag: Option<String>,
+    q: Option<String>,
 }
 
 #[get("/?<params..>")]
@@ -235,9 +243,11 @@ fn index(conn: MoreInterestingConn, user: Option<User>, flash: Option<FlashMessa
     let posts = if let Some(tag_name) = params.as_ref().and_then(|params| params.tag.as_ref()) {
         conn.get_tag_by_name(tag_name)
             .and_then(|tag| conn.get_post_info_recent_by_tag(user.id, tag.id))
-            .unwrap_or(Vec::new())
-    }  else {
-        conn.get_post_info_recent(user.id).unwrap_or(Vec::new())
+            .expect("database access should work")
+    } else if let Some(query) = params.as_ref().and_then(|params| params.q.as_ref()) {
+        conn.get_post_info_search(user.id, query).expect("database access should work")
+    } else {
+        conn.get_post_info_recent(user.id).expect("database access should work")
     };
     Template::render("index", &TemplateContext {
         title: Cow::Borrowed("home"),
@@ -272,8 +282,18 @@ fn mod_log(conn: MoreInterestingConn, user: Option<User>, flash: Option<FlashMes
     })
 }
 
+#[get("/post")]
+fn create_post_form(user: Option<User>, config: State<SiteConfig>) -> impl Responder<'static> {
+    Template::render("post", &TemplateContext {
+        title: Cow::Borrowed("post"),
+        parent: "layout",
+        config: config.clone(),
+        user: user.unwrap_or(User::default()),
+        ..default()
+    })
+}
 #[get("/submit")]
-fn create_form(user: Option<User>, config: State<SiteConfig>) -> impl Responder<'static> {
+fn create_link_form(user: Option<User>, config: State<SiteConfig>) -> impl Responder<'static> {
     Template::render("submit", &TemplateContext {
         title: Cow::Borrowed("submit"),
         parent: "layout",
@@ -511,6 +531,9 @@ fn signup(conn: MoreInterestingConn, form: Form<SignupForm>, mut cookies: Cookie
         password: &form.password,
         invited_by,
     }) {
+        if invited_by.as_ref().and_then(|user_id| conn.get_user_by_id(*user_id).ok()).map(|user| user.trust_level).unwrap_or(-1) >= 2 {
+            conn.change_user_trust_level(user.id, 1).expect("if logging in worked, then so should changing trust level");
+        }
         cookies.add_private(Cookie::new("user_id", user.id.to_string()));
         return Ok(Flash::success(Redirect::to("/"), "Congrats, you're in!"));
     }
@@ -691,6 +714,7 @@ struct EditPostForm {
     title: String,
     url: Option<String>,
     excerpt: Option<String>,
+    delete: bool,
 }
 
 #[post("/edit-post", data = "<form>")]
@@ -711,30 +735,49 @@ fn edit_post(conn: MoreInterestingConn, user: Moderator, form: Form<EditPostForm
     } else {
         None
     };
-    match conn.update_post(post_id, &NewPost {
-        title: &form.title,
-        url: url.as_ref().map(|s| &s[..]),
-        submitted_by: user.0.id,
-        excerpt: excerpt.as_ref().map(|s| &s[..]),
-        visible: user.0.trust_level >= 3,
-    }) {
-        Ok(_) => {
-            conn.mod_log_edit_post(
-                user.0.id,
-                post_info.uuid,
-                &post_info.title,
-                &form.title,
-                post_info.url.as_ref().map(|x| &x[..]).unwrap_or(""),
-                url.as_ref().map(|x| &x[..]).unwrap_or(""),
-                post_info.excerpt.as_ref().map(|x| &x[..]).unwrap_or(""),
-                form.excerpt.as_ref().map(|x| &x[..]).unwrap_or(""),
-            ).expect("if updating the post worked, then so should logging");
-            Ok(Flash::success(Redirect::to(form.post.to_string()), "Updated post"))
-        },
-        Err(e) => {
-            warn!("{:?}", e);
-            Err(Status::InternalServerError)
-        },
+    if form.delete {
+        match conn.delete_post(post_id) {
+            Ok(_) => {
+                conn.mod_log_delete_post(
+                    user.0.id,
+                    post_info.uuid,
+                    &post_info.title,
+                    post_info.url.as_ref().map(|x| &x[..]).unwrap_or(""),
+                    post_info.excerpt.as_ref().map(|x| &x[..]).unwrap_or(""),
+                ).expect("if updating the post worked, then so should logging");
+                return Ok(Flash::success(Redirect::to(uri!(get_mod_queue)), "Deleted post"))
+            },
+            Err(e) => {
+                warn!("{:?}", e);
+                return Err(Status::InternalServerError)
+            },
+        }
+    } else {
+        match conn.update_post(post_id, &NewPost {
+            title: &form.title,
+            url: url.as_ref().map(|s| &s[..]),
+            submitted_by: user.0.id,
+            excerpt: excerpt.as_ref().map(|s| &s[..]),
+            visible: user.0.trust_level >= 3,
+        }) {
+            Ok(_) => {
+                conn.mod_log_edit_post(
+                    user.0.id,
+                    post_info.uuid,
+                    &post_info.title,
+                    &form.title,
+                    post_info.url.as_ref().map(|x| &x[..]).unwrap_or(""),
+                    url.as_ref().map(|x| &x[..]).unwrap_or(""),
+                    post_info.excerpt.as_ref().map(|x| &x[..]).unwrap_or(""),
+                    form.excerpt.as_ref().map(|x| &x[..]).unwrap_or(""),
+                ).expect("if updating the post worked, then so should logging");
+                Ok(Flash::success(Redirect::to(form.post.to_string()), "Updated post"))
+            },
+            Err(e) => {
+                warn!("{:?}", e);
+                Err(Status::InternalServerError)
+            },
+        }
     }
 }
 
@@ -764,6 +807,7 @@ fn get_edit_comment(conn: MoreInterestingConn, user: User, flash: Option<FlashMe
 struct EditCommentForm {
     comment: i32,
     text: String,
+    delete: bool,
 }
 
 #[post("/edit-comment", data = "<form>")]
@@ -773,23 +817,41 @@ fn edit_comment(conn: MoreInterestingConn, user: User, form: Form<EditCommentFor
     if user.trust_level < 3 && comment.created_by != user.id {
         return Err(Status::NotFound);
     }
-    match conn.update_comment(post.id, form.comment, &form.text) {
-        Ok(_) => {
-            if user.trust_level >= 3 && comment.created_by != user.id {
-                conn.mod_log_edit_comment(
+    if form.delete && user.trust_level >= 3 {
+        match conn.delete_comment(comment.id) {
+            Ok(_) => {
+                conn.mod_log_delete_comment(
                     user.id,
                     comment.id,
                     post.uuid,
                     &comment.text,
-                    &form.text,
                 ).expect("if updating the comment worked, then so should logging");
-            }
-            Ok(Flash::success(Redirect::to(post.uuid.to_string()), "Updated comment"))
-        },
-        Err(e) => {
-            warn!("{:?}", e);
-            Err(Status::InternalServerError)
-        },
+                Ok(Flash::success(Redirect::to(uri!(get_mod_queue)), "Deleted comment"))
+            },
+            Err(e) => {
+                warn!("{:?}", e);
+                Err(Status::InternalServerError)
+            },
+        }
+    } else {
+        match conn.update_comment(post.id, form.comment, &form.text) {
+            Ok(_) => {
+                if user.trust_level >= 3 && comment.created_by != user.id {
+                    conn.mod_log_edit_comment(
+                        user.id,
+                        comment.id,
+                        post.uuid,
+                        &comment.text,
+                        &form.text,
+                    ).expect("if updating the comment worked, then so should logging");
+                }
+                Ok(Flash::success(Redirect::to(post.uuid.to_string()), "Updated comment"))
+            },
+            Err(e) => {
+                warn!("{:?}", e);
+                Err(Status::InternalServerError)
+            },
+        }
     }
 }
 
@@ -1056,11 +1118,16 @@ fn main() {
             let enable_public_signup = rocket.config().get_bool("enable_public_signup").unwrap_or(false);
             let site_title_html = rocket.config().get_str("site_title_html").unwrap_or("More Interesting").to_owned();
             let custom_css = rocket.config().get_str("custom_css").unwrap_or("").to_owned();
+            let hide_text_post = rocket.config().get_bool("hide_text_post").unwrap_or(false);
+            let hide_link_post = rocket.config().get_bool("hide_link_post").unwrap_or(false);
+            let custom_footer_html = rocket.config().get_str("custom_footer_html").unwrap_or("").to_owned();
             Ok(rocket.manage(SiteConfig {
                 enable_user_directory, public_url,
                 site_title_html, custom_css,
                 enable_anonymous_submissions,
                 enable_public_signup,
+                hide_text_post, hide_link_post,
+                custom_footer_html,
             }))
         }))
         .attach(fairing::AdHoc::on_attach("setup", |rocket| {
@@ -1080,7 +1147,7 @@ fn main() {
             }
             Ok(rocket)
         }))
-        .mount("/", routes![index, login_form, login, logout, create_form, create, get_comments, vote, signup, get_settings, create_invite, invite_tree, change_password, post_comment, vote_comment, get_edit_tags, edit_tags, get_tags, edit_post, get_edit_post, edit_comment, get_edit_comment, set_dark_mode, set_big_mode, mod_log, get_user_info, get_mod_queue, moderate_post, moderate_comment, get_public_signup, rebake_all_posts, random, redirect_legacy_id])
+        .mount("/", routes![index, login_form, login, logout, create_link_form, create_post_form, create, get_comments, vote, signup, get_settings, create_invite, invite_tree, change_password, post_comment, vote_comment, get_edit_tags, edit_tags, get_tags, edit_post, get_edit_post, edit_comment, get_edit_comment, set_dark_mode, set_big_mode, mod_log, get_user_info, get_mod_queue, moderate_post, moderate_comment, get_public_signup, rebake_all_posts, random, redirect_legacy_id])
         .mount("/assets", StaticFiles::from("assets"))
         .attach(Template::custom(|engines| {
             engines.handlebars.register_helper("count", Box::new(count_helper));

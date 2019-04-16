@@ -2,7 +2,7 @@
     <h2>Settings</h2>
     <article>
         <header class="article-header"><span class="article-header-inner">Authentication</span></header>
-        <main>
+        <main class="main-mini">
             <details-menu-bar>
                 <form class=inline-form action=create-invite method=post>
                     <button>Invite someone to this instance</button>
@@ -13,8 +13,10 @@
                         <form action=change-password method=POST>
                             <label>Make sure you know your old password <input name=old_password autofocus type=password required></label>
                             <label>New Password <input name=new_password type=password required></label>
-                            <button>Submit</button>
-                            <details-dialog-close><a href="settings" class=button>Cancel</a></details-dialog-close>
+                            <div class=form-footer>
+                                <button class=button-default>Change password</button>
+                                <details-dialog-close><a href="." class=button>Cancel</a></details-dialog-close>
+                            </div>
                         </form>
                     </details-dialog>
                 </details>
@@ -23,7 +25,7 @@
     </article>
     <article>
         <header class="article-header"><div class="article-header-inner">Accessibility</div></header>
-        <main>
+        <main class="main-mini">
             <details-menu-bar>
                 <details class=details-menu-outer>
                     <summary class=details-menu-summary aria-haspopup=menu>Dark mode</summary>
