@@ -52,13 +52,61 @@ function keyDown(e) {
         const context = c[c.length-1];
         let nextChar;
         let replaceChar;
-        if (/({[\r\n]|\([\r\n]|<[a-zA-Z]|[a-zA-Z]\(|[a-zA-Z]\[)/.test(context)) {
-            // looks like a function call foo(, an array index foo[, an html tag <foo,
-            // or block brackets. These heuristics are done to avoid mangling computer code.
-            // No attempt is made to detect URLs, both because these tend to mix with
-            // plain English more than other computer code, and because URLs on their own
-            // rarely contain quotes.
-        } else if (e.key === '"') {
+        if (!this.moreInterestingHasCode && context.indexOf("<code>") !== -1) {
+            this.moreInterestingHasCode = true;
+        }
+        if (this.moreInterestingHasCode) {
+            let bracketCount = 0;
+            let endBracketCount = 0;
+            let inCode = false;
+            for (let k = 0; k !== ss; ++k) {
+                if (this.value[k] === '<') {
+                    bracketCount += 1;
+                } else if (!inCode && bracketCount !== 0 && this.value[k] === 'c') {
+                    if (this.value[k+1] === 'o' && this.value[k+2] === 'd' && this.value[k+3] === 'e') {
+                        endBracketCount = 0;
+                        for (let m = k+4; m !== ss; ++m) {
+                            if (this.value[m] === '>') {
+                                endBracketCount += 1;
+                            } else {
+                                break;
+                            }
+                            if (endBracketCount === bracketCount) {
+                                break;
+                            }
+                        }
+                        if (endBracketCount === bracketCount) {
+                            inCode = true;
+                        }
+                    }
+                    bracketCount = 0;
+                } else if (inCode && bracketCount >= endBracketCount && this.value[k] === '/') {
+                    if (this.value[k+1] === 'c' && this.value[k+2] === 'o' && this.value[k+3] === 'd' && this.value[k+4] === 'e') {
+                        endBracketCount = 0;
+                        for (let m = k+5; m !== ss; ++m) {
+                            if (this.value[m] === '>') {
+                                endBracketCount += 1;
+                            } else {
+                                break;
+                            }
+                            if (endBracketCount === bracketCount) {
+                                break;
+                            }
+                        }
+                        if (endBracketCount === bracketCount) {
+                            inCode = false;
+                        } else {
+                            endBracketCount = bracketCount;
+                        }
+                        bracketCount = 0;
+                    }
+                }
+            }
+            if (inCode) {
+                return;
+            }
+        }
+        if (e.key === '"') {
             const goodStartQuote = '“';
             const goodEndQuote = '”';
             const prime = '″';
@@ -149,6 +197,12 @@ function keyDown(e) {
             const end = this.value.substr(ss);
             this.value = start + nextChar + end;
             this.setSelectionRange(ss + 1, se + 1);
+            e.preventDefault();
+        } else if (replaceChar !== undefined && replaceChar.length === 1) {
+            const start = this.value.substr(0, ss - replaceChar.length);
+            const end = this.value.substr(ss);
+            this.value = start + replaceChar + end;
+            this.setSelectionRange(ss, ss);
             e.preventDefault();
         } else if (replaceChar !== undefined) {
             const start = this.value.substr(0, ss - replaceChar.length + 1);
