@@ -334,6 +334,7 @@ fn create(user: Option<User>, conn: MoreInterestingConn, post: Form<NewPostForm>
         return Err(Status::BadRequest);
     };
     let NewPostForm { title, url, excerpt } = &*post;
+    let mut title = &title[..];
     let url = url.as_ref().and_then(|u| {
         if u == "" {
             None
@@ -348,17 +349,21 @@ fn create(user: Option<User>, conn: MoreInterestingConn, post: Form<NewPostForm>
     if let (None, Some(url)) = (excerpt, &url) {
         if let Ok(url) = Url::parse(url) {
             e = extract_excerpt::extract_excerpt_url(url);
-            if e != "" {
-                excerpt = Some(&e);
+            if let Some(ref e) = e {
+                if e.body != "" {
+                    excerpt = Some(&e.body);
+                }
+                if title == "" {
+                    title = &e.title;
+                }
             }
         }
     }
     match conn.create_post(&NewPost {
-        title: &title,
         url: url.as_ref().map(|s| &s[..]),
         submitted_by: user.id,
         visible: user.trust_level > 0,
-        excerpt
+        title, excerpt
     }) {
         Ok(post) => Ok(Redirect::to(post.uuid.to_string())),
         Err(e) => {

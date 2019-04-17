@@ -1,0 +1,96 @@
+<!DOCTYPE html>
+<meta name=viewport content="width=device-width">
+<link rel=stylesheet href="style.css?10">
+<title>How to write tables</title>
+<header class=top-header>
+    <nav>
+        <a href="../" class=top-header-link>Home</a>
+    </nav>
+</header>
+<div class=page-wrapper-outer><div class=page-wrapper>
+    <h1>How to write tables</h1>
+    <main>
+        <p>Start a table by writing <code>&lt;table&gt;</code>, and end it by writing <code>&lt;/table&gt;</code>.
+        <p>Rows are separated by writing <code>&lt;tr&gt;</code>, and each item in a row starts with <code>&lt;td&gt;</code>.
+        <p>Here's an example:</p>
+        <pre class=good-code><code>&lt;table&gt;
+&lt;td&gt;Row 1, column 1.
+&lt;td&gt;Row 1, column 2.
+&lt;td&gt;Row 1, column 3.
+&lt;td&gt;Row 1, column 4.
+&lt;tr&gt;
+&lt;td&gt;Row 2, column 1.
+&lt;td&gt;Row 2, column 2.
+&lt;td&gt;Row 2, column 3.
+&lt;td&gt;Row 2, column 4.
+&lt;tr&gt;
+&lt;td&gt;Row 3, column 1.
+&lt;td&gt;Row 3, column 2.
+&lt;td&gt;Row 3, column 3.
+&lt;td&gt;Row 3, column 4.
+&lt;tr&gt;
+&lt;td&gt;Row 4, column 1.
+&lt;td&gt;Row 4, column 2.
+&lt;td&gt;Row 4, column 3.
+&lt;td&gt;Row 4, column 4.
+&lt;/table&gt;</code></pre>
+        <p>And here's what it looks like:</p>
+        <table class=good-table>
+            <td>Row 1, column 1.
+            <td>Row 1, column 2.
+            <td>Row 1, column 3.
+            <td>Row 1, column 4.
+            <tr>
+            <td>Row 2, column 1.
+            <td>Row 2, column 2.
+            <td>Row 2, column 3.
+            <td>Row 2, column 4.
+            <tr>
+            <td>Row 3, column 1.
+            <td>Row 3, column 2.
+            <td>Row 3, column 3.
+            <td>Row 3, column 4.
+            <tr>
+            <td>Row 4, column 1.
+            <td>Row 4, column 2.
+            <td>Row 4, column 3.
+            <td>Row 4, column 4.
+        </table>
+        <p>If you want to separate the table's header and body, you can add a split with <code>thead</code> and <code>tbody</code>, like this:</p>
+        <pre class=good-code><code>&lt;table&gt;
+&lt;thead&gt;
+&lt;td&gt;column 1.
+&lt;td&gt;column 2.
+&lt;td&gt;column 3.
+&lt;td&gt;column 4.
+&lt;tbody&gt;
+&lt;td&gt;Row 1, column 1.
+&lt;td&gt;Row 1, column 2.
+&lt;td&gt;Row 1, column 3.
+&lt;td&gt;Row 1, column 4.
+&lt;tr&gt;
+&lt;td&gt;Row 2, column 1.
+&lt;td&gt;Row 2, column 2.
+&lt;td&gt;Row 2, column 3.
+&lt;td&gt;Row 2, column 4.
+&lt;/table&gt;</code></pre>
+        <p>And here's what it looks like:</p>
+        <table class=good-table>
+            <thead>
+            <td>column 1.
+            <td>column 2.
+            <td>column 3.
+            <td>column 4.
+            <tbody>
+            <td>Row 1, column 1.
+            <td>Row 1, column 2.
+            <td>Row 1, column 3.
+            <td>Row 1, column 4.
+            <tr>
+            <td>Row 2, column 1.
+            <td>Row 2, column 2.
+            <td>Row 2, column 3.
+            <td>Row 2, column 4.
+        </table>
+    </main>
+</div></div>

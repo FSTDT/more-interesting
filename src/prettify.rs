@@ -9,7 +9,9 @@ lazy_static!{
     static ref CLEANER: ammonia::Builder<'static> = {
         let mut b = ammonia::Builder::default();
         b.add_allowed_classes("a", ["inner-link", "article-header-inner"][..].iter().cloned());
-        b.tags(["a", "p", "b", "i", "blockquote", "code"][..].iter().cloned().collect());
+        b.add_allowed_classes("pre", ["good-code"][..].iter().cloned());
+        b.add_allowed_classes("table", ["good-table"][..].iter().cloned());
+        b.tags(["a", "p", "b", "i", "blockquote", "code", "pre", "table", "thead", "tbody", "tr", "th", "td", "caption", "img", "details", "summary"][..].iter().cloned().collect());
         b
     };
     static ref URL_TAG_OPEN: Regex = Regex::new(r"(?i)^\[url\]").unwrap();
@@ -33,7 +35,7 @@ lazy_static!{
     static ref CB_TAG_OPEN: Regex = Regex::new(r"(?i)^\[cb\]").unwrap();
     static ref CB_TAG_CLOSE: Regex = Regex::new(r"(?i)^\[/cb\]").unwrap();
     static ref IMG_TAG_OPEN: Regex = Regex::new(r"(?i)^\[img\]").unwrap();
-    static ref IMG_TAG_CLOSE: Regex = Regex::new(r"(?i)^\[/img\]").unwrap();
+    static ref IMG_TAG_CLOSE: Regex = Regex::new(r"(?i)\[/img\]").unwrap();
 }
 
 /// Prettify: transform plain text, as described in the readme, into HTML with links.
@@ -100,6 +102,46 @@ pub fn prettify_body<D: Data>(text: &str, data: &mut D) -> Output {
                     ret_val.push_str("</a>");
                 } else if contents.starts_with('#') {
                     maybe_write_number_sign(&contents[1..], data, &mut ret_val, None);
+                } else if contents == "table" {
+                    ret_val.push_str("<a href=assets/how-to-table.html>table</a>");
+                    for _ in 0..brackets_count {
+                        ret_val.push_str("&gt;");
+                    }
+                    ret_val.push_str("<table class=good-table>");
+                    let mut end_tag_html = String::new();
+                    for _ in 0..brackets_count {
+                        end_tag_html.push_str("<");
+                    }
+                    end_tag_html.push_str("/table");
+                    for _ in 0..brackets_count {
+                        end_tag_html.push_str(">");
+                    }
+                    let end_tag_pos = text.find(&end_tag_html).unwrap_or(text.len());
+                    let start_tag_len = 5 + brackets_count * 2;
+                    ret_val.push_str(&text[start_tag_len..end_tag_pos]);
+                    ret_val.push_str("</table><p>");
+                    text = &text[end_tag_pos+start_tag_len+1..];
+                    continue;
+                }  else if contents == "code" {
+                    ret_val.push_str("<a href=assets/how-to-code.html>code</a>");
+                    for _ in 0..brackets_count {
+                        ret_val.push_str("&gt;");
+                    }
+                    ret_val.push_str("<pre class=good-code><code>");
+                    let mut end_tag_html = String::new();
+                    for _ in 0..brackets_count {
+                        end_tag_html.push_str("<");
+                    }
+                    end_tag_html.push_str("/code");
+                    for _ in 0..brackets_count {
+                        end_tag_html.push_str(">");
+                    }
+                    let end_tag_pos = text.find(&end_tag_html).unwrap_or(text.len());
+                    let start_tag_len = 4 + brackets_count * 2;
+                    ret_val.push_str(&escape(&text[start_tag_len..end_tag_pos]).to_string());
+                    ret_val.push_str("</code></pre><p>");
+                    text = &text[end_tag_pos+start_tag_len+1..];
+                    continue;
                 } else {
                     ret_val.push_str(&escape(&text[brackets_count..count]).to_string());
                 }
@@ -273,15 +315,19 @@ pub fn prettify_body<D: Data>(text: &str, data: &mut D) -> Output {
                 let tag = CB_TAG_CLOSE.find(&text[..]).expect("it to still be there");
                 text = &text[tag.end()..];
             }
+            // bbcode image tag
             b'[' if IMG_TAG_OPEN.is_match(&text[..]) => {
-                ret_val.push_str("<img src=\"");
-                let tag = IMG_TAG_OPEN.find(&text[..]).expect("it to still be there");
-                text = &text[tag.end()..];
-            }
-            b'[' if IMG_TAG_CLOSE.is_match(&text[..]) => {
-                ret_val.push_str("\">");
-                let tag = IMG_TAG_CLOSE.find(&text[..]).expect("it to still be there");
-                text = &text[tag.end()..];
+                let end_tag = IMG_TAG_CLOSE.find(&text[..]);
+                if let Some(end_tag) = end_tag {
+                    let html = escape(&text[5..end_tag.start()]).to_string();
+                    ret_val.push_str("<details><summary>image</summary><img src=\"");
+                    ret_val.push_str(&html);
+                    ret_val.push_str("\"></details>");
+                    text = &text[end_tag.end()..];
+                } else {
+                    ret_val.push_str("[");
+                    text = &text[1..];
+                }
             }
             // at-mentions and comment refs
             b'@' => {
@@ -817,6 +863,24 @@ mod test {
         assert_eq!(prettify_body(comment, &mut MyData).string, CLEANER.clean(html).to_string());
     }
     #[test]
+    fn test_bbcode_img() {
+        let comment = "[img]ok[/img]";
+        let html = "<p><details><summary>image</summary><img src=\"ok\"></details>";
+        struct MyData;
+        impl Data for MyData {
+            fn check_comment_ref(&mut self, id: i32) -> bool {
+                id == 12345
+            }
+            fn check_hash_tag(&mut self, tag: &str) -> bool {
+                tag == "words"
+            }
+            fn check_username(&mut self, username: &str) -> bool {
+                username == "mentioning"
+            }
+        }
+        assert_eq!(prettify_body(comment, &mut MyData).string, CLEANER.clean(html).to_string());
+    }
+    #[test]
     fn test_bbcode_quote() {
         let comment = "[quote=pyro]this [i]thing[/i] sucks[/quote]\n\n[quote]okay?[/quote]";
         let html = "<p>@pyro<blockquote>this <i>thing</i> sucks</blockquote>\n\n<p><blockquote>okay?</blockquote>";
@@ -864,6 +928,24 @@ let comment = r####"Write my comment here.
 
 Consecutive line breaks are paragraph breaks, like in Markdown.
 
+As special allowances, you can write tables in HTML, like this:
+
+<table>
+<tr>
+<td>Hi
+<td>There
+</table>
+
+You can also write code tags. The contents of code tags are automatically escaped.
+
+<code>
+<table>
+<tr>
+<td>Hi
+<td>There
+</table>
+</code>
+
 URL's are automatically linked, following similar rules to GitHub-flavored MD.
 <URL> also works if your URL is too complex, but note that the angle brackets
 will still be shown! It also includes GitHub's WWW special case, like
@@ -880,7 +962,25 @@ let html = r####"<p>Write my comment here.
 
 <p>Consecutive line breaks are paragraph breaks, like in Markdown.
 
-<p>URL's are automatically linked, following similar rules to GitHub-flavored MD.
+<p>As special allowances, you can write tables in HTML, like this:
+
+</p><p>&lt;<a href="assets/how-to-table.html">table</a>&gt;</p><table class=good-table>
+<tr>
+<td>Hi
+<td>There
+</table><p>
+
+</p><p>You can also write code tags. The contents of code tags are automatically escaped.
+
+</p><p>&lt;<a href="assets/how-to-code.html">code</a>&gt;</p><pre class=good-code><code>
+&lt;table&gt;
+&lt;tr&gt;
+&lt;td&gt;Hi
+&lt;td&gt;There
+&lt;/table&gt;
+</code></pre><p>
+
+</p><p>URL's are automatically linked, following similar rules to GitHub-flavored MD.
 &lt;URL&gt; also works if your URL is too complex, but note that the angle brackets
 will still be shown! It also includes GitHub's WWW special case, like
 <a href="https://www.example.com">www.example.com</a>, &lt;<a href="https://www.example.com">www.example.com</a>&gt;, <a href="http://example.com">http://example.com</a>, and &lt;<a href="http://example.com">http://example.com</a>&gt;
