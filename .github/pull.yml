@@ -1,0 +1,9 @@
+version: "1"
+rules:
+  - base: master
+    upstream: notriddle:master
+    mergeMethod: hardreset
+  - base: fstdt
+    upstream: master
+    mergeMethod: rebase
+label: ":arrow_heading_down: pull"  # Optional

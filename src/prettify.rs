@@ -1,6 +1,7 @@
 use v_htmlescape::escape;
 use std::fmt::{self, Display, Formatter};
 use lazy_static::lazy_static;
+use regex::Regex;
 
 const URL_PROTOCOLS: &[&str] = &["http:", "https:", "ftp:", "gopher:", "mailto:", "magnet:"];
 
@@ -10,9 +11,31 @@ lazy_static!{
         b.add_allowed_classes("a", ["inner-link", "article-header-inner"][..].iter().cloned());
         b.add_allowed_classes("pre", ["good-code"][..].iter().cloned());
         b.add_allowed_classes("table", ["good-table"][..].iter().cloned());
-        b.tags(["a", "p", "pre", "table", "thead", "tbody", "tr", "th", "td", "caption"][..].iter().cloned().collect());
+        b.tags(["a", "p", "b", "i", "blockquote", "code", "pre", "table", "thead", "tbody", "tr", "th", "td", "caption", "img", "details", "summary"][..].iter().cloned().collect());
         b
     };
+    static ref URL_TAG_OPEN: Regex = Regex::new(r"(?i)^\[url\]").unwrap();
+    static ref URL_TAG_OPEN_PARAM: Regex = Regex::new(r"(?i)^\[url=").unwrap();
+    static ref URL_TAG_CLOSE: Regex = Regex::new(r"(?i)\[/url\]").unwrap();
+    static ref QUOTE_TAG_OPEN: Regex = Regex::new(r"(?i)^\[quote\]").unwrap();
+    static ref QUOTE_TAG_OPEN_PARAM: Regex = Regex::new(r"(?i)^\[quote=").unwrap();
+    static ref QUOTE_TAG_CLOSE: Regex = Regex::new(r"(?i)^\[/quote\]").unwrap();
+    static ref CODE_TAG_OPEN: Regex = Regex::new(r"(?i)^\[code\]").unwrap();
+    static ref CODE_TAG_CLOSE: Regex = Regex::new(r"(?i)\[/code\]").unwrap();
+    static ref TT_TAG_OPEN: Regex = Regex::new(r"(?i)^\[tt\]").unwrap();
+    static ref TT_TAG_CLOSE: Regex = Regex::new(r"(?i)^\[/tt\]").unwrap();
+    static ref PRE_TAG_OPEN: Regex = Regex::new(r"(?i)^\[pre\]").unwrap();
+    static ref PRE_TAG_CLOSE: Regex = Regex::new(r"(?i)^\[/pre\]").unwrap();
+    static ref CHAR_TAG_OPEN: Regex = Regex::new(r"(?i)^\[char\]").unwrap();
+    static ref CHAR_TAG_CLOSE: Regex = Regex::new(r"(?i)^\[/char\]").unwrap();
+    static ref AB_TAG_OPEN: Regex = Regex::new(r"(?i)^\[ab\]").unwrap();
+    static ref AB_TAG_CLOSE: Regex = Regex::new(r"(?i)^\[/ab\]").unwrap();
+    static ref SB_TAG_OPEN: Regex = Regex::new(r"(?i)^\[sb\]").unwrap();
+    static ref SB_TAG_CLOSE: Regex = Regex::new(r"(?i)^\[/sb\]").unwrap();
+    static ref CB_TAG_OPEN: Regex = Regex::new(r"(?i)^\[cb\]").unwrap();
+    static ref CB_TAG_CLOSE: Regex = Regex::new(r"(?i)^\[/cb\]").unwrap();
+    static ref IMG_TAG_OPEN: Regex = Regex::new(r"(?i)^\[img\]").unwrap();
+    static ref IMG_TAG_CLOSE: Regex = Regex::new(r"(?i)\[/img\]").unwrap();
 }
 
 /// Prettify: transform plain text, as described in the readme, into HTML with links.
@@ -47,6 +70,7 @@ pub fn prettify_body<D: Data>(text: &str, data: &mut D) -> Output {
     ret_val.push_str("<p>");
     while let Some(c) = text.as_bytes().get(0) {
         match c {
+            // more-interesting <LINK> syntax
             b'<' => {
                 let (contents, brackets_count, count) = scan_angle_brackets(text);
                 assert_ne!(brackets_count, 0);
@@ -130,6 +154,182 @@ pub fn prettify_body<D: Data>(text: &str, data: &mut D) -> Output {
                     text = &text[brackets_count..];
                 }
             }
+            // bbcode bold and italic
+            b'[' if text[1..].starts_with("B]") || text[1..].starts_with("b]") => {
+                ret_val.push_str("<b>");
+                text = &text[3..];
+            }
+            b'[' if text[1..].starts_with("I]") || text[1..].starts_with("i]") => {
+                ret_val.push_str("<i>");
+                text = &text[3..];
+            }
+            b'[' if text[1..].starts_with("U]") || text[1..].starts_with("u]") => {
+                ret_val.push_str("<i>");
+                text = &text[3..];
+            }
+            b'[' if text[1..].starts_with("/B]") || text[1..].starts_with("/b]") => {
+                ret_val.push_str("</b>");
+                text = &text[4..];
+            }
+            b'[' if text[1..].starts_with("/I]") || text[1..].starts_with("/i]") => {
+                ret_val.push_str("</i>");
+                text = &text[4..];
+            }
+            b'[' if text[1..].starts_with("/U]") || text[1..].starts_with("/u]") => {
+                ret_val.push_str("</i>");
+                text = &text[4..];
+            }
+            // bbcode links
+            b'[' if URL_TAG_OPEN.is_match(&text[..]) => {
+                let end_tag = URL_TAG_CLOSE.find(&text[..]);
+                if let Some(end_tag) = end_tag {
+                    let html = escape(&text[5..end_tag.start()]).to_string();
+                    ret_val.push_str("<a href=\"");
+                    ret_val.push_str(&html);
+                    ret_val.push_str("\">");
+                    ret_val.push_str(&html);
+                    ret_val.push_str("</a>");
+                    text = &text[end_tag.end()..];
+                } else {
+                    ret_val.push_str("[");
+                    text = &text[1..];
+                }
+            }
+            b'[' if URL_TAG_OPEN_PARAM.is_match(&text[..]) => {
+                let end_tag = URL_TAG_CLOSE.find(&text[..]);
+                let end_param = text.find("]");
+                if let (Some(end_tag), Some(end_param)) = (end_tag, end_param) {
+                    if end_param < end_tag.start() {
+                        let contents = escape(&text[end_param+1..end_tag.start()]).to_string();
+                        let url = escape(&text[5..end_param]).to_string();
+                        ret_val.push_str("<a href=\"");
+                        ret_val.push_str(&url);
+                        ret_val.push_str("\">");
+                        ret_val.push_str(&contents);
+                        ret_val.push_str("</a>");
+                        text = &text[end_tag.end()..];
+                    } else {
+                        ret_val.push_str("[");
+                        text = &text[1..];
+                    }
+                } else {
+                    ret_val.push_str("[");
+                    text = &text[1..];
+                }
+            }
+            // bbcode quote boxes
+            b'[' if QUOTE_TAG_OPEN.is_match(&text[..]) => {
+                ret_val.push_str("<blockquote>");
+                let tag = QUOTE_TAG_OPEN.find(&text[..]).expect("it to still be there");
+                text = &text[tag.end()..];
+            }
+            b'[' if QUOTE_TAG_CLOSE.is_match(&text[..]) => {
+                ret_val.push_str("</blockquote>");
+                let tag = QUOTE_TAG_CLOSE.find(&text[..]).expect("it to still be there");
+                text = &text[tag.end()..];
+            }
+            b'[' if QUOTE_TAG_OPEN_PARAM.is_match(&text[..]) => {
+                let end_param = text.find("]");
+                if let Some(end_param) = end_param {
+                    let name = escape(&text[7..end_param]).to_string();
+                    maybe_write_username(&name, data, &mut ret_val, None);
+                    ret_val.push_str("<blockquote>");
+                    text = &text[end_param+1..];
+                } else {
+                    ret_val.push_str("[");
+                    text = &text[1..];
+                }
+            }
+            // bbcode code tags
+            b'[' if CODE_TAG_OPEN.is_match(&text[..]) => {
+                let end_tag = CODE_TAG_CLOSE.find(&text[..]);
+                if let Some(end_tag) = end_tag {
+                    let html = escape(&text[6..end_tag.start()]).to_string();
+                    ret_val.push_str("<code>");
+                    ret_val.push_str(&html);
+                    ret_val.push_str("</code>");
+                    text = &text[end_tag.end()..];
+                } else {
+                    ret_val.push_str("[");
+                    text = &text[1..];
+                }
+            }
+            // tt and pre
+            b'[' if TT_TAG_OPEN.is_match(&text[..]) => {
+                ret_val.push_str("<tt>");
+                let tag = TT_TAG_OPEN.find(&text[..]).expect("it to still be there");
+                text = &text[tag.end()..];
+            }
+            b'[' if TT_TAG_CLOSE.is_match(&text[..]) => {
+                ret_val.push_str("</tt>");
+                let tag = TT_TAG_CLOSE.find(&text[..]).expect("it to still be there");
+                text = &text[tag.end()..];
+            }
+            b'[' if PRE_TAG_OPEN.is_match(&text[..]) => {
+                ret_val.push_str("<pre>");
+                let tag = PRE_TAG_OPEN.find(&text[..]).expect("it to still be there");
+                text = &text[tag.end()..];
+            }
+            b'[' if PRE_TAG_CLOSE.is_match(&text[..]) => {
+                ret_val.push_str("</pre>");
+                let tag = PRE_TAG_CLOSE.find(&text[..]).expect("it to still be there");
+                text = &text[tag.end()..];
+            }
+            b'[' if CHAR_TAG_OPEN.is_match(&text[..]) => {
+                ret_val.push_str("&");
+                let tag = CHAR_TAG_OPEN.find(&text[..]).expect("it to still be there");
+                text = &text[tag.end()..];
+            }
+            b'[' if CHAR_TAG_CLOSE.is_match(&text[..]) => {
+                ret_val.push_str(";");
+                let tag = CHAR_TAG_CLOSE.find(&text[..]).expect("it to still be there");
+                text = &text[tag.end()..];
+            }
+            b'[' if AB_TAG_OPEN.is_match(&text[..]) => {
+                ret_val.push_str("&lt;");
+                let tag = AB_TAG_OPEN.find(&text[..]).expect("it to still be there");
+                text = &text[tag.end()..];
+            }
+            b'[' if AB_TAG_CLOSE.is_match(&text[..]) => {
+                ret_val.push_str("&gt;");
+                let tag = AB_TAG_CLOSE.find(&text[..]).expect("it to still be there");
+                text = &text[tag.end()..];
+            }
+            b'[' if SB_TAG_OPEN.is_match(&text[..]) => {
+                ret_val.push_str("[");
+                let tag = SB_TAG_OPEN.find(&text[..]).expect("it to still be there");
+                text = &text[tag.end()..];
+            }
+            b'[' if SB_TAG_CLOSE.is_match(&text[..]) => {
+                ret_val.push_str("]");
+                let tag = SB_TAG_CLOSE.find(&text[..]).expect("it to still be there");
+                text = &text[tag.end()..];
+            }
+            b'[' if CB_TAG_OPEN.is_match(&text[..]) => {
+                ret_val.push_str("{");
+                let tag = CB_TAG_OPEN.find(&text[..]).expect("it to still be there");
+                text = &text[tag.end()..];
+            }
+            b'[' if CB_TAG_CLOSE.is_match(&text[..]) => {
+                ret_val.push_str("}");
+                let tag = CB_TAG_CLOSE.find(&text[..]).expect("it to still be there");
+                text = &text[tag.end()..];
+            }
+            // bbcode image tag
+            b'[' if IMG_TAG_OPEN.is_match(&text[..]) => {
+                let end_tag = IMG_TAG_CLOSE.find(&text[..]);
+                if let Some(end_tag) = end_tag {
+                    let html = escape(&text[5..end_tag.start()]).to_string();
+                    ret_val.push_str("<details><summary>image</summary><img src=\"");
+                    ret_val.push_str(&html);
+                    ret_val.push_str("\"></details>");
+                    text = &text[end_tag.end()..];
+                } else {
+                    ret_val.push_str("[");
+                    text = &text[1..];
+                }
+            }
+            // at-mentions and comment refs
             b'@' => {
                 let contents = scan_lexical_token(&text[1..], false);
                 maybe_write_username(contents, data, &mut ret_val, None);
@@ -140,6 +340,7 @@ pub fn prettify_body<D: Data>(text: &str, data: &mut D) -> Output {
                 maybe_write_number_sign(contents, data, &mut ret_val, None);
                 text = &text[(1 + contents.len())..];
             }
+            // bare links
             _ if starts_with_url_protocol(text) => {
                 let contents = scan_lexical_token(text, true);
                 let html = escape(contents).to_string();
@@ -160,6 +361,7 @@ pub fn prettify_body<D: Data>(text: &str, data: &mut D) -> Output {
                 ret_val.push_str("</a>");
                 text = &text[contents.len()..];
             }
+            // plain text
             b' ' => {
                 ret_val.push_str(" ");
                 text = &text[1..];
@@ -177,7 +379,7 @@ pub fn prettify_body<D: Data>(text: &str, data: &mut D) -> Output {
                 let mut i = 1;
                 fn is_normal(c: u8) -> bool {
                     match c {
-                        b'<' | b'@' | b'#' | b' ' | b'\n' | b'*' | b'(' => false,
+                        b'<' | b'@' | b'#' | b' ' | b'\n' | b'*' | b'(' | b'[' | b']' => false,
                         _ => true,
                     }
                 }
@@ -641,6 +843,78 @@ mod test {
             }
         }
         assert_eq!(prettify_title(comment, "url", &mut MyData).string, CLEANER.clean(html).to_string());
+    }
+    #[test]
+    fn test_bbcode() {
+        let comment = "[url]ok[/url] [url=u]ok[/url] [url=u[/url]]";
+        let html = "<p><a href=\"ok\">ok</a> <a href=\"u\">ok</a> [url=u[/url]]";
+        struct MyData;
+        impl Data for MyData {
+            fn check_comment_ref(&mut self, id: i32) -> bool {
+                id == 12345
+            }
+            fn check_hash_tag(&mut self, tag: &str) -> bool {
+                tag == "words"
+            }
+            fn check_username(&mut self, username: &str) -> bool {
+                username == "mentioning"
+            }
+        }
+        assert_eq!(prettify_body(comment, &mut MyData).string, CLEANER.clean(html).to_string());
+    }
+    #[test]
+    fn test_bbcode_img() {
+        let comment = "[img]ok[/img]";
+        let html = "<p><details><summary>image</summary><img src=\"ok\"></details>";
+        struct MyData;
+        impl Data for MyData {
+            fn check_comment_ref(&mut self, id: i32) -> bool {
+                id == 12345
+            }
+            fn check_hash_tag(&mut self, tag: &str) -> bool {
+                tag == "words"
+            }
+            fn check_username(&mut self, username: &str) -> bool {
+                username == "mentioning"
+            }
+        }
+        assert_eq!(prettify_body(comment, &mut MyData).string, CLEANER.clean(html).to_string());
+    }
+    #[test]
+    fn test_bbcode_quote() {
+        let comment = "[quote=pyro]this [i]thing[/i] sucks[/quote]\n\n[quote]okay?[/quote]";
+        let html = "<p>@pyro<blockquote>this <i>thing</i> sucks</blockquote>\n\n<p><blockquote>okay?</blockquote>";
+        struct MyData;
+        impl Data for MyData {
+            fn check_comment_ref(&mut self, id: i32) -> bool {
+                id == 12345
+            }
+            fn check_hash_tag(&mut self, tag: &str) -> bool {
+                tag == "words"
+            }
+            fn check_username(&mut self, username: &str) -> bool {
+                username == "mentioning"
+            }
+        }
+        assert_eq!(prettify_body(comment, &mut MyData).string, CLEANER.clean(html).to_string());
+    }
+    #[test]
+    fn test_bbcode_code() {
+        let comment = "[code]this [i]thing[/i] sucks[/code]";
+        let html = "<p><code>this [i]thing[/i] sucks</code>";
+        struct MyData;
+        impl Data for MyData {
+            fn check_comment_ref(&mut self, id: i32) -> bool {
+                id == 12345
+            }
+            fn check_hash_tag(&mut self, tag: &str) -> bool {
+                tag == "words"
+            }
+            fn check_username(&mut self, username: &str) -> bool {
+                username == "mentioning"
+            }
+        }
+        assert_eq!(prettify_body(comment, &mut MyData).string, CLEANER.clean(html).to_string());
     }
     #[test]
     fn test_example() {
