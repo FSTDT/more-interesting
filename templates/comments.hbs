@@ -22,7 +22,7 @@
                 {{#if (gte user.trust_level 3)}}
                     <a href="edit-post?post={{posts.0.uuid}}" class=button>Edit</a>
                 {{/if}}
-                <button name="{{#if posts.0.starred_by_me}}rm_star{{else}}add_star{{/if}}" value={{posts.0.uuid}} title="{{#if posts.0.starred_by_me}}Remove star{{else}}Add star{{/if}}">
+                <button{{#if user.id}} title="{{#if posts.0.starred_by_me}}Remove star{{else}}Add star{{/if}}"{{else}} disabled title="Log in to vote"{{/if}} name="{{#if posts.0.starred_by_me}}rm_star{{else}}add_star{{/if}}" value={{posts.0.uuid}}>
                     <span>{{posts.0.score}}</span>
                     <img width=12 height=12 class=good-img src=assets/{{#if posts.0.starred_by_me}}star_active.svg{{else}}star.svg{{/if}} alt="{{#if posts.0.starred_by_me}}Remove star{{else}}Add star{{/if}}">
                 </button>
@@ -52,7 +52,7 @@
                     {{#if (or (gte ../user.trust_level 3) (eq this.created_by ../user.id))}}
                         <a href="edit-comment?comment={{this.id}}" class=button>Edit</a>
                     {{/if}}
-                    <button name="{{#if this.starred_by_me}}rm_star_comment{{else}}add_star_comment{{/if}}" value={{this.id}} title="{{#if this.starred_by_me}}Remove star{{else}}Add star{{/if}}">
+                    <button{{#if ../user.id}} title="{{#if this.starred_by_me}}Remove star{{else}}Add star{{/if}}"{{else}} disabled title="Log in to vote"{{/if}} name="{{#if this.starred_by_me}}rm_star_comment{{else}}add_star_comment{{/if}}" value={{this.id}}>
                         <span>{{count this.starred_by}}</span>
                         <img width=12 height=12 class=good-img src=assets/{{#if this.starred_by_me}}star_active.svg{{else}}star.svg{{/if}} alt="{{#if this.starred_by_me}}Remove star{{else}}Add star{{/if}}">
                     </button>
