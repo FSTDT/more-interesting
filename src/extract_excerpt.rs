@@ -2,30 +2,39 @@ use url::Url;
 use kuchiki::traits::*;
 use kuchiki::{NodeDataRef, ElementData, parse_html};
 use html5ever::serialize::{serialize, SerializeOpts};
+use std::time::Duration;
+use std::io::Read;
 
 pub struct Excerpt {
     pub title: String,
     pub body: String,
+    pub url: Url,
 }
 
 pub fn extract_excerpt_url(url: Url) -> Option<Excerpt> {
-    if let Ok(h) = readability::extractor::scrape(url.as_str()) {
-        let body = to_plain_text(&h.content);
-        Some(Excerpt {
-            title: h.title,
-            body,
-        })
+    let client = reqwest::Client::builder()
+        .timeout(Duration::new(30, 0))
+        .build()
+        .ok()?;
+    const UA: &'static str = "Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:66.0) Gecko/20100101 Firefox/66.0";
+    let mut res = client.get(url.clone())
+        .header(reqwest::header::USER_AGENT, UA)
+        .send()
+        .ok()?;
+    if res.status().is_success() {
+        let u = res.url().clone();
+        extract_excerpt(&mut res, u)
     } else {
         None
     }
 }
 
-pub fn extract_excerpt(html: &str, url: &Url) -> Option<Excerpt> {
-    if let Ok(h) = readability::extractor::extract(&mut html.as_bytes(), url) {
+pub fn extract_excerpt<R: Read>(mut reader: R, url: Url) -> Option<Excerpt> {
+    if let Ok(h) = readability::extractor::extract(&mut reader, &url) {
         let body = to_plain_text(&h.content);
         Some(Excerpt {
             title: h.title,
-            body,
+            url, body,
         })
     } else {
         None

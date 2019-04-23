@@ -514,6 +514,11 @@ html.dark .inner-link:link {
     color: #30e60b;
 }
 
+.domain-link {
+    color: inherit;
+    font-style: italic;
+}
+
 article, aside {
     display: block;
     border: solid 1px #0c0c0d;

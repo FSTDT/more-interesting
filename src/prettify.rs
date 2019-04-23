@@ -1,13 +1,14 @@
 use v_htmlescape::escape;
 use std::fmt::{self, Display, Formatter};
 use lazy_static::lazy_static;
+use url::Url;
 
 const URL_PROTOCOLS: &[&str] = &["http:", "https:", "ftp:", "gopher:", "mailto:", "magnet:"];
 
 lazy_static!{
     static ref CLEANER: ammonia::Builder<'static> = {
         let mut b = ammonia::Builder::default();
-        b.add_allowed_classes("a", ["inner-link", "article-header-inner"][..].iter().cloned());
+        b.add_allowed_classes("a", ["inner-link", "domain-link", "article-header-inner"][..].iter().cloned());
         b.add_allowed_classes("pre", ["good-code"][..].iter().cloned());
         b.add_allowed_classes("table", ["good-table"][..].iter().cloned());
         b.tags(["a", "p", "pre", "table", "thead", "tbody", "tr", "th", "td", "caption"][..].iter().cloned().collect());
@@ -262,6 +263,18 @@ pub fn prettify_title<D: Data>(mut text: &str, url: &str, data: &mut D) -> Outpu
         ret_val.string.truncate(ret_val.string.len() - link.len());
     } else {
         ret_val.push_str("</a>");
+    }
+    if let Ok(url) = Url::parse(url) {
+        if let Some(mut host) = url.host_str() {
+            if host.starts_with("www.") {
+                host = &host[4..];
+            }
+            ret_val.push_str("<a class=\"domain-link article-header-inner\" href=\"./?domain=");
+            ret_val.push_str(host);
+            ret_val.push_str("\">");
+            ret_val.push_str(host);
+            ret_val.push_str("</a>");
+        }
     }
     ret_val.string = CLEANER.clean(&ret_val.string).to_string();
     ret_val
