@@ -14,7 +14,7 @@
             {{#if (gte ../user.trust_level 3)}}
                 <a href="edit-post?post={{this.uuid}}" class=button>Edit</a>
             {{/if}}
-            <button name="{{#if this.starred_by_me}}rm_star{{else}}add_star{{/if}}" value={{this.uuid}} title="{{#if this.starred_by_me}}Remove star{{else}}Add star{{/if}}">
+            <button{{#if ../user.id}} title="{{#if this.starred_by_me}}Remove star{{else}}Add star{{/if}}"{{else}} disabled title="Log in to vote"{{/if}} name="{{#if this.starred_by_me}}rm_star{{else}}add_star{{/if}}" value={{this.uuid}}>
                 <span>{{this.score}}</span>
                 <img width=12 height=12 class=good-img src=assets/{{#if this.starred_by_me}}star_active.svg{{else}}star.svg{{/if}} alt="{{#if this.starred_by_me}}Remove star{{else}}Add star{{/if}}">
             </button>

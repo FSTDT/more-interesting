@@ -318,6 +318,14 @@ details[open] .details-menu-summary,
     left: 1px;
 }
 
+button[disabled],
+button[disabled]:active {
+    border-image: none;
+    border: solid 2px #d7d7db;
+    opacity: 0.75;
+    top: 0; left: 0;
+}
+
 html.dark input,
 html.dark textarea,
 html.dark button:active,
