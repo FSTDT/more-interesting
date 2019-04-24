@@ -562,7 +562,7 @@ mod test {
             }
         }
 
-        let html = "<a class=article-header-inner href=\"url\">this is a #test for </a><a class=\"inner-link article-header-inner\" href=\"./?tag=words\">#words</a><a class=article-header-inner href=\"url\"> here</a>";
+        let html = "<span class=article-header-inner><a href=\"url\">this is a #test for </a></span><span class=article-header-inner><a class=inner-link href=\"./?tag=words\">#words</a></span><span class=article-header-inner><a href=\"url\"> here</a></span>";
 
         assert_eq!(prettify_title(title, "url", &mut MyData).string, CLEANER.clean(html).to_string());
     }
@@ -623,7 +623,7 @@ mod test {
     #[test]
     fn test_unicode_title() {
         let comment = "finger— inciting the two officers to fire";
-        let html = "<a class=article-header-inner href=\"url\">finger— inciting the two officers to fire</a>";
+        let html = "<span class=article-header-inner><a href=\"url\">finger— inciting the two officers to fire</a></span>";
         struct MyData;
         impl Data for MyData {
             fn check_comment_ref(&mut self, id: i32) -> bool {
@@ -641,7 +641,7 @@ mod test {
     #[test]
     fn test_ends_with_hash_title() {
         let comment = "finger— inciting the two officers to fire #words";
-        let html = "<a class=article-header-inner href=\"url\">finger— inciting the two officers to fire </a><a class=\"inner-link article-header-inner\" href=\"./?tag=words\">#words</a>";
+        let html = "<span class=article-header-inner><a href=\"url\">finger— inciting the two officers to fire </a></span><span class=article-header-inner><a class=inner-link href=\"./?tag=words\">#words</a></span>";
         struct MyData;
         impl Data for MyData {
             fn check_comment_ref(&mut self, id: i32) -> bool {
