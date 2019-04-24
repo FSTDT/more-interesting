@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <html class="{{#if user.dark_mode}}dark{{/if}} {{#if user.big_mode}}big{{/if}}">
 <meta name=viewport content="width=device-width">
-<link rel=stylesheet href="assets/style.css?10">
+<link rel=stylesheet href="assets/style.css?11">
 <style>{{{config.custom_css}}}</style>
 <title>{{title}}</title>
 <header class=top-header>
@@ -59,7 +59,7 @@
         <a href=tags class=top-header-link>All tags</a>
         <a href=mod-log class=top-header-link>Moderation log</a>
         <a href=random class=top-header-link>Random</a>
-        <a href=assets/how-to.html class=top-header>Documentation</a>
+        <a href=assets/how-to.html class=top-header-link>Documentation</a>
     </nav>
     {{# if config.custom_footer_html}}
         <div class=page-wrapper>
@@ -75,9 +75,9 @@
 <script>
     var s = document.createElement("script");
     if (window.HTMLDetailsElement && window.URLSearchParams && window.customElements && window.moreInterestingIsAsyncAvailable && window.fetch) {
-        s.src = "assets/dist/modern.min.js?10";
+        s.src = "assets/dist/modern.min.js?11";
     } else {
-        s.src = "assets/dist/legacy.min.js?10";
+        s.src = "assets/dist/legacy.min.js?11";
     }
     s.defer = true;
     s.async = true;

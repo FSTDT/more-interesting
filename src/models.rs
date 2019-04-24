@@ -2,7 +2,7 @@ use rocket_contrib::databases::diesel::PgConnection;
 use diesel::prelude::*;
 use diesel::result::Error as DieselError;
 use chrono::NaiveDateTime;
-use crate::schema::{users, posts, stars, invite_tokens, comments, comment_stars, tags, post_tagging, moderation, flags, comment_flags};
+use crate::schema::{users, posts, stars, invite_tokens, comments, comment_stars, tags, post_tagging, moderation, flags, comment_flags, domains};
 use crate::password::{password_hash, password_verify, PasswordResult};
 use serde::Serialize;
 use crate::base32::Base32;
@@ -11,6 +11,7 @@ use ordered_float::OrderedFloat;
 use std::collections::{HashMap, HashSet};
 use crate::prettify::{self, prettify_title};
 use serde_json::{self as json, json};
+use url::Url;
 
 const FLAG_HIDE_THRESHOLD: i64 = 3;
 
@@ -49,6 +50,7 @@ pub struct Post {
     pub excerpt_html: Option<String>,
     pub updated_at: NaiveDateTime,
     pub rejected: bool,
+    pub domain_id: Option<i32>,
 }
 
 #[derive(Queryable, Serialize)]
@@ -107,6 +109,23 @@ pub struct PostInfo {
     pub flagged_by_me: bool,
     pub excerpt: Option<String>,
     pub excerpt_html: Option<String>,
+}
+
+#[derive(Queryable, Serialize)]
+pub struct Domain {
+    pub id: i32,
+    pub banned: bool,
+    pub hostname: String,
+    pub is_www: bool,
+    pub is_https: bool,
+}
+
+#[derive(Insertable)]
+#[table_name="domains"]
+pub struct NewDomain {
+    pub hostname: String,
+    pub is_www: bool,
+    pub is_https: bool,
 }
 
 #[derive(Queryable, Serialize)]
@@ -301,6 +320,45 @@ impl MoreInterestingConn {
         all.truncate(100);
         Ok(all)
     }
+    pub fn get_post_info_recent_by_domain(&self, user_id_param: i32, domain_id_param: i32) -> Result<Vec<PostInfo>, DieselError> {
+        use self::posts::dsl::*;
+        use self::stars::dsl::*;
+        use self::flags::dsl::*;
+        use self::users::dsl::*;
+        let mut all: Vec<PostInfo> = posts
+            .left_outer_join(stars.on(self::stars::dsl::post_id.eq(self::posts::dsl::id).and(self::stars::dsl::user_id.eq(user_id_param))))
+            .left_outer_join(flags.on(self::flags::dsl::post_id.eq(self::posts::dsl::id).and(self::flags::dsl::user_id.eq(user_id_param))))
+            .inner_join(users)
+            .select((
+                self::posts::dsl::id,
+                self::posts::dsl::uuid,
+                self::posts::dsl::title,
+                self::posts::dsl::url,
+                self::posts::dsl::visible,
+                self::posts::dsl::initial_stellar_time,
+                self::posts::dsl::score,
+                self::posts::dsl::comment_count,
+                self::posts::dsl::authored_by_submitter,
+                self::posts::dsl::created_at,
+                self::posts::dsl::submitted_by,
+                self::posts::dsl::excerpt,
+                self::posts::dsl::excerpt_html,
+                self::stars::dsl::post_id.nullable(),
+                self::flags::dsl::post_id.nullable(),
+                self::users::dsl::username,
+            ))
+            .filter(visible.eq(true))
+            .filter(domain_id.eq(domain_id_param))
+            .order_by((initial_stellar_time.desc(), self::posts::dsl::created_at.desc()))
+            .limit(200)
+            .get_results::<(i32, Base32, String, Option<String>, bool, i32, i32, i32, bool, NaiveDateTime, i32, Option<String>, Option<String>, Option<i32>, Option<i32>, String)>(&self.0)?
+            .into_iter()
+            .map(|t| tuple_to_post_info(self, t, self.get_current_stellar_time()))
+            .collect();
+        all.sort_by_key(|info| OrderedFloat(-info.hotness));
+        all.truncate(100);
+        Ok(all)
+    }
     pub fn get_post_info_search(&self, user_id_param: i32, search: &str) -> Result<Vec<PostInfo>, DieselError> {
         use self::posts::dsl::*;
         use self::stars::dsl::*;
@@ -419,18 +477,50 @@ impl MoreInterestingConn {
         // the stars table should be limited by the i32 limits, but diesel doesn't know that
         stars.count().get_result(&self.0).unwrap_or(0) as i32
     }
+    fn get_post_domain_url(&self, url: Option<&str>) -> (Option<String>, Option<Domain>) {
+        let url_host = url
+            .and_then(|u| Url::parse(u).ok())
+            .and_then(|u| { let h = u.host_str()?.to_owned(); Some((u, h)) });
+        if let Some((mut url, host)) = url_host {
+            let mut host = &host[..];
+            let mut is_www = false;
+            if host.starts_with("www.") {
+                host = &host[4..];
+                is_www = true;
+            }
+            let is_https = url.scheme() == "https";
+            let domain = self.get_domain_by_hostname(host).unwrap_or_else(|_| {
+                self.create_domain(NewDomain {
+                    hostname: host.to_owned(),
+                    is_www, is_https
+                }).expect("if domain does not exist, creating it should work")
+            });
+            if !is_www && domain.is_www {
+                url.set_host(Some(&format!("www.{}", host))).expect("if is-www is true, then this scheme has a host");
+            } else if is_www && !domain.is_www {
+                url.set_host(Some(&host[..])).expect("if is-www is true, then this scheme has a host");
+            }
+            if !is_https && domain.is_https && url.scheme() == "http" {
+                url.set_scheme("https").expect("https is a valid scheme");
+            }
+            (Some(url.to_string()), Some(domain))
+        } else {
+            (None, None)
+        }
+    }
     pub fn create_post(&self, new_post: &NewPost) -> Result<Post, DieselError> {
         #[derive(Insertable)]
         #[table_name="posts"]
         struct CreatePost<'a> {
             title: &'a str,
             uuid: i64,
-            url: Option<&'a str>,
+            url: Option<String>,
             submitted_by: i32,
             initial_stellar_time: i32,
             excerpt: Option<&'a str>,
             excerpt_html: Option<&'a str>,
             visible: bool,
+            domain_id: Option<i32>,
         }
         let title_html_and_stuff = crate::prettify::prettify_title(new_post.title, "", &mut PrettifyData(self, 0));
         let excerpt_html_and_stuff = if let Some(excerpt) = new_post.excerpt {
@@ -438,16 +528,18 @@ impl MoreInterestingConn {
         } else {
             None
         };
+        let (url, domain) = self.get_post_domain_url(new_post.url);
         let result = diesel::insert_into(posts::table)
             .values(CreatePost {
                 title: new_post.title,
-                url: new_post.url,
                 uuid: rand::random(),
                 submitted_by: new_post.submitted_by,
                 initial_stellar_time: self.get_current_stellar_time(),
                 excerpt: new_post.excerpt,
                 excerpt_html: excerpt_html_and_stuff.as_ref().map(|e| &e.string[..]),
                 visible: new_post.visible,
+                domain_id: domain.map(|d| d.id),
+                url
             })
             .get_result::<Post>(&self.0);
         if let Ok(ref post) = result {
@@ -473,13 +565,15 @@ impl MoreInterestingConn {
         };
         use self::posts::dsl::*;
         use self::post_tagging::dsl::*;
+        let (url_value, domain) = self.get_post_domain_url(new_post.url);
         diesel::update(posts.find(post_id_value))
             .set((
                 title.eq(new_post.title),
                 excerpt.eq(new_post.excerpt),
-                url.eq(new_post.url),
+                url.eq(url_value),
                 excerpt_html.eq(excerpt_html_and_stuff.as_ref().map(|x| &x.string[..])),
                 visible.eq(new_post.visible),
+                domain_id.eq(domain.map(|d| d.id))
             ))
             .execute(&self.0)?;
         diesel::delete(post_tagging.filter(post_id.eq(post_id_value)))
@@ -691,6 +785,23 @@ impl MoreInterestingConn {
     pub fn get_comment_by_id(&self, comment_id_value: i32) -> Result<Comment, DieselError> {
         use self::comments::dsl::*;
         comments.find(comment_id_value).get_result::<Comment>(&self.0)
+    }
+    pub fn create_domain(&self, new_domain: NewDomain) -> Result<Domain, DieselError> {
+        use self::domains::dsl::*;
+        diesel::insert_into(domains)
+            .values(new_domain)
+            .get_result(&self.0)
+    }
+    pub fn get_domain_by_id(&self, domain_id_value: i32) -> Result<Domain, DieselError> {
+        use self::domains::dsl::*;
+        domains.find(domain_id_value).get_result::<Domain>(&self.0)
+    }
+    pub fn get_domain_by_hostname(&self, mut hostname_value: &str) -> Result<Domain, DieselError> {
+        use self::domains::dsl::*;
+        if hostname_value.starts_with("www.") {
+            hostname_value = &hostname_value[4..];
+        }
+        domains.filter(hostname.eq(hostname_value)).get_result::<Domain>(&self.0)
     }
     pub fn comment_on_post(&self, new_post: NewComment) -> Result<Comment, DieselError> {
         #[derive(Insertable)]

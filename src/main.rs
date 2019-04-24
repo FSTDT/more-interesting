@@ -234,29 +234,52 @@ fn vote_comment(conn: MoreInterestingConn, user: User, redirect: Form<MaybeRedir
 #[derive(FromForm)]
 struct IndexParams {
     tag: Option<String>,
+    domain: Option<String>,
     q: Option<String>,
 }
 
 #[get("/?<params..>")]
-fn index(conn: MoreInterestingConn, user: Option<User>, flash: Option<FlashMessage>, params: Option<Form<IndexParams>>, config: State<SiteConfig>) -> impl Responder<'static> {
+fn index(conn: MoreInterestingConn, user: Option<User>, flash: Option<FlashMessage>, params: Option<Form<IndexParams>>, config: State<SiteConfig>) -> Option<impl Responder<'static>> {
     let user = user.unwrap_or(User::default());
     let posts = if let Some(tag_name) = params.as_ref().and_then(|params| params.tag.as_ref()) {
-        conn.get_tag_by_name(tag_name)
-            .and_then(|tag| conn.get_post_info_recent_by_tag(user.id, tag.id))
-            .expect("database access should work")
+        if let Ok(recent) = conn.get_tag_by_name(tag_name)
+            .and_then(|tag| conn.get_post_info_recent_by_tag(user.id, tag.id)) {
+            recent
+        } else {
+            return None;
+        }
     } else if let Some(query) = params.as_ref().and_then(|params| params.q.as_ref()) {
-        conn.get_post_info_search(user.id, query).expect("database access should work")
+        if let Ok(recent) = conn.get_post_info_search(user.id, query) {
+            recent
+        } else {
+            return None;
+        }
+    } else if let Some(domain) = params.as_ref().and_then(|params| params.domain.as_ref()) {
+        let domain = conn.get_domain_by_hostname(domain);
+        if let Ok(domain) = domain {
+            if let Ok(recent) = conn.get_post_info_recent_by_domain(user.id, domain.id) {
+                recent
+            } else {
+                return None;
+            }
+        } else {
+            return None;
+        }
     } else {
-        conn.get_post_info_recent(user.id).expect("database access should work")
+        if let Ok(recent) = conn.get_post_info_recent(user.id) {
+            recent
+        } else {
+            return None;
+        }
     };
-    Template::render("index", &TemplateContext {
+    Some(Template::render("index", &TemplateContext {
         title: Cow::Borrowed("home"),
         parent: "layout",
         alert: flash.map(|f| f.msg().to_owned()),
         config: config.clone(),
         user, posts,
         ..default()
-    })
+    }))
 }
 
 #[derive(FromForm)]
@@ -335,7 +358,7 @@ fn create(user: Option<User>, conn: MoreInterestingConn, post: Form<NewPostForm>
     };
     let NewPostForm { title, url, excerpt } = &*post;
     let mut title = &title[..];
-    let url = url.as_ref().and_then(|u| {
+    let mut url = url.as_ref().and_then(|u| {
         if u == "" {
             None
         } else if !u.contains(":") && !u.starts_with("//") {
@@ -346,15 +369,18 @@ fn create(user: Option<User>, conn: MoreInterestingConn, post: Form<NewPostForm>
     });
     let e;
     let mut excerpt = excerpt.as_ref().and_then(|k| if k == "" { None } else { Some(&k[..]) });
-    if let (None, Some(url)) = (excerpt, &url) {
-        if let Ok(url) = Url::parse(url) {
-            e = extract_excerpt::extract_excerpt_url(url);
+    if let (None, Some(url_)) = (excerpt, &url) {
+        if let Ok(url_) = Url::parse(url_) {
+            e = extract_excerpt::extract_excerpt_url(url_);
             if let Some(ref e) = e {
                 if e.body != "" {
                     excerpt = Some(&e.body);
                 }
                 if title == "" {
                     title = &e.title;
+                }
+                if e.url.as_str() != url.as_ref().map(|s| &s[..]).unwrap_or("") {
+                    url = Some(e.url.to_string());
                 }
             }
         }

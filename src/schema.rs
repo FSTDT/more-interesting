@@ -37,6 +37,18 @@ table! {
 table! {
     use crate::sql_types::*;
 
+    domains (id) {
+        id -> Int4,
+        banned -> Bool,
+        hostname -> Varchar,
+        is_www -> Bool,
+        is_https -> Bool,
+    }
+}
+
+table! {
+    use crate::sql_types::*;
+
     flags (user_id, post_id) {
         user_id -> Int4,
         post_id -> Int4,
@@ -102,6 +114,7 @@ table! {
         excerpt_html -> Nullable<Varchar>,
         updated_at -> Timestamp,
         rejected -> Bool,
+        domain_id -> Nullable<Int4>,
     }
 }
 
@@ -156,6 +169,7 @@ joinable!(moderation -> users (created_by));
 joinable!(post_search_index -> posts (post_id));
 joinable!(post_tagging -> posts (post_id));
 joinable!(post_tagging -> tags (tag_id));
+joinable!(posts -> domains (domain_id));
 joinable!(posts -> users (submitted_by));
 joinable!(stars -> posts (post_id));
 joinable!(stars -> users (user_id));
@@ -164,6 +178,7 @@ allow_tables_to_appear_in_same_query!(
     comment_flags,
     comment_stars,
     comments,
+    domains,
     flags,
     invite_tokens,
     moderation,
