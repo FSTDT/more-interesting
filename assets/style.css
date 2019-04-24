@@ -20,6 +20,24 @@ html {
     overflow-y: scroll;
 }
 
+:link, :visited {
+    background-image: -webkit-gradient(linear,left top,left bottom,color-stop(50%,transparent),color-stop(50%,#b1b1b3));
+    background-image: -webkit-linear-gradient(top,transparent 50%,#b1b1b3 50%);
+    background-image: linear-gradient(to bottom,transparent 50%,#b1b1b3 50%);
+    background-repeat: repeat-x;
+    -webkit-background-size: 2px 2px;
+    background-size: 2px 2px;
+    background-position: 0 95%;
+    text-shadow: 1px 0 #f9f9fa,2px 0 #f9f9fa,2px -1px #f9f9fa,-1px 0 #f9f9fa,-2px 0 #f9f9fa,-2px -1px #f9f9fa;
+}
+
+html.dark :link, html.dark :visited {
+    background-image: -webkit-gradient(linear,left top,left bottom,color-stop(50%,transparent),color-stop(50%,#737373));
+    background-image: -webkit-linear-gradient(top,transparent 50%,#737373 50%);
+    background-image: linear-gradient(to bottom,transparent 50%,#737373 50%);
+    text-shadow: 1px 0 #202340,2px 0 #202340,2px -1px #202340,-1px 0 #202340,-2px 0 #202340,-2px -1px #202340;
+}
+
 html,
 button,
 input,
@@ -42,7 +60,7 @@ details-dialog,
 }
 
 .article-header-inner {
-    background: #f9f9fa;
+    background-color: #f9f9fa;
 }
 
 html.dark,
@@ -72,7 +90,7 @@ html.dark .details-menu-summary {
 }
 
 html.dark .article-header-inner {
-    background: #202340;
+    background-color: #202340;
 }
 
 html.big {
@@ -252,7 +270,6 @@ textarea,
     line-height: 1.15;
     margin: 0;
     border: solid 1px #737373;
-    text-decoration: none;
 }
 
 input,
@@ -340,6 +357,11 @@ html.dark .details-dialog-summary:active {
     border-top-color: #0f1126;
     border-left-color: #0f1126;
     border-image: url("data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAgAAAAICAYAAADED76LAAAABHNCSVQICAgIfAhkiAAAAAlwSFlzAAAOxAAADsQBlSsOGwAAABl0RVh0U29mdHdhcmUAd3d3Lmlua3NjYXBlLm9yZ5vuPBoAAABGSURBVBjTY2BgYPhPADP85xdUw4nhChjQgJlFxPH8/MK3hBS8p4ICU4uI/yBsZhn5BwVbRPzLzi74wFBUVPQfFy4uLv4PAOyYS1KSeGvQAAAAAElFTkSuQmCC") 2;
+}
+
+html.dark button[disabled],
+html.dark button[disabled]:active {
+    border: solid 2px #2a2a2e;
 }
 
 .button-default {
@@ -490,12 +512,14 @@ template {
 
 :link {
     color: #0060df;
+    text-decoration: none;
 }
 html.dark :link {
     color: #45a1ff;
 }
 :visited {
     color: #8000d7;
+    text-decoration: none;
 }
 html.dark :visited {
     color: #c069ff;
@@ -514,9 +538,9 @@ html.dark .inner-link:link {
     color: #30e60b;
 }
 
-.domain-link {
-    color: inherit;
+.domain-link, html.dark .domain-link {
     font-style: italic;
+    color: inherit;
 }
 
 article, aside {
@@ -559,6 +583,7 @@ html.dark article, html.dark aside {
 }
 .top-header-link, html.dark .top-header-link {
     color: #fff;
+    text-shadow: 1px 0 #363959,2px 0 #363959,-1px 0 #363959,-2px 0 #363959;
 }
 .top-header-aside {
     float: right;
@@ -716,7 +741,7 @@ get anything reasonable-looking.
     box-shadow: none !important;
     border: none !important;
     outline: none !important;
-    text-decoration: none !important;
+    text-shadow: none !important;
     display: block !important;
     white-space: nowrap !important;
     padding: 0.25em 0.5em !important;

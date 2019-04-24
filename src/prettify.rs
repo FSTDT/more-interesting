@@ -8,10 +8,11 @@ const URL_PROTOCOLS: &[&str] = &["http:", "https:", "ftp:", "gopher:", "mailto:"
 lazy_static!{
     static ref CLEANER: ammonia::Builder<'static> = {
         let mut b = ammonia::Builder::default();
-        b.add_allowed_classes("a", ["inner-link", "domain-link", "article-header-inner"][..].iter().cloned());
+        b.add_allowed_classes("a", ["inner-link", "domain-link"][..].iter().cloned());
         b.add_allowed_classes("pre", ["good-code"][..].iter().cloned());
         b.add_allowed_classes("table", ["good-table"][..].iter().cloned());
-        b.tags(["a", "p", "pre", "table", "thead", "tbody", "tr", "th", "td", "caption"][..].iter().cloned().collect());
+        b.add_allowed_classes("span", ["article-header-inner"][..].iter().cloned());
+        b.tags(["a", "p", "pre", "table", "thead", "tbody", "tr", "th", "td", "caption", "span"][..].iter().cloned().collect());
         b
     };
 }
@@ -200,7 +201,7 @@ pub fn prettify_body<D: Data>(text: &str, data: &mut D) -> Output {
 /// Prettify a title line: similar to `prettify_body`, but without paragraph breaks
 pub fn prettify_title<D: Data>(mut text: &str, url: &str, data: &mut D) -> Output {
     let mut ret_val = Output::with_capacity(text.len());
-    let link = format!("<a class=article-header-inner href=\"{}\">", url);
+    let link = format!("</span><span class=article-header-inner><a href=\"{}\">", url);
     ret_val.push_str(&link);
     while let Some(c) = text.as_bytes().get(0) {
         match c {
@@ -262,18 +263,18 @@ pub fn prettify_title<D: Data>(mut text: &str, url: &str, data: &mut D) -> Outpu
     if ret_val.string.ends_with(&link) {
         ret_val.string.truncate(ret_val.string.len() - link.len());
     } else {
-        ret_val.push_str("</a>");
+        ret_val.push_str("</a></span>");
     }
     if let Ok(url) = Url::parse(url) {
         if let Some(mut host) = url.host_str() {
             if host.starts_with("www.") {
                 host = &host[4..];
             }
-            ret_val.push_str("<a class=\"domain-link article-header-inner\" href=\"./?domain=");
+            ret_val.push_str("</span><span class=article-header-inner><a class=domain-link href=\"./?domain=");
             ret_val.push_str(host);
             ret_val.push_str("\">");
             ret_val.push_str(host);
-            ret_val.push_str("</a>");
+            ret_val.push_str("</a></span>");
         }
     }
     ret_val.string = CLEANER.clean(&ret_val.string).to_string();
@@ -285,7 +286,7 @@ fn maybe_write_username<D: Data>(username_without_at: &str, data: &mut D, out: &
     if data.check_username(username_without_at) {
         out.usernames.push(username_without_at.to_owned());
         if embedded.is_some() {
-            out.push_str("</a><a class=\"inner-link article-header-inner\" href=\"@");
+            out.push_str("</a></span><span class=article-header-inner><a class=\"inner-link article-header-inner\" href=\"@");
         } else {
             out.push_str("<a href=\"@");
         }
@@ -315,7 +316,7 @@ fn maybe_write_number_sign<D: Data>(number_without_sign: &str, data: &mut D, out
         NumberSign::Tag(tag) => {
             out.hash_tags.push(tag.to_owned());
             if embedded.is_some() {
-                out.push_str("</a><a class=\"inner-link article-header-inner\" href=\"./?tag=");
+                out.push_str("</a></span><span class=article-header-inner><a class=inner-link href=\"./?tag=");
             } else {
                 out.push_str("<a href=\"./?tag=");
             }
@@ -330,7 +331,7 @@ fn maybe_write_number_sign<D: Data>(number_without_sign: &str, data: &mut D, out
         NumberSign::Comment(id) => {
             out.comment_refs.push(id);
             if embedded.is_some() {
-                out.push_str("</a><a class=\"inner-link article-header-inner\" href=\"#");
+                out.push_str("</a></span><span class=article-header-inner><a class=inner-link href=\"#");
             } else {
                 out.push_str("<a href=\"#");
             }
