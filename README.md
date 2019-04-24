@@ -264,6 +264,9 @@ More Interesting will visit linked-to sites and extract their text,
 showing it above the comment stream so that the user is encouraged to read it first.
 This will work basically the same as http://www.fullhn.com/ but baked in.
 
+Additionally, we make the justifiable assumption that the `www.` subdomain is immaterial, and that a site will be the same whether or not its accessed over `https`.
+We attempt to avoid linking to pages that just redirect, but we do normalize them.
+
 ### Usability
 
 * Correctly handle [rogue double-clickers](https://blog.codinghorror.com/double-click-must-die/)
