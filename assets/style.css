@@ -28,14 +28,12 @@ html {
     -webkit-background-size: 2px 2px;
     background-size: 2px 2px;
     background-position: 0 95%;
-    text-shadow: 1px 0 #f9f9fa,2px 0 #f9f9fa,2px -1px #f9f9fa,-1px 0 #f9f9fa,-2px 0 #f9f9fa,-2px -1px #f9f9fa;
 }
 
 html.dark :link, html.dark :visited {
     background-image: -webkit-gradient(linear,left top,left bottom,color-stop(50%,transparent),color-stop(50%,#737373));
     background-image: -webkit-linear-gradient(top,transparent 50%,#737373 50%);
     background-image: linear-gradient(to bottom,transparent 50%,#737373 50%);
-    text-shadow: 1px 0 #202340,2px 0 #202340,2px -1px #202340,-1px 0 #202340,-2px 0 #202340,-2px -1px #202340;
 }
 
 html,
@@ -583,7 +581,6 @@ html.dark article, html.dark aside {
 }
 .top-header-link, html.dark .top-header-link {
     color: #fff;
-    text-shadow: 1px 0 #363959,2px 0 #363959,-1px 0 #363959,-2px 0 #363959;
 }
 .top-header-aside {
     float: right;
