@@ -1278,9 +1278,18 @@ impl MoreInterestingConn {
     pub fn user_has_received_a_star(&self, user_id_param: i32) -> bool {
         use self::stars::dsl::*;
         use self::comment_stars::dsl::*;
+        use self::users::dsl::*;
         use diesel::{select, dsl::exists};
-        select(exists(stars.filter(self::stars::dsl::user_id.eq(user_id_param)))).get_result(&self.0).unwrap_or(false) ||
-            select(exists(comment_stars.filter(self::comment_stars::dsl::user_id.eq(user_id_param)))).get_result(&self.0).unwrap_or(false)
+        let post_star = stars
+            .inner_join(users)
+            .filter(self::stars::dsl::user_id.eq(user_id_param))
+            .filter(trust_level.ge(1));
+        let comment_star = comment_stars
+            .inner_join(users)
+            .filter(self::comment_stars::dsl::user_id.eq(user_id_param))
+            .filter(trust_level.ge(1));
+        select(exists(post_star)).get_result(&self.0).unwrap_or(false) ||
+            select(exists(comment_star)).get_result(&self.0).unwrap_or(false)
     }
     pub fn maximum_post_id(&self) -> i32 {
         use self::posts::dsl::*;
