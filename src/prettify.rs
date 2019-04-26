@@ -38,6 +38,8 @@ lazy_static!{
     static ref CB_TAG_CLOSE: Regex = Regex::new(r"(?i)^\[/cb\]").unwrap();
     static ref IMG_TAG_OPEN: Regex = Regex::new(r"(?i)^\[img\]").unwrap();
     static ref IMG_TAG_CLOSE: Regex = Regex::new(r"(?i)\[/img\]").unwrap();
+    static ref SIZE_TAG_OPEN: Regex = Regex::new(r"(?i)^\[size=[^\]]+\]").unwrap();
+    static ref SIZE_TAG_CLOSE: Regex = Regex::new(r"(?i)^\[/size\]").unwrap();
 }
 
 /// Prettify: transform plain text, as described in the readme, into HTML with links.
@@ -287,6 +289,15 @@ pub fn prettify_body<D: Data>(text: &str, data: &mut D) -> Output {
                 let tag = CHAR_TAG_CLOSE.find(&text[..]).expect("it to still be there");
                 text = &text[tag.end()..];
             }
+            b'[' if SIZE_TAG_OPEN.is_match(&text[..]) => {
+                let tag = SIZE_TAG_OPEN.find(&text[..]).expect("it to still be there");
+                text = &text[tag.end()..];
+            }
+            b'[' if SIZE_TAG_CLOSE.is_match(&text[..]) => {
+                let tag = SIZE_TAG_CLOSE.find(&text[..]).expect("it to still be there");
+                text = &text[tag.end()..];
+            }
+
             b'[' if AB_TAG_OPEN.is_match(&text[..]) => {
                 ret_val.push_str("&lt;");
                 let tag = AB_TAG_OPEN.find(&text[..]).expect("it to still be there");
