@@ -45,6 +45,11 @@
                 {{/if}}
             {{/if}}
         </details-menu-bar>
+        {{# if config.custom_header_html}}
+            <div class=page-wrapper>
+                {{{config.custom_header_html}}}
+            </div>
+        {{/if}}
     </nav>
 </header>
 <div class=page-wrapper-outer><div class=page-wrapper>
