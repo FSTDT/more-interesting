@@ -850,3 +850,10 @@ html.dark .form-footer {
     border-color: #363959;
     box-shadow: 0 -1px 0 0 #000;
 }
+
+details:not([open]) > .big-img {
+    display: none;
+}
+.big-img {
+    max-width: 95%;
+}
