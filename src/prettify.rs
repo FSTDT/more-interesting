@@ -11,6 +11,7 @@ lazy_static!{
         let mut b = ammonia::Builder::default();
         b.add_allowed_classes("a", ["inner-link", "domain-link"][..].iter().cloned());
         b.add_allowed_classes("pre", ["good-code"][..].iter().cloned());
+        b.add_allowed_classes("blockquote", ["good-quote"][..].iter().cloned());
         b.add_allowed_classes("table", ["good-table"][..].iter().cloned());
         b.add_allowed_classes("img", ["big-img"][..].iter().cloned());
         b.add_allowed_classes("span", ["article-header-inner"][..].iter().cloned());
@@ -127,26 +128,6 @@ pub fn prettify_body<D: Data>(text: &str, data: &mut D) -> Output {
                     ret_val.push_str("</table><p>");
                     text = &text[end_tag_pos+start_tag_len+1..];
                     continue;
-                }  else if contents == "code" {
-                    ret_val.push_str("<a href=assets/how-to-code.html>code</a>");
-                    for _ in 0..brackets_count {
-                        ret_val.push_str("&gt;");
-                    }
-                    ret_val.push_str("<pre class=good-code><code>");
-                    let mut end_tag_html = String::new();
-                    for _ in 0..brackets_count {
-                        end_tag_html.push_str("<");
-                    }
-                    end_tag_html.push_str("/code");
-                    for _ in 0..brackets_count {
-                        end_tag_html.push_str(">");
-                    }
-                    let end_tag_pos = text.find(&end_tag_html).unwrap_or(text.len());
-                    let start_tag_len = 4 + brackets_count * 2;
-                    ret_val.push_str(&escape(&text[start_tag_len..end_tag_pos]).to_string());
-                    ret_val.push_str("</code></pre><p>");
-                    text = &text[end_tag_pos+start_tag_len+1..];
-                    continue;
                 } else {
                     ret_val.push_str(&escape(&text[brackets_count..count]).to_string());
                 }
@@ -238,7 +219,7 @@ pub fn prettify_body<D: Data>(text: &str, data: &mut D) -> Output {
                 if let Some(end_param) = end_param {
                     let name = escape(&text[7..end_param]).to_string();
                     maybe_write_username(&name, data, &mut ret_val, None);
-                    ret_val.push_str("<blockquote>");
+                    ret_val.push_str("<blockquote class=good-quote>");
                     text = &text[end_param+1..];
                 } else {
                     ret_val.push_str("[");
@@ -271,7 +252,7 @@ pub fn prettify_body<D: Data>(text: &str, data: &mut D) -> Output {
                 text = &text[tag.end()..];
             }
             b'[' if PRE_TAG_OPEN.is_match(&text[..]) => {
-                ret_val.push_str("<pre>");
+                ret_val.push_str("<pre class=good-code>");
                 let tag = PRE_TAG_OPEN.find(&text[..]).expect("it to still be there");
                 text = &text[tag.end()..];
             }
