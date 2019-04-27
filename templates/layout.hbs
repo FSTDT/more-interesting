@@ -40,17 +40,18 @@
                 {{#if config.enable_public_signup}}
                     <a class=button href=signup role=menuitem>Register</a>
                 {{/if}}
-                {{#if config.enable_anonymous_submissions}}
-                    <a class=button href=submit role=menuitem>Submit a link</a>
-                {{/if}}
             {{/if}}
         </details-menu-bar>
-        {{# if config.custom_header_html}}
-            <div class=page-wrapper>
-                {{{config.custom_header_html}}}
-            </div>
-        {{/if}}
     </nav>
+    {{#if is_home}}
+        {{# if config.custom_header_html}}
+            <nav>{{{config.custom_header_html}}}</nav>
+        {{else}}
+            {{#if config.enable_anonymous_submissions}}
+                <nav><a class=button href=submit role=menuitem>Submit a link</a></nav>
+            {{/if}}
+        {{/if}}
+    {{/if}}
 </header>
 <div class=page-wrapper-outer><div class=page-wrapper>
     {{#if alert}}
@@ -60,6 +61,8 @@
 </div></div>
 <footer class=top-header>
     <nav>
+        <a href=. class=top-header-link>Home</a>
+        <a href=latest class=top-header-link>Latest</a>
         {{# if config.enable_user_directory}}<a href="@" class=top-header-link>All users</a>{{/if}}
         <a href=tags class=top-header-link>All tags</a>
         <a href=mod-log class=top-header-link>Moderation log</a>
