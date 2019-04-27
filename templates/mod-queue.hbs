@@ -3,7 +3,7 @@
         <aside>
             <main>{{{comments.0.html}}}</main>
             <footer>
-                posted by <a href="@{{comments.0.created_by_username}}">{{this.created_by_username}}</a>
+                posted by <a href="@{{comments.0.created_by_username}}">{{comments.0.created_by_username}}</a>
                 {{date comments.0.created_at}}
                 {{#if comments.0.starred_by}}
                     starred by
