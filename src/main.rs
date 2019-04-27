@@ -40,6 +40,7 @@ use crate::pid_file_fairing::PidFileFairing;
 use rocket::fairing;
 use rocket::State;
 use session::Moderator;
+use std::mem::replace;
 
 #[derive(Clone, Serialize)]
 struct SiteConfig {
@@ -88,6 +89,7 @@ struct TemplateContext {
     tags: Vec<Tag>,
     config: SiteConfig,
     log: Vec<ModerationInfo>,
+    is_home: bool,
 }
 
 fn default<T: Default>() -> T { T::default() }
@@ -243,23 +245,27 @@ struct IndexParams {
 #[get("/?<params..>")]
 fn index(conn: MoreInterestingConn, user: Option<User>, flash: Option<FlashMessage>, params: Option<Form<IndexParams>>, config: State<SiteConfig>) -> Option<impl Responder<'static>> {
     let user = user.unwrap_or(User::default());
+    let title;
     let posts = if let Some(tag_name) = params.as_ref().and_then(|params| params.tag.as_ref()) {
         if let Ok(recent) = conn.get_tag_by_name(tag_name)
             .and_then(|tag| conn.get_post_info_recent_by_tag(user.id, tag.id)) {
+            title = Cow::Owned(tag_name.clone());
             recent
         } else {
             return None;
         }
     } else if let Some(query) = params.as_ref().and_then(|params| params.q.as_ref()) {
         if let Ok(recent) = conn.get_post_info_search(user.id, query) {
+            title = Cow::Owned(query.clone());
             recent
         } else {
             return None;
         }
-    } else if let Some(domain) = params.as_ref().and_then(|params| params.domain.as_ref()) {
-        let domain = conn.get_domain_by_hostname(domain);
+    } else if let Some(domain_name) = params.as_ref().and_then(|params| params.domain.as_ref()) {
+        let domain = conn.get_domain_by_hostname(domain_name);
         if let Ok(domain) = domain {
             if let Ok(recent) = conn.get_post_info_recent_by_domain(user.id, domain.id) {
+                title = Cow::Owned(domain_name.clone());
                 recent
             } else {
                 return None;
@@ -269,13 +275,28 @@ fn index(conn: MoreInterestingConn, user: Option<User>, flash: Option<FlashMessa
         }
     } else {
         if let Ok(recent) = conn.get_post_info_recent(user.id) {
+            title = Cow::Borrowed("home");
             recent
         } else {
             return None;
         }
     };
     Some(Template::render("index", &TemplateContext {
-        title: Cow::Borrowed("home"),
+        parent: "layout",
+        alert: flash.map(|f| f.msg().to_owned()),
+        config: config.clone(),
+        is_home: title == "home",
+        title, user, posts,
+        ..default()
+    }))
+}
+
+#[get("/latest")]
+fn latest(conn: MoreInterestingConn, user: Option<User>, flash: Option<FlashMessage>, config: State<SiteConfig>) -> Option<impl Responder<'static>> {
+    let user = user.unwrap_or(User::default());
+    let posts = conn.get_post_info_latest(user.id).ok()?;
+    Some(Template::render("index", &TemplateContext {
+        title: Cow::Borrowed("latest"),
         parent: "layout",
         alert: flash.map(|f| f.msg().to_owned()),
         config: config.clone(),
@@ -489,14 +510,14 @@ fn get_comments(conn: MoreInterestingConn, user: Option<User>, uuid: Base32, con
             Vec::new()
         });
         let post_id = post_info.id;
+        let title = Cow::Owned(post_info.title.clone());
         Ok(Template::render("comments", &TemplateContext {
-            title: Cow::Borrowed("home"),
             posts: vec![post_info],
             parent: "layout",
             alert: flash.map(|f| f.msg().to_owned()),
             starred_by: conn.get_post_starred_by(post_id).unwrap_or(Vec::new()),
             config: config.clone(),
-            comments, user,
+            comments, user, title,
             ..default()
         }))
     } else if conn.check_invite_token_exists(uuid) && user.id == 0 {
@@ -651,7 +672,7 @@ fn get_tags(conn: MoreInterestingConn, user: Option<User>, config: State<SiteCon
     assert!((user.id == 0) ^ (user.username != ""));
     let tags = conn.get_all_tags().unwrap_or(Vec::new());
     Template::render("tags", &TemplateContext {
-        title: Cow::Borrowed("user invite tree"),
+        title: Cow::Borrowed("all tags"),
         parent: "layout",
         config: config.clone(),
         tags, user,
@@ -1181,7 +1202,7 @@ fn main() {
             }
             Ok(rocket)
         }))
-        .mount("/", routes![index, login_form, login, logout, create_link_form, create_post_form, create, get_comments, vote, signup, get_settings, create_invite, invite_tree, change_password, post_comment, vote_comment, get_edit_tags, edit_tags, get_tags, edit_post, get_edit_post, edit_comment, get_edit_comment, set_dark_mode, set_big_mode, mod_log, get_user_info, get_mod_queue, moderate_post, moderate_comment, get_public_signup, rebake_all_posts, random, redirect_legacy_id])
+        .mount("/", routes![index, login_form, login, logout, create_link_form, create_post_form, create, get_comments, vote, signup, get_settings, create_invite, invite_tree, change_password, post_comment, vote_comment, get_edit_tags, edit_tags, get_tags, edit_post, get_edit_post, edit_comment, get_edit_comment, set_dark_mode, set_big_mode, mod_log, get_user_info, get_mod_queue, moderate_post, moderate_comment, get_public_signup, rebake_all_posts, random, redirect_legacy_id, latest])
         .mount("/assets", StaticFiles::from("assets"))
         .attach(Template::custom(|engines| {
             engines.handlebars.register_helper("count", Box::new(count_helper));
