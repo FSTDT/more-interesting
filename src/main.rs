@@ -40,6 +40,7 @@ use crate::pid_file_fairing::PidFileFairing;
 use rocket::fairing;
 use rocket::State;
 use session::Moderator;
+use std::mem::replace;
 
 #[derive(Clone, Serialize)]
 struct SiteConfig {
@@ -247,14 +248,14 @@ fn index(conn: MoreInterestingConn, user: Option<User>, flash: Option<FlashMessa
     let posts = if let Some(tag_name) = params.as_ref().and_then(|params| params.tag.as_ref()) {
         if let Ok(recent) = conn.get_tag_by_name(tag_name)
             .and_then(|tag| conn.get_post_info_recent_by_tag(user.id, tag.id)) {
-            title = Cow::Borrowed(&tag_name[..]);
+            title = Cow::Owned(tag_name.clone());
             recent
         } else {
             return None;
         }
     } else if let Some(query) = params.as_ref().and_then(|params| params.q.as_ref()) {
         if let Ok(recent) = conn.get_post_info_search(user.id, query) {
-            title = Cow::Borrowed(&query[..]);
+            title = Cow::Owned(query.clone());
             recent
         } else {
             return None;
@@ -263,7 +264,7 @@ fn index(conn: MoreInterestingConn, user: Option<User>, flash: Option<FlashMessa
         let domain = conn.get_domain_by_hostname(domain_name);
         if let Ok(domain) = domain {
             if let Ok(recent) = conn.get_post_info_recent_by_domain(user.id, domain.id) {
-                title = Cow::Borrowed(&domain_name[..]);
+                title = Cow::Owned(domain_name.clone());
                 recent
             } else {
                 return None;
@@ -507,7 +508,7 @@ fn get_comments(conn: MoreInterestingConn, user: Option<User>, uuid: Base32, con
             Vec::new()
         });
         let post_id = post_info.id;
-        let title = Cow::Borrowed(&post_info.title[..]);
+        let title = Cow::Owned(post_info.title.clone());
         Ok(Template::render("comments", &TemplateContext {
             posts: vec![post_info],
             parent: "layout",

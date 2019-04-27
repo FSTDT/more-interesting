@@ -284,7 +284,7 @@ impl MoreInterestingConn {
         use self::stars::dsl::*;
         use self::flags::dsl::*;
         use self::users::dsl::*;
-        let mut all: Vec<PostInfo> = posts
+        let all: Vec<PostInfo> = posts
             .left_outer_join(stars.on(self::stars::dsl::post_id.eq(self::posts::dsl::id).and(self::stars::dsl::user_id.eq(user_id_param))))
             .left_outer_join(flags.on(self::flags::dsl::post_id.eq(self::posts::dsl::id).and(self::flags::dsl::user_id.eq(user_id_param))))
             .inner_join(users)
