@@ -89,6 +89,7 @@ struct TemplateContext {
     tags: Vec<Tag>,
     config: SiteConfig,
     log: Vec<ModerationInfo>,
+    is_home: bool,
 }
 
 fn default<T: Default>() -> T { T::default() }
@@ -284,6 +285,7 @@ fn index(conn: MoreInterestingConn, user: Option<User>, flash: Option<FlashMessa
         parent: "layout",
         alert: flash.map(|f| f.msg().to_owned()),
         config: config.clone(),
+        is_home: title == "home",
         title, user, posts,
         ..default()
     }))

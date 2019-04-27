@@ -40,17 +40,16 @@
                 {{#if config.enable_public_signup}}
                     <a class=button href=signup role=menuitem>Register</a>
                 {{/if}}
-                {{#if config.enable_anonymous_submissions}}
-                    <a class=button href=submit role=menuitem>Submit a link</a>
-                {{/if}}
             {{/if}}
         </details-menu-bar>
     </nav>
-    {{# if config.custom_header_html}}
-        {{#if (eq title "home")}}
-            <nav>
-                {{{config.custom_header_html}}}
-            </nav>
+    {{#if is_home}}
+        {{# if config.custom_header_html}}
+            <nav>{{{config.custom_header_html}}}</nav>
+        {{else}}
+            {{#if config.enable_anonymous_submissions}}
+                <nav><a class=button href=submit role=menuitem>Submit a link</a></nav>
+            {{/if}}
         {{/if}}
     {{/if}}
 </header>
