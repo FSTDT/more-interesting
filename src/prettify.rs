@@ -12,6 +12,7 @@ lazy_static!{
         b.add_allowed_classes("a", ["inner-link", "domain-link"][..].iter().cloned());
         b.add_allowed_classes("pre", ["good-code"][..].iter().cloned());
         b.add_allowed_classes("table", ["good-table"][..].iter().cloned());
+        b.add_allowed_classes("img", ["big-img"][..].iter().cloned());
         b.add_allowed_classes("span", ["article-header-inner"][..].iter().cloned());
         b.tags(["a", "p", "b", "i", "blockquote", "code", "pre", "table", "thead", "tbody", "tr", "th", "td", "caption", "span", "img", "details", "summary"][..].iter().cloned().collect());
         b
@@ -333,7 +334,7 @@ pub fn prettify_body<D: Data>(text: &str, data: &mut D) -> Output {
                 let end_tag = IMG_TAG_CLOSE.find(&text[..]);
                 if let Some(end_tag) = end_tag {
                     let html = escape(&text[5..end_tag.start()]).to_string();
-                    ret_val.push_str("<details><summary>image</summary><img src=\"");
+                    ret_val.push_str("<details><summary>image</summary><img class=big-img src=\"");
                     ret_val.push_str(&html);
                     ret_val.push_str("\"></details>");
                     text = &text[end_tag.end()..];
@@ -890,7 +891,7 @@ mod test {
     #[test]
     fn test_bbcode_img() {
         let comment = "[img]ok[/img]";
-        let html = "<p><details><summary>image</summary><img src=\"ok\"></details>";
+        let html = "<p><details><summary>image</summary><img class=big-img src=\"ok\"></details>";
         struct MyData;
         impl Data for MyData {
             fn check_comment_ref(&mut self, id: i32) -> bool {
