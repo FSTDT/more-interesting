@@ -243,23 +243,27 @@ struct IndexParams {
 #[get("/?<params..>")]
 fn index(conn: MoreInterestingConn, user: Option<User>, flash: Option<FlashMessage>, params: Option<Form<IndexParams>>, config: State<SiteConfig>) -> Option<impl Responder<'static>> {
     let user = user.unwrap_or(User::default());
+    let title;
     let posts = if let Some(tag_name) = params.as_ref().and_then(|params| params.tag.as_ref()) {
         if let Ok(recent) = conn.get_tag_by_name(tag_name)
             .and_then(|tag| conn.get_post_info_recent_by_tag(user.id, tag.id)) {
+            title = Cow::Borrowed(&tag_name[..]);
             recent
         } else {
             return None;
         }
     } else if let Some(query) = params.as_ref().and_then(|params| params.q.as_ref()) {
         if let Ok(recent) = conn.get_post_info_search(user.id, query) {
+            title = Cow::Borrowed(&query[..]);
             recent
         } else {
             return None;
         }
-    } else if let Some(domain) = params.as_ref().and_then(|params| params.domain.as_ref()) {
-        let domain = conn.get_domain_by_hostname(domain);
+    } else if let Some(domain_name) = params.as_ref().and_then(|params| params.domain.as_ref()) {
+        let domain = conn.get_domain_by_hostname(domain_name);
         if let Ok(domain) = domain {
             if let Ok(recent) = conn.get_post_info_recent_by_domain(user.id, domain.id) {
+                title = Cow::Borrowed(&domain_name[..]);
                 recent
             } else {
                 return None;
@@ -269,17 +273,17 @@ fn index(conn: MoreInterestingConn, user: Option<User>, flash: Option<FlashMessa
         }
     } else {
         if let Ok(recent) = conn.get_post_info_recent(user.id) {
+            title = Cow::Borrowed("home");
             recent
         } else {
             return None;
         }
     };
     Some(Template::render("index", &TemplateContext {
-        title: Cow::Borrowed("home"),
         parent: "layout",
         alert: flash.map(|f| f.msg().to_owned()),
         config: config.clone(),
-        user, posts,
+        title, user, posts,
         ..default()
     }))
 }
@@ -489,14 +493,14 @@ fn get_comments(conn: MoreInterestingConn, user: Option<User>, uuid: Base32, con
             Vec::new()
         });
         let post_id = post_info.id;
+        let title = Cow::Borrowed(&post_info.title[..]);
         Ok(Template::render("comments", &TemplateContext {
-            title: Cow::Borrowed("home"),
             posts: vec![post_info],
             parent: "layout",
             alert: flash.map(|f| f.msg().to_owned()),
             starred_by: conn.get_post_starred_by(post_id).unwrap_or(Vec::new()),
             config: config.clone(),
-            comments, user,
+            comments, user, title,
             ..default()
         }))
     } else if conn.check_invite_token_exists(uuid) && user.id == 0 {
@@ -651,7 +655,7 @@ fn get_tags(conn: MoreInterestingConn, user: Option<User>, config: State<SiteCon
     assert!((user.id == 0) ^ (user.username != ""));
     let tags = conn.get_all_tags().unwrap_or(Vec::new());
     Template::render("tags", &TemplateContext {
-        title: Cow::Borrowed("user invite tree"),
+        title: Cow::Borrowed("all tags"),
         parent: "layout",
         config: config.clone(),
         tags, user,

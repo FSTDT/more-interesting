@@ -46,9 +46,11 @@
             {{/if}}
         </details-menu-bar>
         {{# if config.custom_header_html}}
+            {{#if (eq title "home")}}
             <div class=page-wrapper>
                 {{{config.custom_header_html}}}
             </div>
+            {{/if}}
         {{/if}}
     </nav>
 </header>

@@ -14,6 +14,7 @@ init_password = "ready2go"
 enable_anonymous_submissions = true
 enable_public_signup = true
 custom_footer_html = "Development instance"
+custom_header_html = "Developer header"
 
 [production]
 pid_file = "/tmp/app-initialized"
