@@ -288,6 +288,20 @@ fn index(conn: MoreInterestingConn, user: Option<User>, flash: Option<FlashMessa
     }))
 }
 
+#[get("/latest")]
+fn latest(conn: MoreInterestingConn, user: Option<User>, flash: Option<FlashMessage>, config: State<SiteConfig>) -> Option<impl Responder<'static>> {
+    let user = user.unwrap_or(User::default());
+    let posts = conn.get_post_info_latest(user.id).ok()?;
+    Some(Template::render("index", &TemplateContext {
+        title: Cow::Borrowed("latest"),
+        parent: "layout",
+        alert: flash.map(|f| f.msg().to_owned()),
+        config: config.clone(),
+        user, posts,
+        ..default()
+    }))
+}
+
 #[derive(FromForm)]
 struct ModLogParams {
     after: Option<i32>,
