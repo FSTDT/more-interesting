@@ -1,10 +1,9 @@
-<?xml version="1.0" encoding="UTF-8" ?>
 <rss version="2.0">
     <channel>
         <title>{{config.site_title_html}}</title>
         <link>{{config.public_url}}</link>
-        <lastBuildDate>{{posts.0.updated_at}}</lastBuildDate>
-        <pubDate>{{posts.0.updated_at}}</pubDate>
+        <lastBuildDate>{{posts.0.created_at}}</lastBuildDate>
+        <pubDate>{{posts.0.created_at}}</pubDate>
         <ttl>1800</ttl>
 
         {{#each posts}}
@@ -13,7 +12,7 @@
                 <description>{{this.excerpt_html}}</description>
                 <link>{{../config.public_url}}/{{this.uuid}}</link>
                 <guid isPermaLink="true">{{../config.public_url}}/{{this.uuid}}</guid>
-                <pubDate>{{posts.0.created_at}}</pubDate>
+                <pubDate>{{this.created_at}}</pubDate>
             </item>
         {{/each}}
 
