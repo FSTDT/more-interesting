@@ -246,6 +246,7 @@ struct IndexParams {
 fn index(conn: MoreInterestingConn, user: Option<User>, flash: Option<FlashMessage>, params: Option<Form<IndexParams>>, config: State<SiteConfig>) -> Option<impl Responder<'static>> {
     let user = user.unwrap_or(User::default());
     let title;
+    let mut is_home = false;
     let posts = if let Some(tag_name) = params.as_ref().and_then(|params| params.tag.as_ref()) {
         if let Ok(recent) = conn.get_tag_by_name(tag_name)
             .and_then(|tag| conn.get_post_info_recent_by_tag(user.id, tag.id)) {
@@ -275,7 +276,8 @@ fn index(conn: MoreInterestingConn, user: Option<User>, flash: Option<FlashMessa
         }
     } else {
         if let Ok(recent) = conn.get_post_info_recent(user.id) {
-            title = Cow::Borrowed("home");
+            title = Cow::Owned(config.site_title_html.clone());
+            is_home = true;
             recent
         } else {
             return None;
@@ -285,8 +287,7 @@ fn index(conn: MoreInterestingConn, user: Option<User>, flash: Option<FlashMessa
         parent: "layout",
         alert: flash.map(|f| f.msg().to_owned()),
         config: config.clone(),
-        is_home: title == "home",
-        title, user, posts,
+        title, user, posts, is_home,
         ..default()
     }))
 }
