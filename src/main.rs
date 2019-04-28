@@ -20,8 +20,8 @@ mod extract_excerpt;
 mod sql_types;
 
 use rocket::request::{Form, FlashMessage, FromParam};
-use rocket::response::{Responder, Redirect, Flash};
-use rocket::http::{Cookies, Cookie, RawStr};
+use rocket::response::{Responder, Redirect, Flash, Content};
+use rocket::http::{Cookies, Cookie, RawStr, ContentType};
 pub use models::MoreInterestingConn;
 use models::User;
 use models::UserAuth;
@@ -40,7 +40,7 @@ use crate::pid_file_fairing::PidFileFairing;
 use rocket::fairing;
 use rocket::State;
 use session::Moderator;
-use std::mem::replace;
+use std::str::FromStr;
 
 #[derive(Clone, Serialize)]
 struct SiteConfig {
@@ -305,6 +305,21 @@ fn latest(conn: MoreInterestingConn, user: Option<User>, flash: Option<FlashMess
         ..default()
     }))
 }
+
+#[get("/rss")]
+fn rss(conn: MoreInterestingConn, config: State<SiteConfig>) -> Option<impl Responder<'static>> {
+    let posts = conn.get_post_info_latest(0).ok()?;
+    #[derive(Serialize)]
+    struct RssContext {
+        config: SiteConfig,
+        posts: Vec<PostInfo>,
+    }
+    Some(Content(ContentType::from_str("application/rss+xml").unwrap(), Template::render("rss", &RssContext {
+        posts,
+        config: config.clone(),
+    })))
+}
+
 
 #[derive(FromForm)]
 struct ModLogParams {
@@ -1203,7 +1218,7 @@ fn main() {
             }
             Ok(rocket)
         }))
-        .mount("/", routes![index, login_form, login, logout, create_link_form, create_post_form, create, get_comments, vote, signup, get_settings, create_invite, invite_tree, change_password, post_comment, vote_comment, get_edit_tags, edit_tags, get_tags, edit_post, get_edit_post, edit_comment, get_edit_comment, set_dark_mode, set_big_mode, mod_log, get_user_info, get_mod_queue, moderate_post, moderate_comment, get_public_signup, rebake_all_posts, random, redirect_legacy_id, latest])
+        .mount("/", routes![index, login_form, login, logout, create_link_form, create_post_form, create, get_comments, vote, signup, get_settings, create_invite, invite_tree, change_password, post_comment, vote_comment, get_edit_tags, edit_tags, get_tags, edit_post, get_edit_post, edit_comment, get_edit_comment, set_dark_mode, set_big_mode, mod_log, get_user_info, get_mod_queue, moderate_post, moderate_comment, get_public_signup, rebake_all_posts, random, redirect_legacy_id, latest, rss])
         .mount("/assets", StaticFiles::from("assets"))
         .attach(Template::custom(|engines| {
             engines.handlebars.register_helper("count", Box::new(count_helper));
