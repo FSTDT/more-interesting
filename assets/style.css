@@ -96,7 +96,7 @@ html.big {
 }
 
 nav, .page-wrapper {
-    max-width: 45em;
+    max-width: 90em;
     margin: 0 auto;
     padding: 1em;
 }
