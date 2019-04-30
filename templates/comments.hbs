@@ -34,6 +34,16 @@
             </form>
             </footer>
         </article>
+        {{#each legacy_comments}}
+            <aside id="{{this.id}}"><details open><summary title="Hide comment" class=module-summary>Show comment</summary>
+                <main>{{{this.html}}}</main>
+                <footer>
+                    old comment posted by {{this.author}}
+                    {{date this.created_at}}
+                    <a href="#{{this.id}}">#{{this.id}}</a>
+                </footer>
+            </details></aside>
+        {{/each}}
         {{#each comments}}
             <aside id="{{this.id}}"><details open><summary title="Hide comment" class=module-summary>Show comment</summary>
                 <main>{{{this.html}}}</main>
