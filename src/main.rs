@@ -80,7 +80,7 @@ struct TemplateContext {
     posts: Vec<PostInfo>,
     starred_by: Vec<String>,
     comments: Vec<CommentInfo>,
-    legacy_comments: Vec<LegacyComments>,
+    legacy_comments: Vec<LegacyComment>,
     comment: Option<Comment>,
     user: User,
     parent: &'static str,
@@ -1049,7 +1049,7 @@ struct ModerateCommentForm {
     action: String,
 }
 
-#[get("/rebake/:from/:to")]
+#[get("/rebake/<from>/<to>")]
 fn rebake(conn: MoreInterestingConn, _user: Moderator, from: i32, to: i32) -> &'static str {
     for i in from ..= to {
         if let Ok(post) = conn.get_post_by_id(i) {
@@ -1065,7 +1065,7 @@ fn rebake(conn: MoreInterestingConn, _user: Moderator, from: i32, to: i32) -> &'
             let _ = conn.update_comment(i, comment.id, &comment.text);
         }
         if let Ok(legacy_comment) = conn.get_legacy_comment_by_id(i) {
-            let _ = conn.update_legacy_comment(i, comment.id, &comment.text);
+            let _ = conn.update_legacy_comment(i, legacy_comment.id, &legacy_comment.text);
         }
     }
     "done"

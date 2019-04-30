@@ -864,7 +864,7 @@ impl MoreInterestingConn {
             .values(CreateComment{
                 text: new_post.text,
                 html: &html_and_stuff.string,
-              g  post_id: new_post.post_id,
+                post_id: new_post.post_id,
                 created_by: new_post.created_by,
                 visible: new_post.visible,
             })
