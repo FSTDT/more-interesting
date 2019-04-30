@@ -69,6 +69,20 @@ table! {
 table! {
     use crate::sql_types::*;
 
+    legacy_comments (id) {
+        id -> Int4,
+        post_id -> Int4,
+        author -> Varchar,
+        text -> Varchar,
+        html -> Varchar,
+        created_at -> Timestamp,
+        updated_at -> Timestamp,
+    }
+}
+
+table! {
+    use crate::sql_types::*;
+
     moderation (id) {
         id -> Int4,
         payload -> Jsonb,
@@ -165,6 +179,7 @@ joinable!(comments -> users (created_by));
 joinable!(flags -> posts (post_id));
 joinable!(flags -> users (user_id));
 joinable!(invite_tokens -> users (invited_by));
+joinable!(legacy_comments -> posts (post_id));
 joinable!(moderation -> users (created_by));
 joinable!(post_search_index -> posts (post_id));
 joinable!(post_tagging -> posts (post_id));
@@ -181,6 +196,7 @@ allow_tables_to_appear_in_same_query!(
     domains,
     flags,
     invite_tokens,
+    legacy_comments,
     moderation,
     post_search_index,
     post_tagging,

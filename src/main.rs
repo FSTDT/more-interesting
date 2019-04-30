@@ -30,7 +30,7 @@ use rocket_contrib::serve::StaticFiles;
 use rocket_contrib::templates::{Template, handlebars};
 use serde::Serialize;
 use std::borrow::Cow;
-use crate::models::{PostInfo, NewStar, NewUser, CommentInfo, NewPost, NewComment, NewStarComment, NewTag, Tag, Comment, ModerationInfo, NewFlag, NewFlagComment};
+use crate::models::{PostInfo, NewStar, NewUser, CommentInfo, NewPost, NewComment, NewStarComment, NewTag, Tag, Comment, ModerationInfo, NewFlag, NewFlagComment, LegacyComment};
 use base32::Base32;
 use url::Url;
 use std::collections::HashMap;
@@ -80,6 +80,7 @@ struct TemplateContext {
     posts: Vec<PostInfo>,
     starred_by: Vec<String>,
     comments: Vec<CommentInfo>,
+    legacy_comments: Vec<LegacyComment>,
     comment: Option<Comment>,
     user: User,
     parent: &'static str,
@@ -525,6 +526,10 @@ fn get_comments(conn: MoreInterestingConn, user: Option<User>, uuid: Base32, con
             warn!("Failed to get comments: {:?}", e);
             Vec::new()
         });
+        let legacy_comments = conn.get_legacy_comments_from_post(post_info.id, user.id).unwrap_or_else(|e| {
+            warn!("Failed to get comments: {:?}", e);
+            Vec::new()
+        });
         let post_id = post_info.id;
         let title = Cow::Owned(post_info.title.clone());
         Ok(Template::render("comments", &TemplateContext {
@@ -533,7 +538,7 @@ fn get_comments(conn: MoreInterestingConn, user: Option<User>, uuid: Base32, con
             alert: flash.map(|f| f.msg().to_owned()),
             starred_by: conn.get_post_starred_by(post_id).unwrap_or(Vec::new()),
             config: config.clone(),
-            comments, user, title,
+            comments, user, title, legacy_comments,
             ..default()
         }))
     } else if conn.check_invite_token_exists(uuid) && user.id == 0 {
@@ -1044,10 +1049,9 @@ struct ModerateCommentForm {
     action: String,
 }
 
-#[get("/rebake-all-posts")]
-fn rebake_all_posts(conn: MoreInterestingConn, _user: Moderator) -> &'static str {
-    let max = conn.maximum_post_id();
-    for i in 0 ..= max {
+#[get("/rebake/<from>/<to>")]
+fn rebake(conn: MoreInterestingConn, _user: Moderator, from: i32, to: i32) -> &'static str {
+    for i in from ..= to {
         if let Ok(post) = conn.get_post_by_id(i) {
             let _ = conn.update_post(i, &NewPost{
                 title: &post.title[..],
@@ -1056,6 +1060,12 @@ fn rebake_all_posts(conn: MoreInterestingConn, _user: Moderator) -> &'static str
                 submitted_by: post.submitted_by,
                 visible: post.visible
             });
+        }
+        if let Ok(comment) = conn.get_comment_by_id(i) {
+            let _ = conn.update_comment(i, comment.id, &comment.text);
+        }
+        if let Ok(legacy_comment) = conn.get_legacy_comment_by_id(i) {
+            let _ = conn.update_legacy_comment(i, legacy_comment.id, &legacy_comment.text);
         }
     }
     "done"
@@ -1216,7 +1226,7 @@ fn main() {
             }
             Ok(rocket)
         }))
-        .mount("/", routes![index, login_form, login, logout, create_link_form, create_post_form, create, get_comments, vote, signup, get_settings, create_invite, invite_tree, change_password, post_comment, vote_comment, get_edit_tags, edit_tags, get_tags, edit_post, get_edit_post, edit_comment, get_edit_comment, set_dark_mode, set_big_mode, mod_log, get_user_info, get_mod_queue, moderate_post, moderate_comment, get_public_signup, rebake_all_posts, random, redirect_legacy_id, latest, rss])
+        .mount("/", routes![index, login_form, login, logout, create_link_form, create_post_form, create, get_comments, vote, signup, get_settings, create_invite, invite_tree, change_password, post_comment, vote_comment, get_edit_tags, edit_tags, get_tags, edit_post, get_edit_post, edit_comment, get_edit_comment, set_dark_mode, set_big_mode, mod_log, get_user_info, get_mod_queue, moderate_post, moderate_comment, get_public_signup, rebake, random, redirect_legacy_id, latest, rss])
         .mount("/assets", StaticFiles::from("assets"))
         .attach(Template::custom(|engines| {
             engines.handlebars.register_helper("count", Box::new(count_helper));
