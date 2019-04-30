@@ -72,7 +72,9 @@ pub struct LegacyComment {
     pub post_id: i32,
     pub author: String,
     pub text: String,
-    pub html: String
+    pub html: String,
+    pub created_at: NaiveDateTime,
+    pub updated_at: NaiveDateTime,
 }
 
 impl Default for User {
