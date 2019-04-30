@@ -2,7 +2,7 @@ use rocket_contrib::databases::diesel::PgConnection;
 use diesel::prelude::*;
 use diesel::result::Error as DieselError;
 use chrono::NaiveDateTime;
-use crate::schema::{users, posts, stars, invite_tokens, comments, comment_stars, tags, post_tagging, moderation, flags, comment_flags, domains};
+use crate::schema::{users, posts, stars, invite_tokens, comments, comment_stars, tags, post_tagging, moderation, flags, comment_flags, domains, legacy_comments};
 use crate::password::{password_hash, password_verify, PasswordResult};
 use serde::Serialize;
 use crate::base32::Base32;
@@ -64,6 +64,15 @@ pub struct User {
     pub invited_by: Option<i32>,
     pub dark_mode: bool,
     pub big_mode: bool,
+}
+
+#[derive(Queryable, Serialize)]
+pub struct LegacyComment {
+    pub id: i32,
+    pub post_id: i32,
+    pub author: String,
+    pub text: String,
+    pub html: String
 }
 
 impl Default for User {
@@ -855,7 +864,7 @@ impl MoreInterestingConn {
             .values(CreateComment{
                 text: new_post.text,
                 html: &html_and_stuff.string,
-                post_id: new_post.post_id,
+              g  post_id: new_post.post_id,
                 created_by: new_post.created_by,
                 visible: new_post.visible,
             })
@@ -1339,6 +1348,30 @@ impl MoreInterestingConn {
     pub fn get_post_by_id(&self, post_id_value: i32) -> Result<Post, DieselError> {
         use self::posts::dsl::*;
         posts.find(post_id_value).get_result::<Post>(&self.0)
+    }
+    pub fn get_legacy_comments_from_post(&self, post_id_param: i32, _user_id_param: i32) -> Result<Vec<LegacyComment>, DieselError> {
+        use self::legacy_comments::dsl::*;
+        let all: Vec<LegacyComment> = legacy_comments
+            .filter(self::legacy_comments::dsl::post_id.eq(post_id_param))
+            .order_by(self::legacy_comments::dsl::created_at)
+            .limit(400)
+            .get_results(&self.0)?;
+        Ok(all)
+    }
+    pub fn get_legacy_comment_by_id(&self, legacy_comment_id_value: i32) -> Result<LegacyComment, DieselError> {
+        use self::legacy_comments::dsl::*;
+        legacy_comments.find(legacy_comment_id_value).get_result::<LegacyComment>(&self.0)
+    }
+    pub fn update_legacy_comment(&self, post_id_value: i32, legacy_comment_id_value: i32, text_value: &str) -> Result<(), DieselError> {
+        let html_and_stuff = crate::prettify::prettify_body(text_value, &mut PrettifyData(self, post_id_value));
+        use self::legacy_comments::dsl::*;
+        diesel::update(legacy_comments.find(legacy_comment_id_value))
+            .set((
+                text.eq(text_value),
+                html.eq(&html_and_stuff.string)
+            ))
+            .execute(&self.0)
+            .map(|_| ())
     }
 }
 
