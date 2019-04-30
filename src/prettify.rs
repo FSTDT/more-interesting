@@ -15,7 +15,7 @@ lazy_static!{
         b.add_allowed_classes("table", ["good-table"][..].iter().cloned());
         b.add_allowed_classes("img", ["big-img"][..].iter().cloned());
         b.add_allowed_classes("span", ["article-header-inner"][..].iter().cloned());
-        b.tags(["a", "p", "b", "i", "blockquote", "code", "pre", "table", "thead", "tbody", "tr", "th", "td", "caption", "span", "img", "details", "summary"][..].iter().cloned().collect());
+        b.tags(["br", "a", "p", "b", "i", "blockquote", "code", "pre", "table", "thead", "tbody", "tr", "th", "td", "caption", "span", "img", "details", "summary"][..].iter().cloned().collect());
         b
     };
     static ref URL_TAG_OPEN: Regex = Regex::new(r"(?i)^\[url\]").unwrap();
@@ -366,7 +366,7 @@ pub fn prettify_body<D: Data>(text: &str, data: &mut D) -> Output {
                     ret_val.push_str("\n\n<p>");
                     text = &text[2..];
                 } else {
-                    ret_val.push_str("\n");
+                    ret_val.push_str("<br>\n");
                     text = &text[1..];
                 }
             }
