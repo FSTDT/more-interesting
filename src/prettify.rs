@@ -657,7 +657,7 @@ pub fn prettify_title<D: Data>(mut text: &str, url: &str, data: &mut D) -> Outpu
             if host.starts_with("www.") {
                 host = &host[4..];
             }
-            ret_val.push_str("</span><span class=article-header-inner><a class=domain-link href=\"./?domain=");
+            ret_val.push_str("</span> <span class=article-header-inner><a class=domain-link href=\"./?domain=");
             ret_val.push_str(host);
             ret_val.push_str("\">");
             ret_val.push_str(host);
