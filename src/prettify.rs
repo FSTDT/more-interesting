@@ -266,9 +266,9 @@ pub fn prettify_title<D: Data>(mut text: &str, url: &str, data: &mut D) -> Outpu
         ret_val.push_str("</a></span>");
     }
     let empty_link = format!("{}</a></span>", link);
-    ret_val.string = ret_val.string.replace(&empty_link, "");
+    ret_val.string = ret_val.string.replace(&empty_link, "</span>");
     let empty_link = format!("{} </a></span>", link);
-    ret_val.string = ret_val.string.replace(&empty_link, " ");
+    ret_val.string = ret_val.string.replace(&empty_link, " </span>");
     if let Ok(url) = Url::parse(url) {
         if let Some(mut host) = url.host_str() {
             if host.starts_with("www.") {
@@ -587,7 +587,7 @@ mod test {
             }
         }
 
-        let html = "<span class=article-header-inner><a href=\"url\">this is a #test for </a></span><span class=article-header-inner><a class=inner-link href=\"./?tag=words\">#words</a></span> <span class=article-header-inner><a class=inner-link href=\"./?tag=words\">#words</a></span>";
+        let html = "<span class=article-header-inner><a href=\"url\">this is a #test for </a></span><span class=article-header-inner><a class=inner-link href=\"./?tag=words\">#words</a> </span><span class=article-header-inner><a class=inner-link href=\"./?tag=words\">#words</a></span>";
 
         assert_eq!(prettify_title(title, "url", &mut MyData).string, CLEANER.clean(html).to_string());
     }
