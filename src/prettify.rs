@@ -265,6 +265,10 @@ pub fn prettify_title<D: Data>(mut text: &str, url: &str, data: &mut D) -> Outpu
     } else {
         ret_val.push_str("</a></span>");
     }
+    let empty_link = format!("{}</a></span>", link);
+    ret_val.string = ret_val.string.replace(&empty_link, "</span>");
+    let empty_link = format!("{} </a></span>", link);
+    ret_val.string = ret_val.string.replace(&empty_link, " </span>");
     if let Ok(url) = Url::parse(url) {
         if let Some(mut host) = url.host_str() {
             if host.starts_with("www.") {
@@ -563,6 +567,27 @@ mod test {
         }
 
         let html = "<span class=article-header-inner><a href=\"url\">this is a #test for </a></span><span class=article-header-inner><a class=inner-link href=\"./?tag=words\">#words</a></span><span class=article-header-inner><a href=\"url\"> here</a></span>";
+
+        assert_eq!(prettify_title(title, "url", &mut MyData).string, CLEANER.clean(html).to_string());
+    }
+    #[test]
+    fn test_example_title_avoid_empty_links() {
+        let title = "this is a #test for #words #words";
+
+        struct MyData;
+        impl Data for MyData {
+            fn check_comment_ref(&mut self, id: i32) -> bool {
+                id == 12345
+            }
+            fn check_hash_tag(&mut self, tag: &str) -> bool {
+                tag == "words"
+            }
+            fn check_username(&mut self, username: &str) -> bool {
+                username == "mentioning"
+            }
+        }
+
+        let html = "<span class=article-header-inner><a href=\"url\">this is a #test for </a></span><span class=article-header-inner><a class=inner-link href=\"./?tag=words\">#words</a> </span><span class=article-header-inner><a class=inner-link href=\"./?tag=words\">#words</a></span>";
 
         assert_eq!(prettify_title(title, "url", &mut MyData).string, CLEANER.clean(html).to_string());
     }
