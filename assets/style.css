@@ -113,6 +113,10 @@ html.big nav, html.big .page-wrapper {
     padding: 0;
 }
 
+.page-wrapper {
+    overflow: hidden;
+}
+
 nav {
     padding: 0.5em;
 }
