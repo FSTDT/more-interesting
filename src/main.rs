@@ -982,6 +982,19 @@ fn get_mod_queue(conn: MoreInterestingConn, user: Moderator, flash: Option<Flash
             ..default()
         }))
     }
+    if let Some(comment_info) = conn.find_moderated_comment(user.0.id) {
+        let post_info = conn.get_post_info_from_comment(user.0.id, comment_info.id).unwrap();
+        return Ok(Template::render("mod-queue", &TemplateContext {
+            title: Cow::Borrowed("moderate comment"),
+            parent: "layout",
+            alert: flash.map(|f| f.msg().to_owned()),
+            config: config.clone(),
+            comments: vec![comment_info],
+            posts: vec![post_info],
+            user: user.0,
+            ..default()
+        }))
+    }
     Ok(Template::render("mod-queue", &TemplateContext {
         title: Cow::Borrowed("moderator queue is empty!"),
         parent: "layout",

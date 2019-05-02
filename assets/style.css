@@ -857,3 +857,18 @@ details:not([open]) > .big-img {
 .big-img {
     max-width: 95%;
 }
+
+.img-lightbox {
+    cursor: pointer;
+}
+.img-lightbox:before {
+    border: solid 2px #eee;
+    border-bottom-color: #0c0c0d;
+    border-right-color: #0c0c0d;
+    border-image: url("data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAgAAAAICAYAAADED76LAAAABHNCSVQICAgIfAhkiAAAAAlwSFlzAAAOxAAADsQBlSsOGwAAABl0RVh0U29mdHdhcmUAd3d3Lmlua3NjYXBlLm9yZ5vuPBoAAABBSURBVBhXY/hPADCAiLdvP+DEcAUMaKC4uPi4sLDIW0IK3lNBQWlp6X8QBgr8QcP/pKSkPzDw8fH/x4V5eHj/AwAIl4WCOETMYgAAAABJRU5ErkJggg==") 2;
+    outline: none;
+    content: "+";
+}
+details[open] .img-lightbox:before {
+    content: "-";
+}
