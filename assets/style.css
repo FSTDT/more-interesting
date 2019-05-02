@@ -51,7 +51,8 @@ textarea,
 article,
 aside,
 details-dialog,
-.details-menu-inner
+.details-menu-inner,
+.inner-banner
 {
     background: #f9f9fa;
     color:  #0c0c0d;
@@ -67,7 +68,8 @@ html.dark aside,
 html.dark input,
 html.dark textarea,
 html.dark details-dialog,
-html.dark .details-menu-inner
+html.dark .details-menu-inner,
+html.dark .inner-banner
 {
     background: #202340;
     color: #f9f9fa;
@@ -641,7 +643,7 @@ details[open] .module-summary:before {
     cursor: default;
 }
 
-details-dialog, .details-menu-inner {
+details-dialog, .details-menu-inner, .inner-banner {
     box-shadow: 0.25em 0.25em 0 #0c0c0d;
     border: solid 1px #fff;
     border-bottom: solid 1px #737373;

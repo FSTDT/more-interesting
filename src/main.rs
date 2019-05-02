@@ -53,6 +53,7 @@ struct SiteConfig {
     site_title_html: String,
     custom_footer_html: String,
     custom_header_html: String,
+    comments_placeholder_html: String,
     hide_text_post: bool,
     hide_link_post: bool,
 }
@@ -67,6 +68,7 @@ impl Default for SiteConfig {
             site_title_html: String::new(),
             custom_footer_html: String::new(),
             custom_header_html: String::new(),
+            comments_placeholder_html: String::new(),
             custom_css: String::new(),
             hide_text_post: false,
             hide_link_post: false,
@@ -1213,6 +1215,7 @@ fn main() {
             let hide_link_post = rocket.config().get_bool("hide_link_post").unwrap_or(false);
             let custom_footer_html = rocket.config().get_str("custom_footer_html").unwrap_or("").to_owned();
             let custom_header_html = rocket.config().get_str("custom_header_html").unwrap_or("").to_owned();
+            let comments_placeholder_html = rocket.config().get_str("comments_placeholder_html").unwrap_or("<p>To post a comment, you'll need to <a href=/login>Sign in</a>.</p>").to_owned();
             Ok(rocket.manage(SiteConfig {
                 enable_user_directory, public_url,
                 site_title_html, custom_css,
@@ -1220,6 +1223,7 @@ fn main() {
                 enable_public_signup,
                 hide_text_post, hide_link_post,
                 custom_header_html, custom_footer_html,
+                comments_placeholder_html,
             }))
         }))
         .attach(fairing::AdHoc::on_attach("setup", |rocket| {
