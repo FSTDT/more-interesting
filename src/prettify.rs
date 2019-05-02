@@ -9,13 +9,13 @@ const URL_PROTOCOLS: &[&str] = &["http:", "https:", "ftp:", "gopher:", "mailto:"
 lazy_static!{
     static ref CLEANER: ammonia::Builder<'static> = {
         let mut b = ammonia::Builder::default();
-        b.add_allowed_classes("a", ["inner-link", "domain-link"][..].iter().cloned());
+        b.add_allowed_classes("a", ["inner-link", "domain-link", "img-lightbox"][..].iter().cloned());
         b.add_allowed_classes("pre", ["good-code"][..].iter().cloned());
         b.add_allowed_classes("blockquote", ["good-quote"][..].iter().cloned());
         b.add_allowed_classes("table", ["good-table"][..].iter().cloned());
-        b.add_allowed_classes("img", ["big-img"][..].iter().cloned());
         b.add_allowed_classes("span", ["article-header-inner"][..].iter().cloned());
-        b.tags(["a", "p", "b", "i", "blockquote", "code", "pre", "table", "thead", "tbody", "tr", "th", "td", "caption", "span", "img", "details", "summary"][..].iter().cloned().collect());
+        b.add_tag_attribute_values("a", "is", ["img-lightbox"][..].iter().cloned());
+        b.tags(["a", "p", "b", "i", "blockquote", "code", "pre", "table", "thead", "tbody", "tr", "th", "td", "caption", "span"][..].iter().cloned().collect());
         b
     };
     static ref URL_TAG_OPEN: Regex = Regex::new(r"(?i)^\[url\]").unwrap();
@@ -315,9 +315,9 @@ pub fn prettify_body<D: Data>(text: &str, data: &mut D) -> Output {
                 let end_tag = IMG_TAG_CLOSE.find(&text[..]);
                 if let Some(end_tag) = end_tag {
                     let html = escape(&text[5..end_tag.start()]).to_string();
-                    ret_val.push_str("<details><summary>image</summary><img class=big-img src=\"");
+                    ret_val.push_str("<a class=img-lightbox is=img-lightbox src=\"");
                     ret_val.push_str(&html);
-                    ret_val.push_str("\"></details>");
+                    ret_val.push_str("\">");
                     text = &text[end_tag.end()..];
                 } else {
                     ret_val.push_str("[");
@@ -897,7 +897,7 @@ mod test {
     #[test]
     fn test_bbcode_img() {
         let comment = "[img]ok[/img]";
-        let html = "<p><details><summary>image</summary><img class=big-img src=\"ok\"></details>";
+        let html = "<p><a class=img-lightbox is=img-lightbox src=\"ok\">image</a>";
         struct MyData;
         impl Data for MyData {
             fn check_comment_ref(&mut self, id: i32) -> bool {
