@@ -860,6 +860,10 @@ details:not([open]) > .big-img {
 
 .img-lightbox {
     cursor: pointer;
+    color: inherit;
+    background: transparent none;
+    display: block;
+    list-style-type: none;
 }
 .img-lightbox:before {
     border: solid 2px #eee;
@@ -868,7 +872,12 @@ details:not([open]) > .big-img {
     border-image: url("data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAgAAAAICAYAAADED76LAAAABHNCSVQICAgIfAhkiAAAAAlwSFlzAAAOxAAADsQBlSsOGwAAABl0RVh0U29mdHdhcmUAd3d3Lmlua3NjYXBlLm9yZ5vuPBoAAABBSURBVBhXY/hPADCAiLdvP+DEcAUMaKC4uPi4sLDIW0IK3lNBQWlp6X8QBgr8QcP/pKSkPzDw8fH/x4V5eHj/AwAIl4WCOETMYgAAAABJRU5ErkJggg==") 2;
     outline: none;
     content: "+";
+    display: inline-block;
+    width: 1.5em;
+    font-size: 0.75em;
+    text-align: center;
+    margin-right: 0.25em;
 }
-details[open] .img-lightbox:before {
+details[open] > .img-lightbox:before {
     content: "-";
 }

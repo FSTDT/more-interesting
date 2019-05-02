@@ -315,9 +315,9 @@ pub fn prettify_body<D: Data>(text: &str, data: &mut D) -> Output {
                 let end_tag = IMG_TAG_CLOSE.find(&text[..]);
                 if let Some(end_tag) = end_tag {
                     let html = escape(&text[5..end_tag.start()]).to_string();
-                    ret_val.push_str("<a class=img-lightbox is=img-lightbox src=\"");
+                    ret_val.push_str("<a class=img-lightbox is=img-lightbox href=\"");
                     ret_val.push_str(&html);
-                    ret_val.push_str("\">");
+                    ret_val.push_str("\">image</a>");
                     text = &text[end_tag.end()..];
                 } else {
                     ret_val.push_str("[");

@@ -5,7 +5,7 @@ export class ImgLightbox extends HTMLElement {
     }
     _clickEvent(e) {
         let img = document.createElement("img");
-        img.src = this.href;
+        img.src = this.getAttribute("href");
         img.className = "big-img";
         let summary = document.createElement("summary");
         summary.innerHTML = this.innerHTML;
@@ -14,8 +14,8 @@ export class ImgLightbox extends HTMLElement {
         details.open = true;
         details.appendChild(summary);
         details.appendChild(img);
-        this.parent.insertBefore(details, this);
-        this.parent.removeChild(this);
+        this.parentNode.insertBefore(details, this);
+        this.parentNode.removeChild(this);
         e.preventDefault();
     }
 }
