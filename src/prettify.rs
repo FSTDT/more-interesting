@@ -1085,7 +1085,7 @@ mod test {
     #[test]
     fn test_bbcode_img() {
         let comment = "[img]ok[/img]";
-        let html = "<p><a class=img-lightbox is=img-lightbox src=\"ok\">image</a>";
+        let html = "<p><a class=img-lightbox is=img-lightbox href=\"ok\">image</a>";
         struct MyData;
         impl Data for MyData {
             fn check_comment_ref(&mut self, id: i32) -> bool {
@@ -1103,7 +1103,7 @@ mod test {
     #[test]
     fn test_bbcode_quote() {
         let comment = "[quote=pyro]this [i]thing[/i] sucks[/quote]\n\n[quote]okay?[/quote]";
-        let html = "<p>@pyro<blockquote>this <i>thing</i> sucks</blockquote>\n\n<p><blockquote>okay?</blockquote>";
+        let html = "<p>@pyro<blockquote class=good-quote>this <i>thing</i> sucks</blockquote>\n\n<p><blockquote>okay?</blockquote>";
         struct MyData;
         impl Data for MyData {
             fn check_comment_ref(&mut self, id: i32) -> bool {
