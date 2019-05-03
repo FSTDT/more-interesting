@@ -555,6 +555,17 @@ article, aside {
     position: relative;
 }
 
+@media (max-width:45em) {
+    article {
+        border-left: none;
+        border-right: none;
+        border-bottom: none;
+    }
+    .article-header {
+        margin-left: -0.75em;
+    }
+}
+
 html.dark article, html.dark aside {
     border-color: #737373;
 }
