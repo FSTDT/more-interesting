@@ -553,8 +553,16 @@ html.dark .inner-link:link {
 article, aside {
     display: block;
     border: solid 1px #0c0c0d;
-    margin: 1.5em 0;
     position: relative;
+}
+
+article {
+    margin-top: 1.5em;
+    margin-bottom: 3em;
+}
+
+aside {
+    margin-top: -1px;
 }
 
 @media (max-width:45em) {
