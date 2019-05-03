@@ -1344,17 +1344,19 @@ impl MoreInterestingConn {
     }
     pub fn user_has_received_a_star(&self, user_id_param: i32) -> bool {
         use self::stars::dsl::*;
+        use self::posts::dsl::*;
+        use self::comments::dsl::*;
         use self::comment_stars::dsl::*;
         use self::users::dsl::*;
         use diesel::{select, dsl::exists};
         let post_star = stars
-            .inner_join(users)
-            .filter(self::stars::dsl::user_id.eq(user_id_param))
-            .filter(trust_level.ge(1));
+            .inner_join(posts)
+            .filter(self::posts::dsl::submitted_by.eq(user_id_param))
+            .inner_join(users.on(self::stars::dsl::user_id.eq(self::users::dsl::id).and(trust_level.ge(1))));
         let comment_star = comment_stars
-            .inner_join(users)
-            .filter(self::comment_stars::dsl::user_id.eq(user_id_param))
-            .filter(trust_level.ge(1));
+            .inner_join(comments)
+            .filter(self::comments::dsl::created_by.eq(user_id_param))
+            .inner_join(users.on(self::comment_stars::dsl::user_id.eq(self::users::dsl::id).and(trust_level.ge(1))));
         select(exists(post_star)).get_result(&self.0).unwrap_or(false) ||
             select(exists(comment_star)).get_result(&self.0).unwrap_or(false)
     }
