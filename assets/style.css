@@ -112,10 +112,12 @@ html.big nav, html.big .page-wrapper {
 .page-wrapper-outer {
     overflow: visible;
     padding: 0;
+    display: flex;
 }
 
 .page-wrapper {
     overflow: hidden;
+    flex-grow: 1;
 }
 
 nav {
