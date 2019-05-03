@@ -15,6 +15,12 @@ use url::Url;
 
 const FLAG_HIDE_THRESHOLD: i64 = 3;
 
+#[derive(Clone, Copy, Debug, Eq, PartialEq, Serialize)]
+pub enum BodyFormat {
+    Plain,
+    BBCode,
+}
+
 #[derive(Queryable, Serialize)]
 pub struct Moderation {
     pub id: i32,
@@ -555,7 +561,7 @@ impl MoreInterestingConn {
             (None, None)
         }
     }
-    pub fn create_post(&self, new_post: &NewPost) -> Result<Post, DieselError> {
+    pub fn create_post(&self, new_post: &NewPost, body_format: BodyFormat) -> Result<Post, DieselError> {
         #[derive(Insertable)]
         #[table_name="posts"]
         struct CreatePost<'a> {
@@ -571,7 +577,11 @@ impl MoreInterestingConn {
         }
         let title_html_and_stuff = crate::prettify::prettify_title(new_post.title, "", &mut PrettifyData(self, 0));
         let excerpt_html_and_stuff = if let Some(excerpt) = new_post.excerpt {
-            Some(crate::prettify::prettify_body(excerpt, &mut PrettifyData(self, 0)))
+            let body = match body_format {
+                BodyFormat::Plain => crate::prettify::prettify_body(excerpt, &mut PrettifyData(self, 0)),
+                BodyFormat::BBCode => crate::prettify::prettify_body_bbcode(excerpt, &mut PrettifyData(self, 0)),
+            };
+            Some(body)
         } else {
             None
         };
@@ -603,10 +613,14 @@ impl MoreInterestingConn {
         }
         result
     }
-    pub fn update_post(&self, post_id_value: i32, new_post: &NewPost) -> Result<(), DieselError> {
+    pub fn update_post(&self, post_id_value: i32, new_post: &NewPost, body_format: BodyFormat) -> Result<(), DieselError> {
         let title_html_and_stuff = crate::prettify::prettify_title(new_post.title, "", &mut PrettifyData(self, 0));
         let excerpt_html_and_stuff = if let Some(e) = new_post.excerpt {
-            Some(crate::prettify::prettify_body(e, &mut PrettifyData(self, 0)))
+            let body = match body_format {
+                BodyFormat::Plain => crate::prettify::prettify_body(e, &mut PrettifyData(self, 0)),
+                BodyFormat::BBCode => crate::prettify::prettify_body_bbcode(e, &mut PrettifyData(self, 0)),
+            };
+            Some(body)
         } else {
             None
         };
@@ -850,7 +864,7 @@ impl MoreInterestingConn {
         }
         domains.filter(hostname.eq(hostname_value)).get_result::<Domain>(&self.0)
     }
-    pub fn comment_on_post(&self, new_post: NewComment) -> Result<Comment, DieselError> {
+    pub fn comment_on_post(&self, new_post: NewComment, body_format: BodyFormat) -> Result<Comment, DieselError> {
         #[derive(Insertable)]
         #[table_name="comments"]
         struct CreateComment<'a> {
@@ -860,7 +874,10 @@ impl MoreInterestingConn {
             created_by: i32,
             visible: bool,
         }
-        let html_and_stuff = crate::prettify::prettify_body(new_post.text, &mut PrettifyData(self, new_post.post_id));
+        let html_and_stuff = match body_format {
+            BodyFormat::Plain => crate::prettify::prettify_body(&new_post.text, &mut PrettifyData(self, new_post.post_id)),
+            BodyFormat::BBCode => crate::prettify::prettify_body_bbcode(&new_post.text, &mut PrettifyData(self, new_post.post_id)),
+        };
         self.update_comment_count_on_post(new_post.post_id, 1)?;
         diesel::insert_into(comments::table)
             .values(CreateComment{
@@ -872,8 +889,11 @@ impl MoreInterestingConn {
             })
             .get_result(&self.0)
     }
-    pub fn update_comment(&self, post_id_value: i32, comment_id_value: i32, text_value: &str) -> Result<(), DieselError> {
-        let html_and_stuff = crate::prettify::prettify_body(text_value, &mut PrettifyData(self, post_id_value));
+    pub fn update_comment(&self, post_id_value: i32, comment_id_value: i32, text_value: &str, body_format: BodyFormat) -> Result<(), DieselError> {
+        let html_and_stuff = match body_format {
+            BodyFormat::Plain => crate::prettify::prettify_body(text_value, &mut PrettifyData(self, post_id_value)),
+            BodyFormat::BBCode => crate::prettify::prettify_body_bbcode(text_value, &mut PrettifyData(self, post_id_value)),
+        };
         use self::comments::dsl::*;
         diesel::update(comments.find(comment_id_value))
             .set((
@@ -1364,8 +1384,11 @@ impl MoreInterestingConn {
         use self::legacy_comments::dsl::*;
         legacy_comments.find(legacy_comment_id_value).get_result::<LegacyComment>(&self.0)
     }
-    pub fn update_legacy_comment(&self, post_id_value: i32, legacy_comment_id_value: i32, text_value: &str) -> Result<(), DieselError> {
-        let html_and_stuff = crate::prettify::prettify_body(text_value, &mut PrettifyData(self, post_id_value));
+    pub fn update_legacy_comment(&self, post_id_value: i32, legacy_comment_id_value: i32, text_value: &str, body_format: BodyFormat) -> Result<(), DieselError> {
+        let html_and_stuff = match body_format {
+            BodyFormat::Plain => crate::prettify::prettify_body(text_value, &mut PrettifyData(self, post_id_value)),
+            BodyFormat::BBCode => crate::prettify::prettify_body_bbcode(text_value, &mut PrettifyData(self, post_id_value)),
+        };
         use self::legacy_comments::dsl::*;
         diesel::update(legacy_comments.find(legacy_comment_id_value))
             .set((

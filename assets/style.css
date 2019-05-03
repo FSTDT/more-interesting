@@ -51,7 +51,8 @@ textarea,
 article,
 aside,
 details-dialog,
-.details-menu-inner
+.details-menu-inner,
+.inner-banner
 {
     background: #f9f9fa;
     color:  #0c0c0d;
@@ -67,7 +68,8 @@ html.dark aside,
 html.dark input,
 html.dark textarea,
 html.dark details-dialog,
-html.dark .details-menu-inner
+html.dark .details-menu-inner,
+html.dark .inner-banner
 {
     background: #202340;
     color: #f9f9fa;
@@ -96,7 +98,7 @@ html.big {
 }
 
 nav, .page-wrapper {
-    max-width: 45em;
+    max-width: 90em;
     margin: 0 auto;
     padding: 1em;
 }
@@ -109,6 +111,10 @@ html.big nav, html.big .page-wrapper {
 .page-wrapper-outer {
     overflow: visible;
     padding: 0;
+}
+
+.page-wrapper {
+    overflow: hidden;
 }
 
 nav {
@@ -641,7 +647,7 @@ details[open] .module-summary:before {
     cursor: default;
 }
 
-details-dialog, .details-menu-inner {
+details-dialog, .details-menu-inner, .inner-banner {
     box-shadow: 0.25em 0.25em 0 #0c0c0d;
     border: solid 1px #fff;
     border-bottom: solid 1px #737373;
@@ -827,7 +833,6 @@ main, .main {
     padding: 0.5em;
     padding-bottom: 0;
 }
-
 .main-mini {
     font-size: inherit;
     font-family: inherit;
@@ -857,4 +862,28 @@ details:not([open]) > .big-img {
 }
 .big-img {
     max-width: 95%;
+}
+
+.img-lightbox {
+    cursor: pointer;
+    color: inherit;
+    background: transparent none;
+    display: block;
+    list-style-type: none;
+}
+.img-lightbox:before {
+    border: solid 2px #eee;
+    border-bottom-color: #0c0c0d;
+    border-right-color: #0c0c0d;
+    border-image: url("data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAgAAAAICAYAAADED76LAAAABHNCSVQICAgIfAhkiAAAAAlwSFlzAAAOxAAADsQBlSsOGwAAABl0RVh0U29mdHdhcmUAd3d3Lmlua3NjYXBlLm9yZ5vuPBoAAABBSURBVBhXY/hPADCAiLdvP+DEcAUMaKC4uPi4sLDIW0IK3lNBQWlp6X8QBgr8QcP/pKSkPzDw8fH/x4V5eHj/AwAIl4WCOETMYgAAAABJRU5ErkJggg==") 2;
+    outline: none;
+    content: "+";
+    display: inline-block;
+    width: 1.5em;
+    font-size: 0.75em;
+    text-align: center;
+    margin-right: 0.25em;
+}
+details[open] > .img-lightbox:before {
+    content: "-";
 }

@@ -87,6 +87,10 @@
             <button>Add comment</button>
         </div>
     </form>
+    {{else}}
+    <div class=inner-banner>
+        {{{config.comments_placeholder_html}}}
+    </div>
     {{/if}}
 {{/inline}}
 {{~> (parent)~}}
