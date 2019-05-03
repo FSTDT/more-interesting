@@ -16,6 +16,7 @@ html {
     -ms-text-size-adjust: 100%;
     -webkit-text-size-adjust: 100%;
     height: 100%;
+    font-size: 0.9em;
     overflow-x: hidden;
     overflow-y: scroll;
 }
@@ -552,6 +553,17 @@ article, aside {
     border: solid 1px #0c0c0d;
     margin: 1.5em 0;
     position: relative;
+}
+
+@media (max-width:45em) {
+    article {
+        border-left: none;
+        border-right: none;
+        border-bottom: none;
+    }
+    .article-header {
+        margin-left: -0.75em;
+    }
 }
 
 html.dark article, html.dark aside {
