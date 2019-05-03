@@ -56,6 +56,7 @@ struct SiteConfig {
     comments_placeholder_html: String,
     hide_text_post: bool,
     hide_link_post: bool,
+    body_format: models::BodyFormat,
 }
 
 impl Default for SiteConfig {
@@ -72,6 +73,7 @@ impl Default for SiteConfig {
             custom_css: String::new(),
             hide_text_post: false,
             hide_link_post: false,
+            body_format: models::BodyFormat::Plain,
         }
     }
 }
@@ -432,7 +434,7 @@ fn create(user: Option<User>, conn: MoreInterestingConn, post: Form<NewPostForm>
         submitted_by: user.id,
         visible: user.trust_level > 0,
         title, excerpt
-    }) {
+    }, config.body_format) {
         Ok(post) => Ok(Redirect::to(post.uuid.to_string())),
         Err(e) => {
             warn!("{:?}", e);
@@ -563,7 +565,7 @@ struct CommentForm {
 }
 
 #[post("/comment", data = "<comment>")]
-fn post_comment(conn: MoreInterestingConn, user: User, comment: Form<CommentForm>) -> Option<impl Responder<'static>> {
+fn post_comment(conn: MoreInterestingConn, user: User, comment: Form<CommentForm>, config: State<SiteConfig>) -> Option<impl Responder<'static>> {
     let post_info = conn.get_post_info_by_uuid(user.id, comment.post).into_option()?;
     let visible = user.trust_level > 0;
     conn.comment_on_post(NewComment {
@@ -571,7 +573,7 @@ fn post_comment(conn: MoreInterestingConn, user: User, comment: Form<CommentForm
         text: &comment.text,
         created_by: user.id,
         visible,
-    }).into_option()?;
+    }, config.body_format).into_option()?;
     Some(Flash::success(
         Redirect::to(uri!(get_comments: comment.post)),
         if visible { "Your comment has been posted" } else { "Your comment will be posted after a mod gets a chance to look at it" }
@@ -795,7 +797,7 @@ struct EditPostForm {
 }
 
 #[post("/edit-post", data = "<form>")]
-fn edit_post(conn: MoreInterestingConn, user: Moderator, form: Form<EditPostForm>) -> Result<impl Responder<'static>, Status> {
+fn edit_post(conn: MoreInterestingConn, user: Moderator, form: Form<EditPostForm>, config: State<SiteConfig>) -> Result<impl Responder<'static>, Status> {
     let post_info = if let Ok(post_info) = conn.get_post_info_by_uuid(user.0.id, form.post) {
         post_info
     } else {
@@ -836,7 +838,7 @@ fn edit_post(conn: MoreInterestingConn, user: Moderator, form: Form<EditPostForm
             submitted_by: user.0.id,
             excerpt: excerpt.as_ref().map(|s| &s[..]),
             visible: user.0.trust_level >= 3,
-        }) {
+        }, config.body_format) {
             Ok(_) => {
                 conn.mod_log_edit_post(
                     user.0.id,
@@ -888,7 +890,7 @@ struct EditCommentForm {
 }
 
 #[post("/edit-comment", data = "<form>")]
-fn edit_comment(conn: MoreInterestingConn, user: User, form: Form<EditCommentForm>) -> Result<impl Responder<'static>, Status> {
+fn edit_comment(conn: MoreInterestingConn, user: User, form: Form<EditCommentForm>, config: State<SiteConfig>) -> Result<impl Responder<'static>, Status> {
     let comment = conn.get_comment_by_id(form.comment).map_err(|_| Status::NotFound)?;
     let post = conn.get_post_info_from_comment(user.id, form.comment).map_err(|_| Status::NotFound)?;
     if user.trust_level < 3 && comment.created_by != user.id {
@@ -911,7 +913,7 @@ fn edit_comment(conn: MoreInterestingConn, user: User, form: Form<EditCommentFor
             },
         }
     } else {
-        match conn.update_comment(post.id, form.comment, &form.text) {
+        match conn.update_comment(post.id, form.comment, &form.text, config.body_format) {
             Ok(_) => {
                 if user.trust_level >= 3 && comment.created_by != user.id {
                     conn.mod_log_edit_comment(
@@ -1065,7 +1067,7 @@ struct ModerateCommentForm {
 }
 
 #[get("/rebake/<from>/<to>")]
-fn rebake(conn: MoreInterestingConn, _user: Moderator, from: i32, to: i32) -> &'static str {
+fn rebake(conn: MoreInterestingConn, _user: Moderator, from: i32, to: i32, config: State<SiteConfig>) -> &'static str {
     for i in from ..= to {
         if let Ok(post) = conn.get_post_by_id(i) {
             let _ = conn.update_post(i, &NewPost{
@@ -1074,13 +1076,13 @@ fn rebake(conn: MoreInterestingConn, _user: Moderator, from: i32, to: i32) -> &'
                 excerpt: post.excerpt.as_ref().map(|t| &t[..]),
                 submitted_by: post.submitted_by,
                 visible: post.visible
-            });
+            }, config.body_format);
         }
         if let Ok(comment) = conn.get_comment_by_id(i) {
-            let _ = conn.update_comment(i, comment.id, &comment.text);
+            let _ = conn.update_comment(i, comment.id, &comment.text, config.body_format);
         }
         if let Ok(legacy_comment) = conn.get_legacy_comment_by_id(i) {
-            let _ = conn.update_legacy_comment(i, legacy_comment.id, &legacy_comment.text);
+            let _ = conn.update_legacy_comment(i, legacy_comment.id, &legacy_comment.text, config.body_format);
         }
     }
     "done"
@@ -1216,6 +1218,10 @@ fn main() {
             let custom_footer_html = rocket.config().get_str("custom_footer_html").unwrap_or("").to_owned();
             let custom_header_html = rocket.config().get_str("custom_header_html").unwrap_or("").to_owned();
             let comments_placeholder_html = rocket.config().get_str("comments_placeholder_html").unwrap_or("<p>To post a comment, you'll need to <a href=/login>Sign in</a>.</p>").to_owned();
+            let body_format = match rocket.config().get_str("body_format").unwrap_or("") {
+                "bbcode" => models::BodyFormat::BBCode,
+                _ => models::BodyFormat::Plain,
+            };
             Ok(rocket.manage(SiteConfig {
                 enable_user_directory, public_url,
                 site_title_html, custom_css,
@@ -1223,7 +1229,7 @@ fn main() {
                 enable_public_signup,
                 hide_text_post, hide_link_post,
                 custom_header_html, custom_footer_html,
-                comments_placeholder_html,
+                comments_placeholder_html, body_format,
             }))
         }))
         .attach(fairing::AdHoc::on_attach("setup", |rocket| {

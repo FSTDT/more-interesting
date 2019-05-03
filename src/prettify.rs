@@ -76,6 +76,194 @@ pub fn prettify_body<D: Data>(text: &str, data: &mut D) -> Output {
     ret_val.push_str("<p>");
     while let Some(c) = text.as_bytes().get(0) {
         match c {
+            b'<' => {
+                let (contents, brackets_count, count) = scan_angle_brackets(text);
+                assert_ne!(brackets_count, 0);
+                for _ in 0..brackets_count {
+                    ret_val.push_str("&lt;");
+                }
+                if starts_with_url_protocol(contents) {
+                    let html = escape(&contents).to_string();
+                    ret_val.push_str("<a href=\"");
+                    ret_val.push_str(&html);
+                    ret_val.push_str("\">");
+                    ret_val.push_str(&html);
+                    ret_val.push_str("</a>");
+                } else if contents.starts_with("www.") {
+                    let html = escape(&contents).to_string();
+                    ret_val.push_str("<a href=\"https://");
+                    ret_val.push_str(&html);
+                    ret_val.push_str("\">");
+                    ret_val.push_str(&html);
+                    ret_val.push_str("</a>");
+                } else if contents.starts_with('@') {
+                    maybe_write_username(&contents[1..], data, &mut ret_val, None);
+                } else if contents.contains('@') {
+                    let html = escape(&contents).to_string();
+                    ret_val.push_str("<a href=\"mailto:");
+                    ret_val.push_str(&html);
+                    ret_val.push_str("\">");
+                    ret_val.push_str(&html);
+                    ret_val.push_str("</a>");
+                } else if contents.starts_with('#') {
+                    maybe_write_number_sign(&contents[1..], data, &mut ret_val, None);
+                } else if contents == "table" {
+                    ret_val.push_str("<a href=assets/how-to-table.html>table</a>");
+                    for _ in 0..brackets_count {
+                        ret_val.push_str("&gt;");
+                    }
+                    ret_val.push_str("<table class=good-table>");
+                    let mut end_tag_html = String::new();
+                    for _ in 0..brackets_count {
+                        end_tag_html.push_str("<");
+                    }
+                    end_tag_html.push_str("/table");
+                    for _ in 0..brackets_count {
+                        end_tag_html.push_str(">");
+                    }
+                    let end_tag_pos = text.find(&end_tag_html).unwrap_or(text.len());
+                    let start_tag_len = 5 + brackets_count * 2;
+                    ret_val.push_str(&text[start_tag_len..end_tag_pos]);
+                    ret_val.push_str("</table><p>");
+                    text = &text[end_tag_pos+start_tag_len+1..];
+                    continue;
+                }  else if contents == "code" {
+                    ret_val.push_str("<a href=assets/how-to-code.html>code</a>");
+                    for _ in 0..brackets_count {
+                        ret_val.push_str("&gt;");
+                    }
+                    ret_val.push_str("<pre class=good-code><code>");
+                    let mut end_tag_html = String::new();
+                    for _ in 0..brackets_count {
+                        end_tag_html.push_str("<");
+                    }
+                    end_tag_html.push_str("/code");
+                    for _ in 0..brackets_count {
+                        end_tag_html.push_str(">");
+                    }
+                    let end_tag_pos = text.find(&end_tag_html).unwrap_or(text.len());
+                    let start_tag_len = 4 + brackets_count * 2;
+                    ret_val.push_str(&escape(&text[start_tag_len..end_tag_pos]).to_string());
+                    ret_val.push_str("</code></pre><p>");
+                    text = &text[end_tag_pos+start_tag_len+1..];
+                    continue;
+                } else {
+                    ret_val.push_str(&escape(&text[brackets_count..count]).to_string());
+                }
+                if contents != "" {
+                    for _ in 0..brackets_count {
+                        ret_val.push_str("&gt;");
+                    }
+                    text = &text[brackets_count+count..];
+                } else {
+                    text = &text[brackets_count..];
+                }
+            }
+            b'@' => {
+                let contents = scan_lexical_token(&text[1..], false);
+                maybe_write_username(contents, data, &mut ret_val, None);
+                text = &text[(1 + contents.len())..];
+            }
+            b'#' => {
+                let contents = scan_lexical_token(&text[1..], false);
+                maybe_write_number_sign(contents, data, &mut ret_val, None);
+                text = &text[(1 + contents.len())..];
+            }
+            _ if starts_with_url_protocol(text) => {
+                let contents = scan_lexical_token(text, true);
+                let html = escape(contents).to_string();
+                ret_val.push_str("<a href=\"");
+                ret_val.push_str(&html);
+                ret_val.push_str("\">");
+                ret_val.push_str(&html);
+                ret_val.push_str("</a>");
+                text = &text[contents.len()..];
+            }
+            b'w' if text.starts_with("www.") => {
+                let contents = scan_lexical_token(text, true);
+                let html = escape(contents).to_string();
+                ret_val.push_str("<a href=\"https://");
+                ret_val.push_str(&html);
+                ret_val.push_str("\">");
+                ret_val.push_str(&html);
+                ret_val.push_str("</a>");
+                text = &text[contents.len()..];
+            }
+            b' ' => {
+                ret_val.push_str(" ");
+                text = &text[1..];
+            }
+            b'\n' => {
+                if text.as_bytes().get(1) == Some(&b'\n') {
+                    ret_val.push_str("\n\n<p>");
+                    text = &text[2..];
+                } else {
+                    ret_val.push_str("\n");
+                    text = &text[1..];
+                }
+            }
+            _ => {
+                let mut i = 1;
+                fn is_normal(c: u8) -> bool {
+                    match c {
+                        b'<' | b'@' | b'#' | b' ' | b'\n' | b'*' | b'(' => false,
+                        _ => true,
+                    }
+                }
+                while text.as_bytes().get(i).cloned().map(is_normal).unwrap_or(false) {
+                    if text.is_char_boundary(i) && (starts_with_url_protocol(&text[i..]) || text[i..].starts_with("www.")) {
+                        break;
+                    }
+                    i += 1;
+                }
+                ret_val.push_str(&escape(&text[..i]).to_string());
+                text = &text[i..];
+            }
+        }
+    }
+    ret_val.string = CLEANER.clean(&ret_val.string).to_string();
+    ret_val
+}
+
+/// Prettify: transform plain text, as described in the readme, into HTML with links, following BBCode.
+///
+/// # Syntax
+///
+/// - Links are recognized by starting with `http:`, `https:`, `ftp:`, `gopher:`, `mailto:`, or `magnet:`.
+///   If the link ends with punctuation, you can enclose it in `<` and `>` angle brackets.
+/// - Emails can be written like <michael@notriddle.com>. They are not auto-linked outside of
+///   angle brackets.
+/// - You can link to users with `@`. In case a username ends with punctuation,
+///   they can also be enclosed with angle brackets to clarify them.
+/// - You can link to tags with `#`. Tags cannot be composed entirely of numbers.
+///   In case a tag name ends in punctuation, they can also be enclosed in
+///   angle brackets.
+/// - You can link to another comment with `#`. There's nothing stopping you from putting
+///   them in angle brackets, but since they're always entirely composed of digits,
+///   there's no real reason to.
+/// - You can use the following BBCode tags:
+///   - `[url]`: write links with custom text
+///   - `[img]`: include images
+///   - `[quote]`: block quotes
+///   - `[code]`, `[tt]`, `[pre]`, `[b]`, `[i]`: same as HTML
+///   - `[char]`: write HTML character codes
+///   - `[ab]`: wrap in angle brackets `<like this>`
+///   - `[sb]`: wrap in square brackets `[like this]`
+///   - `[cb]`: wrap in curly brackets `{like this}`
+///   - `[size]`: silently ignored
+///   - `[u]`: alias for `[i]`
+///
+/// # Parameters
+///
+/// - `text`: A plain text input (well, there are five special syntactic constructs)
+/// - `data`: Used to check if particular usernames exist.
+pub fn prettify_body_bbcode<D: Data>(text: &str, data: &mut D) -> Output {
+    let text = text.replace("\r\n", "\n");
+    let mut text = &text[..];
+    let mut ret_val = Output::with_capacity(text.len());
+    ret_val.push_str("<p>");
+    while let Some(c) = text.as_bytes().get(0) {
+        match c {
             // more-interesting <LINK> syntax
             b'<' => {
                 let (contents, brackets_count, count) = scan_angle_brackets(text);
@@ -892,7 +1080,7 @@ mod test {
                 username == "mentioning"
             }
         }
-        assert_eq!(prettify_body(comment, &mut MyData).string, CLEANER.clean(html).to_string());
+        assert_eq!(prettify_body_bbcode(comment, &mut MyData).string, CLEANER.clean(html).to_string());
     }
     #[test]
     fn test_bbcode_img() {
@@ -910,7 +1098,7 @@ mod test {
                 username == "mentioning"
             }
         }
-        assert_eq!(prettify_body(comment, &mut MyData).string, CLEANER.clean(html).to_string());
+        assert_eq!(prettify_body_bbcode(comment, &mut MyData).string, CLEANER.clean(html).to_string());
     }
     #[test]
     fn test_bbcode_quote() {
@@ -928,7 +1116,7 @@ mod test {
                 username == "mentioning"
             }
         }
-        assert_eq!(prettify_body(comment, &mut MyData).string, CLEANER.clean(html).to_string());
+        assert_eq!(prettify_body_bbcode(comment, &mut MyData).string, CLEANER.clean(html).to_string());
     }
     #[test]
     fn test_bbcode_code() {
@@ -946,7 +1134,7 @@ mod test {
                 username == "mentioning"
             }
         }
-        assert_eq!(prettify_body(comment, &mut MyData).string, CLEANER.clean(html).to_string());
+        assert_eq!(prettify_body_bbcode(comment, &mut MyData).string, CLEANER.clean(html).to_string());
     }
     #[test]
     fn test_example() {
