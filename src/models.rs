@@ -1291,6 +1291,7 @@ impl MoreInterestingConn {
         diesel::update(posts.find(post_id_value))
             .set((
                 visible.eq(true),
+                initial_stellar_time.eq(self.get_current_stellar_time()),
             ))
             .execute(&self.0)?;
         Ok(())
