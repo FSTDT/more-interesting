@@ -15,7 +15,7 @@ lazy_static!{
         b.add_allowed_classes("table", ["good-table"][..].iter().cloned());
         b.add_allowed_classes("span", ["article-header-inner"][..].iter().cloned());
         b.add_tag_attribute_values("a", "is", ["img-lightbox"][..].iter().cloned());
-        b.tags(["br", "a", "p", "b", "i", "blockquote", "code", "pre", "table", "thead", "tbody", "tr", "th", "td", "caption", "span"][..].iter().cloned().collect());
+        b.tags(["br", "a", "p", "b", "i", "blockquote", "code", "pre", "table", "thead", "tbody", "tr", "th", "td", "caption", "span", "sup", "sub"][..].iter().cloned().collect());
         b
     };
     static ref URL_TAG_OPEN: Regex = Regex::new(r"(?i)^\[url\]").unwrap();
@@ -30,6 +30,8 @@ lazy_static!{
     static ref TT_TAG_CLOSE: Regex = Regex::new(r"(?i)^\[/tt\]").unwrap();
     static ref PRE_TAG_OPEN: Regex = Regex::new(r"(?i)^\[pre\]").unwrap();
     static ref PRE_TAG_CLOSE: Regex = Regex::new(r"(?i)^\[/pre\]").unwrap();
+}
+lazy_static!{
     static ref CHAR_TAG_OPEN: Regex = Regex::new(r"(?i)^\[char\]").unwrap();
     static ref CHAR_TAG_CLOSE: Regex = Regex::new(r"(?i)^\[/char\]").unwrap();
     static ref AB_TAG_OPEN: Regex = Regex::new(r"(?i)^\[ab\]").unwrap();
@@ -38,11 +40,19 @@ lazy_static!{
     static ref SB_TAG_CLOSE: Regex = Regex::new(r"(?i)^\[/sb\]").unwrap();
     static ref CB_TAG_OPEN: Regex = Regex::new(r"(?i)^\[cb\]").unwrap();
     static ref CB_TAG_CLOSE: Regex = Regex::new(r"(?i)^\[/cb\]").unwrap();
+    static ref SUP_TAG_OPEN: Regex = Regex::new(r"(?i)^\[sup\]").unwrap();
+    static ref SUP_TAG_CLOSE: Regex = Regex::new(r"(?i)^\[/sup\]").unwrap();
+    static ref SUB_TAG_OPEN: Regex = Regex::new(r"(?i)^\[sub\]").unwrap();
+    static ref SUB_TAG_CLOSE: Regex = Regex::new(r"(?i)^\[/sub\]").unwrap();
     static ref IMG_TAG_OPEN: Regex = Regex::new(r"(?i)^\[img\]").unwrap();
     static ref IMG_TAG_CLOSE: Regex = Regex::new(r"(?i)\[/img\]").unwrap();
     static ref SIZE_TAG_OPEN: Regex = Regex::new(r"(?i)^\[size=[^\]]+\]").unwrap();
     static ref SIZE_TAG_CLOSE: Regex = Regex::new(r"(?i)^\[/size\]").unwrap();
+    static ref COLOR_TAG_OPEN: Regex = Regex::new(r"(?i)^\[color=[^\]]+\]").unwrap();
+    static ref COLOR_TAG_CLOSE: Regex = Regex::new(r"(?i)^\[/color\]").unwrap();
+    static ref ALPHANUMERIC: Regex = Regex::new(r"^[a-zA-Z0-9\.]$").unwrap();
 }
+
 
 /// Prettify: transform plain text, as described in the readme, into HTML with links.
 ///
@@ -245,12 +255,12 @@ pub fn prettify_body<D: Data>(text: &str, data: &mut D) -> Output {
 ///   - `[url]`: write links with custom text
 ///   - `[img]`: include images
 ///   - `[quote]`: block quotes
-///   - `[code]`, `[tt]`, `[pre]`, `[b]`, `[i]`: same as HTML
+///   - `[code]`, `[tt]`, `[pre]`, `[b]`, `[i]`, `[sup]`, `[sub]`: same as HTML
 ///   - `[char]`: write HTML character codes
 ///   - `[ab]`: wrap in angle brackets `<like this>`
 ///   - `[sb]`: wrap in square brackets `[like this]`
 ///   - `[cb]`: wrap in curly brackets `{like this}`
-///   - `[size]`: silently ignored
+///   - `[size]`, `color`: silently ignored
 ///   - `[u]`: alias for `[i]`
 ///
 /// # Parameters
@@ -467,7 +477,14 @@ pub fn prettify_body_bbcode<D: Data>(text: &str, data: &mut D) -> Output {
                 let tag = SIZE_TAG_CLOSE.find(&text[..]).expect("it to still be there");
                 text = &text[tag.end()..];
             }
-
+            b'[' if COLOR_TAG_OPEN.is_match(&text[..]) => {
+                let tag = COLOR_TAG_OPEN.find(&text[..]).expect("it to still be there");
+                text = &text[tag.end()..];
+            }
+            b'[' if COLOR_TAG_CLOSE.is_match(&text[..]) => {
+                let tag = COLOR_TAG_CLOSE.find(&text[..]).expect("it to still be there");
+                text = &text[tag.end()..];
+            }
             b'[' if AB_TAG_OPEN.is_match(&text[..]) => {
                 ret_val.push_str("&lt;");
                 let tag = AB_TAG_OPEN.find(&text[..]).expect("it to still be there");
@@ -496,6 +513,26 @@ pub fn prettify_body_bbcode<D: Data>(text: &str, data: &mut D) -> Output {
             b'[' if CB_TAG_CLOSE.is_match(&text[..]) => {
                 ret_val.push_str("}");
                 let tag = CB_TAG_CLOSE.find(&text[..]).expect("it to still be there");
+                text = &text[tag.end()..];
+            }
+            b'[' if SUP_TAG_OPEN.is_match(&text[..]) => {
+                ret_val.push_str("<sup>");
+                let tag = SUP_TAG_OPEN.find(&text[..]).expect("it to still be there");
+                text = &text[tag.end()..];
+            }
+            b'[' if SUP_TAG_CLOSE.is_match(&text[..]) => {
+                ret_val.push_str("</sup>");
+                let tag = SUP_TAG_CLOSE.find(&text[..]).expect("it to still be there");
+                text = &text[tag.end()..];
+            }
+            b'[' if SUB_TAG_OPEN.is_match(&text[..]) => {
+                ret_val.push_str("<sub>");
+                let tag = SUB_TAG_OPEN.find(&text[..]).expect("it to still be there");
+                text = &text[tag.end()..];
+            }
+            b'[' if SUB_TAG_CLOSE.is_match(&text[..]) => {
+                ret_val.push_str("</sub>");
+                let tag = SUB_TAG_CLOSE.find(&text[..]).expect("it to still be there");
                 text = &text[tag.end()..];
             }
             // bbcode image tag
