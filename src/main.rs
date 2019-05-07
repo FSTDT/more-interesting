@@ -54,6 +54,7 @@ struct SiteConfig {
     custom_footer_html: String,
     custom_header_html: String,
     comments_placeholder_html: String,
+    front_notice_html: String,
     hide_text_post: bool,
     hide_link_post: bool,
     body_format: models::BodyFormat,
@@ -70,6 +71,7 @@ impl Default for SiteConfig {
             custom_footer_html: String::new(),
             custom_header_html: String::new(),
             comments_placeholder_html: String::new(),
+            front_notice_html: String::new(),
             custom_css: String::new(),
             hide_text_post: false,
             hide_link_post: false,
@@ -293,6 +295,20 @@ fn index(conn: MoreInterestingConn, user: Option<User>, flash: Option<FlashMessa
         alert: flash.map(|f| f.msg().to_owned()),
         config: config.clone(),
         title, user, posts, is_home,
+        ..default()
+    }))
+}
+
+#[get("/top")]
+fn top(conn: MoreInterestingConn, user: Option<User>, flash: Option<FlashMessage>, config: State<SiteConfig>) -> Option<impl Responder<'static>> {
+    let user = user.unwrap_or(User::default());
+    let posts = conn.get_post_info_top(user.id).ok()?;
+    Some(Template::render("index", &TemplateContext {
+        title: Cow::Borrowed("top"),
+        parent: "layout",
+        alert: flash.map(|f| f.msg().to_owned()),
+        config: config.clone(),
+        user, posts,
         ..default()
     }))
 }
@@ -1218,6 +1234,7 @@ fn main() {
             let custom_footer_html = rocket.config().get_str("custom_footer_html").unwrap_or("").to_owned();
             let custom_header_html = rocket.config().get_str("custom_header_html").unwrap_or("").to_owned();
             let comments_placeholder_html = rocket.config().get_str("comments_placeholder_html").unwrap_or("<p>To post a comment, you'll need to <a href=/login>Sign in</a>.</p>").to_owned();
+            let front_notice_html = rocket.config().get_str("front_notice_html").unwrap_or("").to_owned();
             let body_format = match rocket.config().get_str("body_format").unwrap_or("") {
                 "bbcode" => models::BodyFormat::BBCode,
                 _ => models::BodyFormat::Plain,
@@ -1230,6 +1247,7 @@ fn main() {
                 hide_text_post, hide_link_post,
                 custom_header_html, custom_footer_html,
                 comments_placeholder_html, body_format,
+                front_notice_html,
             }))
         }))
         .attach(fairing::AdHoc::on_attach("setup", |rocket| {
@@ -1249,7 +1267,7 @@ fn main() {
             }
             Ok(rocket)
         }))
-        .mount("/", routes![index, login_form, login, logout, create_link_form, create_post_form, create, get_comments, vote, signup, get_settings, create_invite, invite_tree, change_password, post_comment, vote_comment, get_edit_tags, edit_tags, get_tags, edit_post, get_edit_post, edit_comment, get_edit_comment, set_dark_mode, set_big_mode, mod_log, get_user_info, get_mod_queue, moderate_post, moderate_comment, get_public_signup, rebake, random, redirect_legacy_id, latest, rss])
+        .mount("/", routes![index, login_form, login, logout, create_link_form, create_post_form, create, get_comments, vote, signup, get_settings, create_invite, invite_tree, change_password, post_comment, vote_comment, get_edit_tags, edit_tags, get_tags, edit_post, get_edit_post, edit_comment, get_edit_comment, set_dark_mode, set_big_mode, mod_log, get_user_info, get_mod_queue, moderate_post, moderate_comment, get_public_signup, rebake, random, redirect_legacy_id, latest, rss, top])
         .mount("/assets", StaticFiles::from("assets"))
         .attach(Template::custom(|engines| {
             engines.handlebars.register_helper("count", Box::new(count_helper));

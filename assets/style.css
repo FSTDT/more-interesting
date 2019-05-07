@@ -340,14 +340,6 @@ details[open] .details-menu-summary,
     left: 1px;
 }
 
-button[disabled],
-button[disabled]:active {
-    border-image: none;
-    border: solid 2px #d7d7db;
-    opacity: 0.75;
-    top: 0; left: 0;
-}
-
 html.dark input,
 html.dark textarea,
 html.dark button:active,
@@ -407,7 +399,18 @@ html [type="button"],
 [type="submit"],
 .details-menu-summary,
 .details-dialog-summary {
-    -webkit-appearance: button;
+    -webkit-appearance: none;
+    -webkit-border-radius: 0;
+    border-radius: 0;
+    opacity: 1;
+}
+
+button[disabled],
+button[disabled]:active {
+    border-image: none;
+    border: solid 2px #d7d7db;
+    opacity: 0.75;
+    top: 0; left: 0;
 }
 
 button::-moz-focus-inner,
@@ -675,6 +678,10 @@ details-dialog, .details-menu-inner, .inner-banner {
     padding: 0.25em 0.5em;
     margin: 0.5em 0;
     overflow: hidden;
+}
+
+.inner-banner {
+    margin-bottom: 2em;
 }
 
 details-dialog {
