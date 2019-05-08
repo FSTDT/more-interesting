@@ -1,4 +1,4 @@
-export class ImgLightbox extends HTMLElement {
+export class ImgLightbox extends HTMLAnchorElement {
     constructor() {
         super();
         this.addEventListener("click", this._clickEvent);
@@ -22,5 +22,5 @@ export class ImgLightbox extends HTMLElement {
 
 if (!window.customElements.get('img-lightbox')) {
     window.ImgLightbox = ImgLightbox;
-    window.customElements.define('img-lightbox', ImgLightbox);
+    window.customElements.define('img-lightbox', ImgLightbox, { extends: "a" });
 }

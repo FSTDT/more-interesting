@@ -693,7 +693,8 @@ details[open] details-dialog {
 }
 
 .details-menu-summary::-webkit-details-marker,
-.details-dialog-summary::-webkit-details-marker {
+.details-dialog-summary::-webkit-details-marker,
+.img-lightbox::-webkit-details-marker {
     display: none;
 }
 .details-menu-summary::before,
