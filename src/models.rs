@@ -325,7 +325,43 @@ impl MoreInterestingConn {
             ))
             .filter(visible.eq(true))
             .order_by(self::posts::dsl::updated_at.desc())
-            .limit(100)
+            .limit(200)
+            .get_results::<(i32, Base32, String, Option<String>, bool, i32, i32, i32, bool, NaiveDateTime, i32, Option<String>, Option<String>, Option<i32>, Option<i32>, String)>(&self.0)?
+            .into_iter()
+            .map(|t| tuple_to_post_info(self, t, self.get_current_stellar_time()))
+            .collect();
+        Ok(all)
+    }
+    pub fn get_post_info_top(&self, user_id_param: i32) -> Result<Vec<PostInfo>, DieselError> {
+        use self::posts::dsl::*;
+        use self::stars::dsl::*;
+        use self::flags::dsl::*;
+        use self::users::dsl::*;
+        let all: Vec<PostInfo> = posts
+            .left_outer_join(stars.on(self::stars::dsl::post_id.eq(self::posts::dsl::id).and(self::stars::dsl::user_id.eq(user_id_param))))
+            .left_outer_join(flags.on(self::flags::dsl::post_id.eq(self::posts::dsl::id).and(self::flags::dsl::user_id.eq(user_id_param))))
+            .inner_join(users)
+            .select((
+                self::posts::dsl::id,
+                self::posts::dsl::uuid,
+                self::posts::dsl::title,
+                self::posts::dsl::url,
+                self::posts::dsl::visible,
+                self::posts::dsl::initial_stellar_time,
+                self::posts::dsl::score,
+                self::posts::dsl::comment_count,
+                self::posts::dsl::authored_by_submitter,
+                self::posts::dsl::created_at,
+                self::posts::dsl::submitted_by,
+                self::posts::dsl::excerpt,
+                self::posts::dsl::excerpt_html,
+                self::stars::dsl::post_id.nullable(),
+                self::flags::dsl::post_id.nullable(),
+                self::users::dsl::username,
+            ))
+            .filter(visible.eq(true))
+            .order_by(self::posts::dsl::score.desc())
+            .limit(200)
             .get_results::<(i32, Base32, String, Option<String>, bool, i32, i32, i32, bool, NaiveDateTime, i32, Option<String>, Option<String>, Option<i32>, Option<i32>, String)>(&self.0)?
             .into_iter()
             .map(|t| tuple_to_post_info(self, t, self.get_current_stellar_time()))
@@ -927,7 +963,6 @@ impl MoreInterestingConn {
             .filter(visible.eq(true))
             .filter(self::comments::dsl::post_id.eq(post_id_param))
             .order_by(self::comments::dsl::created_at)
-            .limit(400)
             .get_results::<(i32, String, String, bool, i32, NaiveDateTime, i32, Option<i32>, Option<i32>, String)>(&self.0)?
             .into_iter()
             .map(|t| tuple_to_comment_info(self, t))
@@ -1246,7 +1281,7 @@ impl MoreInterestingConn {
             ))
             .filter(visible.eq(false))
             .filter(rejected.eq(false))
-            .order_by((initial_stellar_time.desc(), self::posts::dsl::created_at.desc()))
+            .order_by(self::posts::dsl::created_at.asc())
             .limit(50)
             .get_results::<(i32, Base32, String, Option<String>, bool, i32, i32, i32, bool, NaiveDateTime, i32, Option<String>, Option<String>, Option<i32>, Option<i32>, String)>(&self.0).ok()?
             .into_iter()
@@ -1278,7 +1313,7 @@ impl MoreInterestingConn {
             ))
             .filter(visible.eq(false))
             .filter(rejected.eq(false))
-            .order_by(self::comments::dsl::created_at.desc())
+            .order_by(self::comments::dsl::created_at.asc())
             .limit(50)
             .get_results::<(i32, String, String, bool, i32, NaiveDateTime, i32, Option<i32>, Option<i32>, String)>(&self.0).ok()?
             .into_iter()
@@ -1379,7 +1414,6 @@ impl MoreInterestingConn {
         let all: Vec<LegacyComment> = legacy_comments
             .filter(self::legacy_comments::dsl::post_id.eq(post_id_param))
             .order_by(self::legacy_comments::dsl::created_at)
-            .limit(400)
             .get_results(&self.0)?;
         Ok(all)
     }
