@@ -672,12 +672,17 @@ details[open] .module-summary:before {
 
 details-dialog, .details-menu-inner, .inner-banner {
     box-shadow: 0.25em 0.25em 0 #0c0c0d;
-    border: solid 1px #fff;
+    border: solid 2px #fff;
+    border-image: url("data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAgAAAAICAYAAADED76LAAAABHNCSVQICAgIfAhkiAAAAAlwSFlzAAAOxAAADsQBlSsOGwAAABl0RVh0U29mdHdhcmUAd3d3Lmlua3NjYXBlLm9yZ5vuPBoAAABBSURBVBhXY/hPADCAiLdvP+DEcAUMaKC4uPi4sLDIW0IK3lNBQWlp6X8QBgr8QcP/pKSkPzDw8fH/x4V5eHj/AwAIl4WCOETMYgAAAABJRU5ErkJggg==") 2;
     border-bottom: solid 1px #737373;
     border-right: solid 1px #737373;
     padding: 0.25em 0.5em;
     margin: 0.5em 0;
     overflow: hidden;
+}
+
+html.dark details-dialog, html.dark .details-menu-inner, html.dark .inner-banner {
+    border-image: url("data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAgAAAAICAYAAADED76LAAAABHNCSVQICAgIfAhkiAAAAAlwSFlzAAAOxAAADsQBlSsOGwAAABl0RVh0U29mdHdhcmUAd3d3Lmlua3NjYXBlLm9yZ5vuPBoAAABASURBVBhXYyguLv6PDzOACDPLSJwYroABDfALqh1nZGR+S0jBeyooEBBS/w/CQIE/aPgfExPrB6Baxv+4McN/ANClS9zIVZoLAAAAAElFTkSuQmCC") 2;
 }
 
 .inner-banner {
@@ -743,6 +748,8 @@ details[open] .details-dialog-summary::before {
     z-index: 300;
     display: none;
     padding: 2px;
+    padding-bottom: 3px;
+    padding-right: 3px;
     margin: 2px;
 }
 details[open] .details-menu-inner {
