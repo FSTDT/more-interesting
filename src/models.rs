@@ -649,7 +649,7 @@ impl MoreInterestingConn {
         }
         result
     }
-    pub fn update_post(&self, post_id_value: i32, new_post: &NewPost, body_format: BodyFormat) -> Result<(), DieselError> {
+    pub fn update_post(&self, post_id_value: i32, bump: bool, new_post: &NewPost, body_format: BodyFormat) -> Result<(), DieselError> {
         let title_html_and_stuff = crate::prettify::prettify_title(new_post.title, "", &mut PrettifyData(self, 0));
         let excerpt_html_and_stuff = if let Some(e) = new_post.excerpt {
             let body = match body_format {
@@ -673,6 +673,14 @@ impl MoreInterestingConn {
                 domain_id.eq(domain.map(|d| d.id))
             ))
             .execute(&self.0)?;
+        if bump {
+            diesel::update(posts.find(post_id_value))
+                .set((
+                    initial_stellar_time.eq(self.get_current_stellar_time()),
+                    visible.eq(new_post.visible),
+                ))
+                .execute(&self.0)?;
+        }
         diesel::delete(post_tagging.filter(post_id.eq(post_id_value)))
             .execute(&self.0)?;
         for tag in title_html_and_stuff.hash_tags.iter().chain(excerpt_html_and_stuff.iter().flat_map(|e| e.hash_tags.iter())).map(|s| &s[..]).collect::<HashSet<&str>>() {

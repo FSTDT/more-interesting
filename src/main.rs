@@ -848,7 +848,7 @@ fn edit_post(conn: MoreInterestingConn, user: Moderator, form: Form<EditPostForm
             },
         }
     } else {
-        match conn.update_post(post_id, &NewPost {
+        match conn.update_post(post_id, !post_info.visible && post_info.score == 0, &NewPost {
             title: &form.title,
             url: url.as_ref().map(|s| &s[..]),
             submitted_by: user.0.id,
@@ -1086,7 +1086,7 @@ struct ModerateCommentForm {
 fn rebake(conn: MoreInterestingConn, _user: Moderator, from: i32, to: i32, config: State<SiteConfig>) -> &'static str {
     for i in from ..= to {
         if let Ok(post) = conn.get_post_by_id(i) {
-            let _ = conn.update_post(i, &NewPost{
+            let _ = conn.update_post(i, false, &NewPost{
                 title: &post.title[..],
                 url: post.url.as_ref().map(|t| &t[..]),
                 excerpt: post.excerpt.as_ref().map(|t| &t[..]),
