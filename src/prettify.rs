@@ -415,10 +415,42 @@ pub fn prettify_body_bbcode<D: Data>(text: &str, data: &mut D) -> Output {
                 text = &text[tag.end()..];
             }
             b'[' if QUOTE_TAG_OPEN_PARAM.is_match(&text[..]) => {
-                let end_param = text.find("]");
+                let end_param = find_matching_square_bracket(text);
                 if let Some(end_param) = end_param {
-                    let name = escape(&text[7..end_param]).to_string();
-                    maybe_write_username(&name, data, &mut ret_val, None);
+                    let name = &text[7..end_param];
+                    if URL_TAG_OPEN_PARAM.is_match(name) {
+                      let end_tag = URL_TAG_CLOSE.find(name);
+                      let end_param = name.find("]");
+                      if let (Some(end_tag), Some(end_param)) = (end_tag, end_param) {
+                          if end_param < end_tag.start() {
+                              let contents = escape(&name[end_param+1..end_tag.start()]).to_string();
+                              let url = escape(&name[5..end_param]).to_string();
+                              ret_val.push_str("<a href=\"");
+                              ret_val.push_str(&url);
+                              ret_val.push_str("\">");
+                              ret_val.push_str(&contents);
+                              ret_val.push_str("</a>");
+                          } else {
+                              ret_val.push_str(&escape(&name[..]).to_string());
+                          }
+                      } else {
+                          ret_val.push_str(&escape(&name[..]).to_string());
+                      }
+                    } else if URL_TAG_OPEN.is_match(name) {
+                      let end_tag = URL_TAG_CLOSE.find(name);
+                      if let Some(end_tag) = end_tag {
+                          let html = escape(&name[5..end_tag.start()]).to_string();
+                          ret_val.push_str("<a href=\"");
+                          ret_val.push_str(&html);
+                          ret_val.push_str("\">");
+                          ret_val.push_str(&html);
+                          ret_val.push_str("</a>");
+                      } else {
+                          ret_val.push_str(&escape(&name[..]).to_string());
+                      }
+                    } else {
+                      maybe_write_username(name, data, &mut ret_val, None);
+                    }
                     ret_val.push_str("<blockquote class=good-quote>");
                     text = &text[end_param+1..];
                 } else {
@@ -938,6 +970,22 @@ impl Display for Output {
     }
 }
 
+fn find_matching_square_bracket(text: &str) -> Option<usize> {
+    assert_eq!(text.as_bytes().get(0), Some(&b'['));
+    let mut depth = 0;
+    for (i, c) in text.bytes().enumerate() {
+        if c == b'[' {
+            depth += 1;
+        } else if c == b']' {
+            depth -= 1;
+        }
+        if depth == 0 {
+            return Some(i);
+        }
+    }
+    None
+}
+
 #[cfg(test)]
 mod test {
     use super::*;
@@ -1153,6 +1201,42 @@ mod test {
     fn test_bbcode_quote() {
         let comment = "[quote=pyro]this [i]thing[/i] sucks[/quote]\n\n[quote]okay?[/quote]";
         let html = "<p>@pyro<blockquote class=good-quote>this <i>thing</i> sucks</blockquote>\n\n<p><blockquote>okay?</blockquote>";
+        struct MyData;
+        impl Data for MyData {
+            fn check_comment_ref(&mut self, id: i32) -> bool {
+                id == 12345
+            }
+            fn check_hash_tag(&mut self, tag: &str) -> bool {
+                tag == "words"
+            }
+            fn check_username(&mut self, username: &str) -> bool {
+                username == "mentioning"
+            }
+        }
+        assert_eq!(prettify_body_bbcode(comment, &mut MyData).string, CLEANER.clean(html).to_string());
+    }
+    #[test]
+    fn test_bbcode_quote_url_param() {
+        let comment = "[quote=[url=http://example.com]example[/url]]this [i]thing[/i] sucks[/quote]";
+        let html = "<p><a href=http://example.com>example</a><blockquote class=good-quote>this <i>thing</i> sucks</blockquote>";
+        struct MyData;
+        impl Data for MyData {
+            fn check_comment_ref(&mut self, id: i32) -> bool {
+                id == 12345
+            }
+            fn check_hash_tag(&mut self, tag: &str) -> bool {
+                tag == "words"
+            }
+            fn check_username(&mut self, username: &str) -> bool {
+                username == "mentioning"
+            }
+        }
+        assert_eq!(prettify_body_bbcode(comment, &mut MyData).string, CLEANER.clean(html).to_string());
+    }
+    #[test]
+    fn test_bbcode_quote_url() {
+        let comment = "[quote=[url]http://example.com[/url]]this [i]thing[/i] sucks[/quote]";
+        let html = "<p><a href=http://example.com>http://example.com</a><blockquote class=good-quote>this <i>thing</i> sucks</blockquote>";
         struct MyData;
         impl Data for MyData {
             fn check_comment_ref(&mut self, id: i32) -> bool {
