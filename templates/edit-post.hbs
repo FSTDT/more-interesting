@@ -1,7 +1,7 @@
 {{#*inline "page"}}
     <form action="?U={{session.uuid}}" method=POST>
         <input type=hidden name=post value="{{posts.0.uuid}}">
-        <label>Title and #hashtags <input name=title autofocus value="{{posts.0.title}}" required is="smart-punct-input"></label>
+        <label>Fundie Name and #hashtags <input name=title autofocus value="{{posts.0.title}}" required is="smart-punct-input"></label>
         <label>URL <input name=url value="{{posts.0.url}}"></label>
         <label>Excerpt
             <smart-textarea><textarea name=excerpt is=smart-punct-textarea>{{excerpt}}</textarea></smart-textarea>
