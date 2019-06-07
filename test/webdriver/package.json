@@ -3,7 +3,7 @@
     "test": "mocha --timeout 10000"
   },
   "devDependencies": {
-    "mocha": "^6.0.2",
+    "mocha": "^6.1.4",
     "selenium-webdriver": "^4.0.0-alpha.1"
   }
 }
