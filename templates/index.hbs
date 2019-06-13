@@ -1,6 +1,12 @@
 {{#*inline "page"}}
 <ajax-form>
 {{#each posts}}
+    {{#if this.banner_title}}
+        <p class=post-banner>{{{this.banner_title}}}</p>
+    {{/if}}
+    {{#if this.banner_desc}}
+        <p class=post-banner-desc>{{{this.banner_desc}}}</p>
+    {{/if}}
     <article><details open><summary title="Hide post" class=module-summary>Show post</summary>
         <header class=article-header>{{{this.title_html}}}</header>
         {{#if this.excerpt_html}}

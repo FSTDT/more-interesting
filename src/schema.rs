@@ -129,6 +129,8 @@ table! {
         updated_at -> Timestamp,
         rejected -> Bool,
         domain_id -> Nullable<Int4>,
+        banner_title -> Nullable<Varchar>,
+        banner_desc -> Nullable<Varchar>,
     }
 }
 

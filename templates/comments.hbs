@@ -2,7 +2,33 @@
     {{#if (not posts.0.visible)}}
     <div class="alert">This post is waiting for moderator attention.</div>
     {{/if}}
+    {{#if (gte user.trust_level 3)}}
+    <details-menu-bar>
+            <details class=details-dialog-outer>
+                <summary class=details-dialog-summary>Edit Banner</summary>
+                <details-dialog>
+                    <form action=banner-post method=POST>
+                        <input type=hidden name=post value={{posts.0.uuid}}>
+                        <label for=banner-post-title>Title</label>
+                        <input type=text id=banner-post-title name=banner_title autofocus>
+                        <label for=banner-post-desc>Description</label>
+                        <input type=text id=banner-post-desc name=banner_desc>
+                        <div class=form-footer>
+                            <button class=button-default>Add banner</button>
+                            <details-dialog-close><a href={{posts.0.uuid}} class=button>Cancel</a></details-dialog-close>
+                        </div>
+                    </form>
+                </details-dialog>
+            </details>
+    </details-menu-bar>
+    {{/if}}
     <ajax-form>
+        {{#if posts.0.banner_title}}
+            <p class=post-banner>{{{posts.0.banner_title}}}</p>
+        {{/if}}
+        {{#if posts.0.banner_desc}}
+            <p class=post-banner-desc>{{{posts.0.banner_desc}}}</p>
+        {{/if}}
         <article>
             <header class=article-header>{{{posts.0.title_html}}}</header>
             {{#if posts.0.excerpt_html}}

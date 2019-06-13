@@ -1077,6 +1077,40 @@ fn moderate_post(conn: MoreInterestingConn, user: Moderator, form: Form<Moderate
 }
 
 #[derive(FromForm)]
+struct BannerPostForm {
+    post: Base32,
+    banner_title: String,
+    banner_desc: String,
+}
+
+#[post("/banner-post", data = "<form>")]
+fn banner_post(conn: MoreInterestingConn, user: Moderator, form: Form<BannerPostForm>) -> Result<impl Responder<'static>, Status> {
+    let post_info = if let Ok(post_info) = conn.get_post_info_by_uuid(user.0.id, form.post) {
+        post_info
+    } else {
+        return Err(Status::NotFound);
+    };
+    let banner_title = if form.banner_title != "" { Some(&form.banner_title[..]) } else { None };
+    let banner_desc = if form.banner_desc != "" { Some(&form.banner_desc[..]) } else { None };
+    let post_id = post_info.id;
+    match conn.banner_post(post_id, banner_title, banner_desc) {
+        Ok(_) => {
+            conn.mod_log_banner_post(
+                user.0.id,
+                post_info.uuid,
+                banner_title.unwrap_or(""),
+                banner_desc.unwrap_or(""),
+            ).expect("if updating the post worked, then so should logging");
+            Ok(Flash::success(Redirect::to(uri!(get_mod_queue)), "Added banner to post"))
+        },
+        Err(e) => {
+            warn!("{:?}", e);
+            Err(Status::InternalServerError)
+        },
+    }
+}
+
+#[derive(FromForm)]
 struct ModerateCommentForm {
     comment: i32,
     action: String,
@@ -1267,7 +1301,7 @@ fn main() {
             }
             Ok(rocket)
         }))
-        .mount("/", routes![index, login_form, login, logout, create_link_form, create_post_form, create, get_comments, vote, signup, get_settings, create_invite, invite_tree, change_password, post_comment, vote_comment, get_edit_tags, edit_tags, get_tags, edit_post, get_edit_post, edit_comment, get_edit_comment, set_dark_mode, set_big_mode, mod_log, get_user_info, get_mod_queue, moderate_post, moderate_comment, get_public_signup, rebake, random, redirect_legacy_id, latest, rss, top])
+        .mount("/", routes![index, login_form, login, logout, create_link_form, create_post_form, create, get_comments, vote, signup, get_settings, create_invite, invite_tree, change_password, post_comment, vote_comment, get_edit_tags, edit_tags, get_tags, edit_post, get_edit_post, edit_comment, get_edit_comment, set_dark_mode, set_big_mode, mod_log, get_user_info, get_mod_queue, moderate_post, moderate_comment, get_public_signup, rebake, random, redirect_legacy_id, latest, rss, top, banner_post])
         .mount("/assets", StaticFiles::from("assets"))
         .attach(Template::custom(|engines| {
             engines.handlebars.register_helper("count", Box::new(count_helper));

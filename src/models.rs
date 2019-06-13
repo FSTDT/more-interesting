@@ -57,6 +57,8 @@ pub struct Post {
     pub updated_at: NaiveDateTime,
     pub rejected: bool,
     pub domain_id: Option<i32>,
+    pub banner_title: Option<String>,
+    pub banner_desc: Option<String>,
 }
 
 #[derive(Queryable, Serialize)]
@@ -126,6 +128,8 @@ pub struct PostInfo {
     pub flagged_by_me: bool,
     pub excerpt: Option<String>,
     pub excerpt_html: Option<String>,
+    pub banner_title: Option<String>,
+    pub banner_desc: Option<String>,
 }
 
 #[derive(Queryable, Serialize)]
@@ -284,11 +288,13 @@ impl MoreInterestingConn {
                 self::stars::dsl::post_id.nullable(),
                 self::flags::dsl::post_id.nullable(),
                 self::users::dsl::username,
+                self::posts::dsl::banner_title,
+                self::posts::dsl::banner_desc,
             ))
             .filter(visible.eq(true))
             .order_by((initial_stellar_time.desc(), self::posts::dsl::created_at.desc()))
             .limit(200)
-            .get_results::<(i32, Base32, String, Option<String>, bool, i32, i32, i32, bool, NaiveDateTime, i32, Option<String>, Option<String>, Option<i32>, Option<i32>, String)>(&self.0)?
+            .get_results::<(i32, Base32, String, Option<String>, bool, i32, i32, i32, bool, NaiveDateTime, i32, Option<String>, Option<String>, Option<i32>, Option<i32>, String, Option<String>, Option<String>)>(&self.0)?
             .into_iter()
             .map(|t| tuple_to_post_info(self, t, self.get_current_stellar_time()))
             .collect();
@@ -322,11 +328,13 @@ impl MoreInterestingConn {
                 self::stars::dsl::post_id.nullable(),
                 self::flags::dsl::post_id.nullable(),
                 self::users::dsl::username,
+                self::posts::dsl::banner_title,
+                self::posts::dsl::banner_desc,
             ))
             .filter(visible.eq(true))
             .order_by(self::posts::dsl::updated_at.desc())
             .limit(200)
-            .get_results::<(i32, Base32, String, Option<String>, bool, i32, i32, i32, bool, NaiveDateTime, i32, Option<String>, Option<String>, Option<i32>, Option<i32>, String)>(&self.0)?
+            .get_results::<(i32, Base32, String, Option<String>, bool, i32, i32, i32, bool, NaiveDateTime, i32, Option<String>, Option<String>, Option<i32>, Option<i32>, String, Option<String>, Option<String>)>(&self.0)?
             .into_iter()
             .map(|t| tuple_to_post_info(self, t, self.get_current_stellar_time()))
             .collect();
@@ -358,11 +366,13 @@ impl MoreInterestingConn {
                 self::stars::dsl::post_id.nullable(),
                 self::flags::dsl::post_id.nullable(),
                 self::users::dsl::username,
+                self::posts::dsl::banner_title,
+                self::posts::dsl::banner_desc,
             ))
             .filter(visible.eq(true))
             .order_by(self::posts::dsl::score.desc())
             .limit(200)
-            .get_results::<(i32, Base32, String, Option<String>, bool, i32, i32, i32, bool, NaiveDateTime, i32, Option<String>, Option<String>, Option<i32>, Option<i32>, String)>(&self.0)?
+            .get_results::<(i32, Base32, String, Option<String>, bool, i32, i32, i32, bool, NaiveDateTime, i32, Option<String>, Option<String>, Option<i32>, Option<i32>, String, Option<String>, Option<String>)>(&self.0)?
             .into_iter()
             .map(|t| tuple_to_post_info(self, t, self.get_current_stellar_time()))
             .collect();
@@ -396,12 +406,14 @@ impl MoreInterestingConn {
                 self::stars::dsl::post_id.nullable(),
                 self::flags::dsl::post_id.nullable(),
                 self::users::dsl::username,
+                self::posts::dsl::banner_title,
+                self::posts::dsl::banner_desc,
             ))
             .filter(visible.eq(true))
             .filter(self::post_tagging::tag_id.eq(tag_id_param))
             .order_by((initial_stellar_time.desc(), self::posts::dsl::created_at.desc()))
             .limit(200)
-            .get_results::<(i32, Base32, String, Option<String>, bool, i32, i32, i32, bool, NaiveDateTime, i32, Option<String>, Option<String>, Option<i32>, Option<i32>, String)>(&self.0)?
+            .get_results::<(i32, Base32, String, Option<String>, bool, i32, i32, i32, bool, NaiveDateTime, i32, Option<String>, Option<String>, Option<i32>, Option<i32>, String, Option<String>, Option<String>)>(&self.0)?
             .into_iter()
             .map(|t| tuple_to_post_info(self, t, self.get_current_stellar_time()))
             .collect();
@@ -435,12 +447,14 @@ impl MoreInterestingConn {
                 self::stars::dsl::post_id.nullable(),
                 self::flags::dsl::post_id.nullable(),
                 self::users::dsl::username,
+                self::posts::dsl::banner_title,
+                self::posts::dsl::banner_desc,
             ))
             .filter(visible.eq(true))
             .filter(domain_id.eq(domain_id_param))
             .order_by((initial_stellar_time.desc(), self::posts::dsl::created_at.desc()))
             .limit(200)
-            .get_results::<(i32, Base32, String, Option<String>, bool, i32, i32, i32, bool, NaiveDateTime, i32, Option<String>, Option<String>, Option<i32>, Option<i32>, String)>(&self.0)?
+            .get_results::<(i32, Base32, String, Option<String>, bool, i32, i32, i32, bool, NaiveDateTime, i32, Option<String>, Option<String>, Option<i32>, Option<i32>, String, Option<String>, Option<String>)>(&self.0)?
             .into_iter()
             .map(|t| tuple_to_post_info(self, t, self.get_current_stellar_time()))
             .collect();
@@ -477,12 +491,14 @@ impl MoreInterestingConn {
                 self::stars::dsl::post_id.nullable(),
                 self::flags::dsl::post_id.nullable(),
                 self::users::dsl::username,
+                self::posts::dsl::banner_title,
+                self::posts::dsl::banner_desc,
             ))
             .filter(visible.eq(true))
             .filter(search_index.matches(plainto_tsquery(search)))
             .order_by((initial_stellar_time.desc(), self::posts::dsl::created_at.desc()))
             .limit(200)
-            .get_results::<(i32, Base32, String, Option<String>, bool, i32, i32, i32, bool, NaiveDateTime, i32, Option<String>, Option<String>, Option<i32>, Option<i32>, String)>(&self.0)?
+            .get_results::<(i32, Base32, String, Option<String>, bool, i32, i32, i32, bool, NaiveDateTime, i32, Option<String>, Option<String>, Option<i32>, Option<i32>, String, Option<String>, Option<String>)>(&self.0)?
             .into_iter()
             .map(|t| tuple_to_post_info(self, t, self.get_current_stellar_time()))
             .collect();
@@ -516,12 +532,14 @@ impl MoreInterestingConn {
                 self::stars::dsl::post_id.nullable(),
                 self::flags::dsl::post_id.nullable(),
                 self::users::dsl::username,
+                self::posts::dsl::banner_title,
+                self::posts::dsl::banner_desc,
             ))
             .filter(visible.eq(true))
             .filter(self::posts::dsl::submitted_by.eq(user_info_id_param))
             .order_by((initial_stellar_time.desc(), self::posts::dsl::created_at.desc()))
             .limit(200)
-            .get_results::<(i32, Base32, String, Option<String>, bool, i32, i32, i32, bool, NaiveDateTime, i32, Option<String>, Option<String>, Option<i32>, Option<i32>, String)>(&self.0)?
+            .get_results::<(i32, Base32, String, Option<String>, bool, i32, i32, i32, bool, NaiveDateTime, i32, Option<String>, Option<String>, Option<i32>, Option<i32>, String, Option<String>, Option<String>)>(&self.0)?
             .into_iter()
             .map(|t| tuple_to_post_info(self, t, self.get_current_stellar_time()))
             .collect();
@@ -556,10 +574,12 @@ impl MoreInterestingConn {
                 self::stars::dsl::post_id.nullable(),
                 self::flags::dsl::post_id.nullable(),
                 self::users::dsl::username,
+                self::posts::dsl::banner_title,
+                self::posts::dsl::banner_desc,
             ))
             .filter(rejected.eq(false))
             .filter(uuid.eq(uuid_param.into_i64()))
-            .first::<(i32, Base32, String, Option<String>, bool, i32, i32, i32, bool, NaiveDateTime, i32, Option<String>, Option<String>, Option<i32>, Option<i32>, String)>(&self.0)?, self.get_current_stellar_time()))
+            .first::<(i32, Base32, String, Option<String>, bool, i32, i32, i32, bool, NaiveDateTime, i32, Option<String>, Option<String>, Option<i32>, Option<i32>, String, Option<String>, Option<String>)>(&self.0)?, self.get_current_stellar_time()))
     }
     pub fn get_current_stellar_time(&self) -> i32 {
         use self::stars::dsl::*;
@@ -1006,9 +1026,11 @@ impl MoreInterestingConn {
                 self::stars::dsl::post_id.nullable(),
                 self::flags::dsl::post_id.nullable(),
                 self::users::dsl::username,
+                self::posts::dsl::banner_title,
+                self::posts::dsl::banner_desc,
             ))
             .filter(self::comments::dsl::id.eq(comment_id_param))
-            .first::<(i32, Base32, String, Option<String>, bool, i32, i32, i32, bool, NaiveDateTime, i32, Option<String>, Option<String>, Option<i32>, Option<i32>, String)>(&self.0)?, self.get_current_stellar_time()))
+            .first::<(i32, Base32, String, Option<String>, bool, i32, i32, i32, bool, NaiveDateTime, i32, Option<String>, Option<String>, Option<i32>, Option<i32>, String, Option<String>, Option<String>)>(&self.0)?, self.get_current_stellar_time()))
     }
     pub fn get_post_starred_by(&self, post_id_param: i32) -> Result<Vec<String>, DieselError> {
         use self::stars::dsl::*;
@@ -1260,6 +1282,26 @@ impl MoreInterestingConn {
             .execute(&self.0)
             .map(|_| ())
     }
+    pub fn mod_log_banner_post(
+        &self,
+        user_id_value: i32,
+        post_uuid_value: Base32,
+        banner_title_value: &str,
+        banner_desc_value: &str,
+    ) -> Result<(), DieselError> {
+        diesel::insert_into(moderation::table)
+            .values(CreateModeration{
+                payload: json!{{
+                    "type": "banner_post",
+                    "post_uuid": post_uuid_value,
+                    "banner_title": banner_title_value,
+                    "banner_desc": banner_desc_value,
+                }},
+                created_by: user_id_value,
+            })
+            .execute(&self.0)
+            .map(|_| ())
+    }
     pub fn find_moderated_post(&self, user_id_param: i32) -> Option<PostInfo> {
         use self::posts::dsl::*;
         use self::stars::dsl::*;
@@ -1286,12 +1328,14 @@ impl MoreInterestingConn {
                 self::stars::dsl::post_id.nullable(),
                 self::flags::dsl::post_id.nullable(),
                 self::users::dsl::username,
+                self::posts::dsl::banner_title,
+                self::posts::dsl::banner_desc,
             ))
             .filter(visible.eq(false))
             .filter(rejected.eq(false))
             .order_by(self::posts::dsl::created_at.asc())
             .limit(50)
-            .get_results::<(i32, Base32, String, Option<String>, bool, i32, i32, i32, bool, NaiveDateTime, i32, Option<String>, Option<String>, Option<i32>, Option<i32>, String)>(&self.0).ok()?
+            .get_results::<(i32, Base32, String, Option<String>, bool, i32, i32, i32, bool, NaiveDateTime, i32, Option<String>, Option<String>, Option<i32>, Option<i32>, String, Option<String>, Option<String>)>(&self.0).ok()?
             .into_iter()
             .map(|t| tuple_to_post_info(self, t, self.get_current_stellar_time()))
             .collect();
@@ -1335,6 +1379,17 @@ impl MoreInterestingConn {
             .set((
                 visible.eq(true),
                 initial_stellar_time.eq(self.get_current_stellar_time()),
+            ))
+            .execute(&self.0)?;
+        Ok(())
+    }
+    pub fn banner_post(&self, post_id_value: i32, banner_title_value: Option<&str>, banner_desc_value: Option<&str>) -> Result<(), DieselError> {
+        use self::posts::dsl::*;
+        diesel::update(posts.find(post_id_value))
+            .set((
+                initial_stellar_time.eq(self.get_current_stellar_time()),
+                banner_title.eq(banner_title_value),
+                banner_desc.eq(banner_desc_value),
             ))
             .execute(&self.0)?;
         Ok(())
@@ -1445,7 +1500,7 @@ impl MoreInterestingConn {
     }
 }
 
-fn tuple_to_post_info(conn: &MoreInterestingConn, (id, uuid, title, url, visible, initial_stellar_time, score, comment_count, authored_by_submitter, created_at, submitted_by, excerpt, excerpt_html, starred_post_id, flagged_post_id, submitted_by_username): (i32, Base32, String, Option<String>, bool, i32, i32, i32, bool, NaiveDateTime, i32, Option<String>, Option<String>, Option<i32>, Option<i32>, String), current_stellar_time: i32) -> PostInfo {
+fn tuple_to_post_info(conn: &MoreInterestingConn, (id, uuid, title, url, visible, initial_stellar_time, score, comment_count, authored_by_submitter, created_at, submitted_by, excerpt, excerpt_html, starred_post_id, flagged_post_id, submitted_by_username, banner_title, banner_desc): (i32, Base32, String, Option<String>, bool, i32, i32, i32, bool, NaiveDateTime, i32, Option<String>, Option<String>, Option<i32>, Option<i32>, String, Option<String>, Option<String>), current_stellar_time: i32) -> PostInfo {
     let link_url = if let Some(ref url) = url {
         url.clone()
     } else {
@@ -1456,7 +1511,7 @@ fn tuple_to_post_info(conn: &MoreInterestingConn, (id, uuid, title, url, visible
     PostInfo {
         id, uuid, title, url, visible, score, authored_by_submitter, created_at,
         submitted_by, submitted_by_username, comment_count, title_html,
-        excerpt, excerpt_html,
+        excerpt, excerpt_html, banner_title, banner_desc,
         starred_by_me: starred_post_id.is_some(),
         flagged_by_me: flagged_post_id.is_some(),
         hotness: compute_hotness(initial_stellar_time, current_stellar_time, score, authored_by_submitter)

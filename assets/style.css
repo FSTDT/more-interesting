@@ -560,12 +560,21 @@ article, aside {
 article {
     margin-top: 1.5em;
     margin-bottom: 3em;
+    padding: 0 0.25em;
 }
 
 aside {
-    margin-top: -1px;
+    margin: 0.5em 0.5em 0 0;
 }
 
+@media (max-width:90em) {
+    article {
+        margin-left: 0.25em;
+    }
+    aside {
+        margin-left: 0.75em;
+    }
+}
 @media (max-width:45em) {
     article {
         border-left: none;
@@ -584,7 +593,8 @@ html.dark article, html.dark aside {
 .article-header {
     margin-top: -1.5em;
     margin-bottom: -0.5px;
-    padding: 0 0.75em;
+    margin-right: 5em;
+    padding: 0 0.5em;
     display: block;
 }
 
@@ -921,4 +931,15 @@ details:not([open]) > .big-img {
 }
 details[open] > .img-lightbox:before {
     content: "-";
+}
+
+.post-banner {
+    font-size: 2em;
+    margin: 0;
+    text-align: center;
+}
+.post-banner-desc {
+    font-size: 1.5em;
+    margin: 0;
+    text-align: center;
 }
