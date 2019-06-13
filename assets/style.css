@@ -922,3 +922,14 @@ details:not([open]) > .big-img {
 details[open] > .img-lightbox:before {
     content: "-";
 }
+
+.post-banner {
+    font-size: 2em;
+    margin: 0;
+    text-align: center;
+}
+.post-banner-desc {
+    font-size: 1.5em;
+    margin: 0;
+    text-align: center;
+}
