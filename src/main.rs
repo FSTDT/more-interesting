@@ -770,8 +770,9 @@ struct EditTagsForm {
 
 #[post("/edit-tags", data = "<form>")]
 fn edit_tags(conn: MoreInterestingConn, _user: Moderator, form: Form<EditTagsForm>) -> impl Responder<'static> {
+    let name = if form.name.starts_with('#') { &form.name[1..] } else { &form.name[..] };
     match conn.create_or_update_tag(&NewTag {
-        name: &form.name,
+        name,
         description: form.description.as_ref().map(|d| &d[..])
     }) {
         Ok(_) => {
