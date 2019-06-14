@@ -1387,7 +1387,6 @@ impl MoreInterestingConn {
         use self::posts::dsl::*;
         diesel::update(posts.find(post_id_value))
             .set((
-                initial_stellar_time.eq(self.get_current_stellar_time()),
                 banner_title.eq(banner_title_value),
                 banner_desc.eq(banner_desc_value),
             ))
