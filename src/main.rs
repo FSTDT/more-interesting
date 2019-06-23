@@ -980,7 +980,7 @@ fn get_mod_queue(conn: MoreInterestingConn, user: Moderator, flash: Option<Flash
     if mod_a_comment {
         if let Some(comment_info) = conn.find_moderated_comment(user.0.id) {
             let post_info = conn.get_post_info_from_comment(user.0.id, comment_info.id).unwrap();
-            return Ok(Template::render("mod-queue", &TemplateContext {
+            return Ok(Template::render("mod-queue-comment", &TemplateContext {
                 title: Cow::Borrowed("moderate comment"),
                 parent: "layout",
                 alert: flash.map(|f| f.msg().to_owned()),
@@ -993,19 +993,24 @@ fn get_mod_queue(conn: MoreInterestingConn, user: Moderator, flash: Option<Flash
         }
     }
     if let Some(post_info) = conn.find_moderated_post(user.0.id) {
-        return Ok(Template::render("mod-queue", &TemplateContext {
+        let comments = conn.get_comments_from_post(post_info.id, user.0.id).unwrap_or_else(|e| {
+            warn!("Failed to get comments: {:?}", e);
+            Vec::new()
+        });
+        return Ok(Template::render("mod-queue-post", &TemplateContext {
             title: Cow::Borrowed("moderate post"),
             parent: "layout",
             alert: flash.map(|f| f.msg().to_owned()),
             config: config.clone(),
             posts: vec![post_info],
             user: user.0,
+            comments,
             ..default()
         }))
     }
     if let Some(comment_info) = conn.find_moderated_comment(user.0.id) {
         let post_info = conn.get_post_info_from_comment(user.0.id, comment_info.id).unwrap();
-        return Ok(Template::render("mod-queue", &TemplateContext {
+        return Ok(Template::render("mod-queue-comment", &TemplateContext {
             title: Cow::Borrowed("moderate comment"),
             parent: "layout",
             alert: flash.map(|f| f.msg().to_owned()),
@@ -1016,7 +1021,7 @@ fn get_mod_queue(conn: MoreInterestingConn, user: Moderator, flash: Option<Flash
             ..default()
         }))
     }
-    Ok(Template::render("mod-queue", &TemplateContext {
+    Ok(Template::render("mod-queue-empty", &TemplateContext {
         title: Cow::Borrowed("moderator queue is empty!"),
         parent: "layout",
         alert: flash.map(|f| f.msg().to_owned()),
