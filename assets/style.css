@@ -176,6 +176,7 @@ hr {
 pre {
     font-family: SFMono-Regular,Consolas,Liberation Mono,Menlo,Courier,monospace; /* 1 */
     font-size: 1em; /* 2 */
+    white-space: pre-wrap;
 }
 
 a {
