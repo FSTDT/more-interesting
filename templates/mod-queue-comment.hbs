@@ -1,0 +1,45 @@
+{{#*inline "page"}}
+
+{{#each posts}}
+    {{#if this.banner_title}}
+        <p class=post-banner>{{{this.banner_title}}}</p>
+    {{/if}}
+    {{#if this.banner_desc}}
+        <p class=post-banner-desc>{{{this.banner_desc}}}</p>
+    {{/if}}
+    <article><details><summary title="Hide post" class=module-summary>Show post</summary>
+        <header class=article-header>{{{this.title_html}}}</header>
+        {{#if this.excerpt_html}}
+            <main>{{{this.excerpt_html}}}</main>
+        {{/if}}
+        <footer>
+        submitted by <a href="@{{this.submitted_by_username}}">{{this.submitted_by_username}}</a>
+        {{date this.created_at}} and got
+        <a href={{this.uuid}}>{{this.comment_count}} comments</a>
+        </footer>
+    </details></article>
+{{/each}}
+        <aside>
+            <main>{{{comments.0.html}}}</main>
+            <footer>
+                posted by <a href="@{{comments.0.created_by_username}}">{{comments.0.created_by_username}}</a>
+                {{date comments.0.created_at}}
+                {{#if comments.0.starred_by}}
+                    starred by
+                    {{#each comments.0.starred_by}}
+                        <a href="@{{this}}">{{this}}</a>
+                        {{#unless @last}},{{/unless}}
+                    {{/each}}
+                {{/if}}
+                <div class=form-footer>
+                <form class=module-aside action=moderate-comment method=POST>
+                    <input type="hidden" name="comment" value="{{comments.0.id}}">
+                        <button name="action" value="approve" class=button-default>Approve</button>
+                        <a href="edit-comment?comment={{comments.0.id}}" class=button>Edit</a>
+                        <button name="action" value="delete">Delete</button>
+                </form>
+                </div>
+            </footer>
+        </aside>
+{{/inline}}
+{{~> (parent)~}}

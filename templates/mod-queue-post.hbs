@@ -1,0 +1,46 @@
+{{#*inline "page"}}
+        <article>
+            <header class=article-header>{{{posts.0.title_html}}}</header>
+            {{#if posts.0.excerpt_html}}
+                <main>{{{posts.0.excerpt_html}}}</main>
+            {{/if}}
+            <footer>
+                submitted by <a href="@{{posts.0.submitted_by_username}}">{{posts.0.submitted_by_username}}</a>
+                {{date posts.0.created_at}}
+                {{#if starred_by}}
+                    starred by
+                    {{#each starred_by}}
+                        <a href="@{{this}}">{{this}}</a>
+                        {{#unless @last}},{{/unless}}
+                    {{/each}}
+                {{/if}} and got
+                <a href={{posts.0.uuid}}>{{posts.0.comment_count}} comments</a>
+                <div class=form-footer>
+                <form class=module-aside action=moderate-post method=POST>
+                    <input type="hidden" name="post" value="{{posts.0.uuid}}">
+                        <button name="action" value="approve" class=button-default>Approve</button>
+                        <a href="edit-post?post={{posts.0.uuid}}" class=button>Edit</a>
+                        <button name="action" value="delete">Delete</button>
+                </form>
+                </div>
+            </footer>
+        </article>
+        {{#each comments}}
+            <aside id="{{this.id}}"><details><summary title="Hide comment" class=module-summary>Show comment</summary>
+                <main>{{{this.html}}}</main>
+                <footer>
+                    posted by <a href="@{{this.created_by_username}}">{{this.created_by_username}}</a>
+                    {{date this.created_at}}
+                    <a href="#{{this.id}}">#{{this.id}}</a>
+                    {{#if this.starred_by}}
+                        starred by
+                        {{#each this.starred_by}}
+                            <a href="@{{this}}">{{this}}</a>
+                            {{#unless @last}},{{/unless}}
+                        {{/each}}
+                    {{/if}}
+                </footer>
+            </details></aside>
+        {{/each}}
+{{/inline}}
+{{~> (parent)~}}
