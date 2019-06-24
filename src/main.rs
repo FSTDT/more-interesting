@@ -1212,6 +1212,21 @@ Disallow: /vote
 Disallow: /submit"
 }
 
+fn docs_helper(
+    h: &Helper,
+    _: &Handlebars,
+    _: &Context,
+    _: &mut RenderContext,
+    out: &mut Output
+) -> HelperResult {
+    if let Some(param) = h.param(0) {
+        if let serde_json::Value::String(param) = param.value() {
+            out.write(if param == "BBCode" { "how-to-bbcode.html" } else { "how-to.html" }) ?;
+        }
+    }
+    Ok(())
+}
+
 fn count_helper(
     h: &Helper,
     _: &Handlebars,
@@ -1322,6 +1337,7 @@ fn main() {
         .attach(Template::custom(|engines| {
             engines.handlebars.register_helper("count", Box::new(count_helper));
             engines.handlebars.register_helper("date", Box::new(date_helper));
+            engines.handlebars.register_helper("docs", Box::new(docs_helper));
         }))
         .attach(PidFileFairing)
         .launch();
