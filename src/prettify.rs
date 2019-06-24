@@ -14,8 +14,9 @@ lazy_static!{
         b.add_allowed_classes("blockquote", ["good-quote"][..].iter().cloned());
         b.add_allowed_classes("table", ["good-table"][..].iter().cloned());
         b.add_allowed_classes("span", ["article-header-inner"][..].iter().cloned());
+        b.add_allowed_classes("summary", ["img-lightbox"][..].iter().cloned());
         b.add_tag_attribute_values("a", "is", ["img-lightbox"][..].iter().cloned());
-        b.tags(["br", "a", "p", "b", "i", "blockquote", "code", "pre", "table", "thead", "tbody", "tr", "th", "td", "caption", "span", "sup", "sub", "s"][..].iter().cloned().collect());
+        b.tags(["br", "a", "p", "b", "i", "blockquote", "code", "pre", "table", "thead", "tbody", "tr", "th", "td", "caption", "span", "sup", "sub", "s", "details", "summary"][..].iter().cloned().collect());
         b
     };
     static ref URL_TAG_OPEN: Regex = Regex::new(r"(?i)^\[url\]").unwrap();
@@ -53,6 +54,14 @@ lazy_static!{
     static ref COLOR_TAG_OPEN: Regex = Regex::new(r"(?i)^\[color=[^\]]+\]").unwrap();
     static ref COLOR_TAG_CLOSE: Regex = Regex::new(r"(?i)^\[/color\]").unwrap();
     static ref ALPHANUMERIC: Regex = Regex::new(r"^[a-zA-Z0-9\.]$").unwrap();
+}
+lazy_static!{
+    static ref DETAILS_TAG_OPEN: Regex = Regex::new(r"(?i)^\[details\]").unwrap();
+    static ref DETAILS_TAG_OPEN_PARAM: Regex = Regex::new(r"(?i)^\[details=").unwrap();
+    static ref DETAILS_TAG_CLOSE: Regex = Regex::new(r"(?i)^\[/details\]").unwrap();
+    static ref SPOILER_TAG_OPEN: Regex = Regex::new(r"(?i)^\[spoiler\]").unwrap();
+    static ref SPOILER_TAG_OPEN_PARAM: Regex = Regex::new(r"(?i)^\[spoiler=").unwrap();
+    static ref SPOILER_TAG_CLOSE: Regex = Regex::new(r"(?i)^\[/spoiler\]").unwrap();
 }
 
 
@@ -588,6 +597,53 @@ pub fn prettify_body_bbcode<D: Data>(text: &str, data: &mut D) -> Output {
                     ret_val.push_str(&html);
                     ret_val.push_str("\">image</a>");
                     text = &text[end_tag.end()..];
+                } else {
+                    ret_val.push_str("[");
+                    text = &text[1..];
+                }
+            }
+            // details and spoiler tags
+            b'[' if DETAILS_TAG_OPEN.is_match(&text[..]) => {
+                ret_val.push_str("<details><summary class=img-lightbox>details</summary>");
+                let tag = DETAILS_TAG_OPEN.find(&text[..]).expect("it to still be there");
+                text = &text[tag.end()..];
+            }
+            b'[' if DETAILS_TAG_CLOSE.is_match(&text[..]) => {
+                ret_val.push_str("</details>");
+                let tag = DETAILS_TAG_CLOSE.find(&text[..]).expect("it to still be there");
+                text = &text[tag.end()..];
+            }
+            b'[' if DETAILS_TAG_OPEN_PARAM.is_match(&text[..]) => {
+                let end_param = find_matching_square_bracket(text);
+                if let Some(end_param) = end_param {
+                    let name = &text[9..end_param];
+                    ret_val.push_str("<details><summary class=img-lightbox>");
+                    ret_val.push_str(&escape(&name).to_string());
+                    ret_val.push_str("</summary>");
+                    text = &text[end_param+1..];
+                } else {
+                    ret_val.push_str("[");
+                    text = &text[1..];
+                }
+            }
+            b'[' if SPOILER_TAG_OPEN.is_match(&text[..]) => {
+                ret_val.push_str("<details><summary class=img-lightbox>spoiler</summary>");
+                let tag = SPOILER_TAG_OPEN.find(&text[..]).expect("it to still be there");
+                text = &text[tag.end()..];
+            }
+            b'[' if SPOILER_TAG_CLOSE.is_match(&text[..]) => {
+                ret_val.push_str("</details>");
+                let tag = SPOILER_TAG_CLOSE.find(&text[..]).expect("it to still be there");
+                text = &text[tag.end()..];
+            }
+            b'[' if SPOILER_TAG_OPEN_PARAM.is_match(&text[..]) => {
+                let end_param = find_matching_square_bracket(text);
+                if let Some(end_param) = end_param {
+                    let name = &text[9..end_param];
+                    ret_val.push_str("<details><summary class=img-lightbox>");
+                    ret_val.push_str(&escape(&name).to_string());
+                    ret_val.push_str("</summary>");
+                    text = &text[end_param+1..];
                 } else {
                     ret_val.push_str("[");
                     text = &text[1..];
@@ -1183,6 +1239,78 @@ mod test {
     fn test_bbcode_img() {
         let comment = "[img]ok[/img]";
         let html = "<p><a class=img-lightbox is=img-lightbox href=\"ok\">image</a>";
+        struct MyData;
+        impl Data for MyData {
+            fn check_comment_ref(&mut self, id: i32) -> bool {
+                id == 12345
+            }
+            fn check_hash_tag(&mut self, tag: &str) -> bool {
+                tag == "words"
+            }
+            fn check_username(&mut self, username: &str) -> bool {
+                username == "mentioning"
+            }
+        }
+        assert_eq!(prettify_body_bbcode(comment, &mut MyData).string, CLEANER.clean(html).to_string());
+    }
+    #[test]
+    fn test_bbcode_details_default() {
+        let comment = "[details]ok[/details]";
+        let html = "<p><details><summary class=img-lightbox>details</summary>ok</details>";
+        struct MyData;
+        impl Data for MyData {
+            fn check_comment_ref(&mut self, id: i32) -> bool {
+                id == 12345
+            }
+            fn check_hash_tag(&mut self, tag: &str) -> bool {
+                tag == "words"
+            }
+            fn check_username(&mut self, username: &str) -> bool {
+                username == "mentioning"
+            }
+        }
+        assert_eq!(prettify_body_bbcode(comment, &mut MyData).string, CLEANER.clean(html).to_string());
+    }
+    #[test]
+    fn test_bbcode_details_text() {
+        let comment = "[details=deets]ok[/details]";
+        let html = "<p><details><summary class=img-lightbox>deets</summary>ok</details>";
+        struct MyData;
+        impl Data for MyData {
+            fn check_comment_ref(&mut self, id: i32) -> bool {
+                id == 12345
+            }
+            fn check_hash_tag(&mut self, tag: &str) -> bool {
+                tag == "words"
+            }
+            fn check_username(&mut self, username: &str) -> bool {
+                username == "mentioning"
+            }
+        }
+        assert_eq!(prettify_body_bbcode(comment, &mut MyData).string, CLEANER.clean(html).to_string());
+    }
+    #[test]
+    fn test_bbcode_spoiler_default() {
+        let comment = "[spoiler]ok[/spoiler]";
+        let html = "<p><details><summary class=img-lightbox>spoiler</summary>ok</details>";
+        struct MyData;
+        impl Data for MyData {
+            fn check_comment_ref(&mut self, id: i32) -> bool {
+                id == 12345
+            }
+            fn check_hash_tag(&mut self, tag: &str) -> bool {
+                tag == "words"
+            }
+            fn check_username(&mut self, username: &str) -> bool {
+                username == "mentioning"
+            }
+        }
+        assert_eq!(prettify_body_bbcode(comment, &mut MyData).string, CLEANER.clean(html).to_string());
+    }
+    #[test]
+    fn test_bbcode_spoiler_text() {
+        let comment = "[spoiler=deets]ok[/spoiler]";
+        let html = "<p><details><summary class=img-lightbox>deets</summary>ok</details>";
         struct MyData;
         impl Data for MyData {
             fn check_comment_ref(&mut self, id: i32) -> bool {
