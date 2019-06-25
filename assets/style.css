@@ -429,6 +429,15 @@ button:-moz-focusring,
     outline: 1px dotted ButtonText;
 }
 
+.flag-button-active {
+    background: #a4000f;
+    border-image: none;
+    border-top: solid 2px #ff0039;
+    border-left: solid 2px #ff0039;
+    border-bottom: solid 2px #3e0200;
+    border-right: solid 2px #3e0200;
+}
+
 fieldset {
     border: 1px solid #c0c0c0;
     margin: 0 2px;

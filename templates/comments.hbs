@@ -53,8 +53,8 @@
                     <img width=12 height=12 class=good-img src=assets/{{#if posts.0.starred_by_me}}star_active.svg{{else}}star.svg{{/if}} alt="{{#if posts.0.starred_by_me}}Remove star{{else}}Add star{{/if}}">
                 </button>
                 {{#if (gte user.trust_level 1)}}
-                    <button name="{{#if posts.0.flagged_by_me}}rm_flag{{else}}add_flag{{/if}}" value={{posts.0.uuid}} title="{{#if posts.0.flagged_by_me}}Remove flag{{else}}Add flag{{/if}}">
-                        <img width=12 height=12 class=good-img src=assets/{{#if posts.0.flagged_by_me}}flag_active.svg{{else}}flag.svg{{/if}} alt="{{#if posts.0.flagged_by_me}}Remove flag{{else}}Add flag{{/if}}">
+                    <button class={{#if posts.0.flagged_by_me}}flag-button-active{{else}}""{{/if}} name="{{#if posts.0.flagged_by_me}}rm_flag{{else}}add_flag{{/if}}" value={{posts.0.uuid}} title="{{#if posts.0.flagged_by_me}}Remove flag{{else}}Add flag{{/if}}">
+                        <img width=12 height=12 class=good-img src=assets/{{#if posts.0.flagged_by_me}}flag_active{{else}}flag{{/if}}.svg alt="{{#if posts.0.flagged_by_me}}Remove flag{{else}}Add flag{{/if}}">
                     </button>
                 {{/if}}
             </form>
@@ -93,8 +93,8 @@
                         <img width=12 height=12 class=good-img src=assets/{{#if this.starred_by_me}}star_active.svg{{else}}star.svg{{/if}} alt="{{#if this.starred_by_me}}Remove star{{else}}Add star{{/if}}">
                     </button>
                     {{#if (gte ../user.trust_level 1)}}
-                        <button name="{{#if this.flagged_by_me}}rm_flag_comment{{else}}add_flag_comment{{/if}}" value={{this.uuid}} title="{{#if this.flagged_by_me}}Remove flag{{else}}Add flag{{/if}}">
-                            <img width=12 height=12 class=good-img src=assets/{{#if this.flagged_by_me}}flag_active.svg{{else}}flag.svg{{/if}} alt="{{#if this.flagged_by_me}}Remove flag{{else}}Add flag{{/if}}">
+                        <button class={{#if this.flagged_by_me}}flag-button-active{{else}}""{{/if}} name="{{#if this.flagged_by_me}}rm_flag_comment{{else}}add_flag_comment{{/if}}" value={{this.uuid}} title="{{#if this.flagged_by_me}}Remove flag{{else}}Add flag{{/if}}">
+                            <img width=12 height=12 class=good-img src=assets/{{#if this.flagged_by_me}}flag_active{{else}}flag{{/if}}.svg alt="{{#if this.flagged_by_me}}Remove flag{{else}}Add flag{{/if}}">
                         </button>
                     {{/if}}
                     </form>
