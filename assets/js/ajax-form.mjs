@@ -35,11 +35,13 @@ export class AjaxFormElement extends HTMLElement {
                 img.src = "assets/flag_active.svg";
                 img.alt = t.title = "Remove flag";
                 t.name = 'rm_flag';
+                t.className += ' flag-button-active';
                 break;
             case "flag":
                 img.src = "assets/flag.svg";
                 img.alt = t.title = "Add flag";
                 t.name = 'add_flag';
+                t.className = t.className.replace('flag-button-active', '');
                 break;
         }
     }
