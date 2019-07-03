@@ -254,10 +254,12 @@ fn index(conn: MoreInterestingConn, user: Option<User>, flash: Option<FlashMessa
     let user = user.unwrap_or(User::default());
     let title;
     let mut is_home = false;
+    let mut tags = vec![];
     let posts = if let Some(tag_name) = params.as_ref().and_then(|params| params.tag.as_ref()) {
-        if let Ok(recent) = conn.get_tag_by_name(tag_name)
-            .and_then(|tag| conn.get_post_info_recent_by_tag(user.id, tag.id)) {
+        if let Ok((recent, tag)) = conn.get_tag_by_name(tag_name)
+            .and_then(|tag| Ok((conn.get_post_info_recent_by_tag(user.id, tag.id)?, tag))) {
             title = Cow::Owned(tag_name.clone());
+            tags = vec![tag];
             recent
         } else {
             return None;
@@ -295,6 +297,7 @@ fn index(conn: MoreInterestingConn, user: Option<User>, flash: Option<FlashMessa
         alert: flash.map(|f| f.msg().to_owned()),
         config: config.clone(),
         title, user, posts, is_home,
+        tags,
         ..default()
     }))
 }

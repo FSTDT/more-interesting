@@ -1,6 +1,6 @@
 {{#*inline "page"}}
     {{#if (not posts.0.visible)}}
-    <div class="alert">This post is waiting for moderator attention.</div>
+    <div class=alert>This post is waiting for moderator attention.</div>
     {{/if}}
     {{#if (gte user.trust_level 3)}}
     <details-menu-bar>
@@ -30,7 +30,7 @@
             <p class=post-banner-desc>{{{posts.0.banner_desc}}}</p>
         {{/if}}
         <article>
-            <header class=article-header>{{{posts.0.title_html}}}</header>
+            <h2 class=article-header>{{{posts.0.title_html}}}</h2>
             {{#if posts.0.excerpt_html}}
                 <main>{{{posts.0.excerpt_html}}}</main>
             {{/if}}
@@ -60,6 +60,7 @@
             </form>
             </footer>
         </article>
+        <h3 id=comments>{{posts.0.comment_count}} comments</h3>
         {{#each legacy_comments}}
             <aside id="{{this.id}}"><details open><summary title="Hide comment" class=module-summary>Show comment</summary>
                 <main>{{{this.html}}}</main>
@@ -103,10 +104,10 @@
         {{/each}}
     </ajax-form>
     {{#if (gte user.trust_level 0)}}
-    <form action="comment" method=POST>
+    <form action=comment method=POST>
         <label>
-            <h3>Add your comment</h3>
-            <smart-textarea><textarea name=text required is="smart-punct-textarea" class="main"></textarea></smart-textarea>
+            <h3 id=comment-form>Add your comment</h3>
+            <smart-textarea><textarea name=text required is=smart-punct-textarea class=main></textarea></smart-textarea>
         </label>
         <input type=hidden name=post value="{{posts.0.uuid}}">
         <div class=form-footer>
