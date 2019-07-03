@@ -14,7 +14,7 @@
                         {{#unless @last}},{{/unless}}
                     {{/each}}
                 {{/if}} and got
-                <a href={{posts.0.uuid}}>{{posts.0.comment_count}} comments</a>
+                <a href="{{posts.0.uuid}}#comments">{{posts.0.comment_count}} comments</a>
                 <div class=form-footer>
                 <form class=module-aside action=moderate-post method=POST>
                     <input type="hidden" name="post" value="{{posts.0.uuid}}">

@@ -606,6 +606,9 @@ html.dark article, html.dark aside {
     margin-right: 5em;
     padding: 0 0.5em;
     display: block;
+    font-weight: inherit;
+    font-size: inherit;
+    line-height: inherit;
 }
 
 .article-header-inner {
@@ -953,4 +956,11 @@ details[open] > .img-lightbox:before {
     font-size: 1.5em;
     margin: 0;
     text-align: center;
+}
+
+.tight-headline {
+    margin-bottom: 2em;
+}
+.tight-headline h2, .tight-headline p {
+    margin: 0;
 }
