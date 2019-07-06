@@ -1,0 +1,17 @@
+{{#*inline "page"}}
+<header class=tight-headline>
+<h2>@{{title}}</h2>
+<nav><a href=@{{title}}>Posts</a> &bull; <b>Comments</b></nav>
+</header>
+{{#each comment_search_result}}
+    <h3><a href={{this.post_uuid}}>{{this.post_title}}</a></h3>
+    <aside>
+        <main>{{{this.html}}}</main>
+        <footer>
+            posted by {{this.created_by_username}}
+            {{date this.created_at}}
+        </footer>
+    </aside>
+{{/each}}
+{{/inline}}
+{{~> (parent)~}}

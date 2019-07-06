@@ -184,6 +184,18 @@ pub struct CommentInfo {
     pub starred_by: Vec<String>,
 }
 
+#[derive(Serialize)]
+pub struct CommentSearchResult {
+    pub id: i32,
+    pub html: String,
+    pub post_id: i32,
+    pub post_uuid: Base32,
+    pub post_title: String,
+    pub created_at: NaiveDateTime,
+    pub created_by: i32,
+    pub created_by_username: String,
+}
+
 #[derive(Queryable)]
 pub struct InviteToken {
     pub uuid: Base32,
@@ -997,6 +1009,32 @@ impl MoreInterestingConn {
             .collect();
         Ok(all)
     }
+    pub fn search_comments_by_user(&self, user_id_param: i32) -> Result<Vec<CommentSearchResult>, DieselError> {
+        use self::comments::dsl::*;
+        use self::users::dsl::*;
+        use self::posts::dsl::*;
+        let all: Vec<CommentSearchResult> = comments
+            .inner_join(users)
+            .inner_join(posts)
+            .select((
+                self::comments::dsl::id,
+                self::comments::dsl::html,
+                self::posts::dsl::id,
+                self::posts::dsl::uuid,
+                self::posts::dsl::title,
+                self::comments::dsl::created_at,
+                self::comments::dsl::created_by,
+                self::users::dsl::username,
+            ))
+            .filter(self::comments::dsl::visible.eq(true))
+            .filter(self::comments::dsl::created_by.eq(user_id_param))
+            .order_by(self::comments::dsl::created_at.desc())
+            .get_results::<(i32, String, i32, Base32, String, NaiveDateTime, i32, String)>(&self.0)?
+            .into_iter()
+            .map(|t| tuple_to_comment_search_results(t))
+            .collect();
+        Ok(all)
+    }
     pub fn get_post_info_from_comment(&self, user_id_param: i32, comment_id_param: i32) -> Result<PostInfo, DieselError> {
         use self::posts::dsl::*;
         use self::stars::dsl::*;
@@ -1523,6 +1561,12 @@ fn tuple_to_comment_info(conn: &MoreInterestingConn, (id, text, html, visible, p
         starred_by: conn.get_comment_starred_by(id).unwrap_or(Vec::new()),
         starred_by_me: starred_comment_id.is_some(),
         flagged_by_me: flagged_comment_id.is_some(),
+    }
+}
+
+fn tuple_to_comment_search_results((id, html, post_id, post_uuid, post_title, created_at, created_by, created_by_username): (i32, String, i32, Base32, String, NaiveDateTime, i32, String)) -> CommentSearchResult {
+    CommentSearchResult {
+        id, html, post_id, post_uuid, post_title, created_at, created_by, created_by_username,
     }
 }
 
