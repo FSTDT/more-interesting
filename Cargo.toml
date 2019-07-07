@@ -13,7 +13,7 @@ diesel_full_text_search = "1.0.1"
 chrono = { version = "0.4.6", features = ["serde"] }
 chrono-humanize = "0.0.11"
 ring = "0.13.5"
-rand = "0.6.5"
+rand = "0.7.0"
 serde = { version = "1.0.94", features = ["derive"] }
 unicode-normalization = "0.1.8"
 lazy_static = "1"
