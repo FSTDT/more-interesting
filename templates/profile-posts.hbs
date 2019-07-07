@@ -1,10 +1,8 @@
 {{#*inline "page"}}
-{{#each tags}}
 <header class=tight-headline>
-<h2>#{{this.name}}</h2>
-<p>{{this.description}}</p>
+<h2>@{{title}}</h2>
+<nav><b>Posts</b> &bull; <a href=comments?user={{title}}>Comments</a></nav>
 </header>
-{{/each}}
 <ajax-form>
 {{#each posts}}
     {{#if this.banner_title}}

@@ -30,7 +30,7 @@ use rocket_contrib::serve::StaticFiles;
 use rocket_contrib::templates::{Template, handlebars};
 use serde::Serialize;
 use std::borrow::Cow;
-use crate::models::{PostInfo, NewStar, NewUser, CommentInfo, NewPost, NewComment, NewStarComment, NewTag, Tag, Comment, ModerationInfo, NewFlag, NewFlagComment, LegacyComment};
+use crate::models::{PostInfo, NewStar, NewUser, CommentInfo, NewPost, NewComment, NewStarComment, NewTag, Tag, Comment, ModerationInfo, NewFlag, NewFlagComment, LegacyComment, CommentSearchResult};
 use base32::Base32;
 use url::Url;
 use std::collections::HashMap;
@@ -87,6 +87,7 @@ struct TemplateContext {
     starred_by: Vec<String>,
     comments: Vec<CommentInfo>,
     legacy_comments: Vec<LegacyComment>,
+    comment_search_result: Vec<CommentSearchResult>,
     comment: Option<Comment>,
     user: User,
     parent: &'static str,
@@ -300,6 +301,30 @@ fn index(conn: MoreInterestingConn, user: Option<User>, flash: Option<FlashMessa
         tags,
         ..default()
     }))
+}
+
+#[derive(FromForm)]
+struct SearchCommentsParams {
+    user: Option<String>,
+}
+
+#[get("/comments?<params..>")]
+fn search_comments(conn: MoreInterestingConn, user: Option<User>, flash: Option<FlashMessage>, params: Option<Form<SearchCommentsParams>>, config: State<SiteConfig>) -> Option<impl Responder<'static>> {
+    let user = user.unwrap_or(User::default());
+    if let Some(username) = params.as_ref().and_then(|params| params.user.as_ref()) {
+        let by_user = conn.get_user_by_username(&username[..]).into_option()?;
+        let comment_search_result = conn.search_comments_by_user(by_user.id).into_option()?;
+        let title = Cow::Owned(by_user.username.clone());
+        Some(Template::render("profile-comments", &TemplateContext {
+            parent: "layout",
+            alert: flash.map(|f| f.msg().to_owned()),
+            config: config.clone(),
+            title, user, comment_search_result,
+            ..default()
+        }))
+    } else {
+        None
+    }
 }
 
 #[get("/top")]
@@ -531,7 +556,7 @@ fn get_user_info(conn: MoreInterestingConn, user: Option<User>, username: UserIn
     } else {
         return Err(Status::InternalServerError);
     };
-    Ok(Template::render("index", &TemplateContext {
+    Ok(Template::render("profile-posts", &TemplateContext {
         title: Cow::Owned(username.0),
         parent: "layout",
         alert: flash.map(|f| f.msg().to_owned()),
@@ -1220,7 +1245,7 @@ fn docs_helper(
     _: &Handlebars,
     _: &Context,
     _: &mut RenderContext,
-    out: &mut Output
+    out: &mut dyn Output
 ) -> HelperResult {
     if let Some(param) = h.param(0) {
         if let serde_json::Value::String(param) = param.value() {
@@ -1235,7 +1260,7 @@ fn count_helper(
     _: &Handlebars,
     _: &Context,
     _: &mut RenderContext,
-    out: &mut Output
+    out: &mut dyn Output
 ) -> HelperResult {
     if let Some(param) = h.param(0) {
         if let serde_json::Value::Array(param) = param.value() {
@@ -1250,7 +1275,7 @@ fn date_helper(
     _: &Handlebars,
     _: &Context,
     _: &mut RenderContext,
-    out: &mut Output
+    out: &mut dyn Output
 ) -> HelperResult {
     // Design rationale:
     //
@@ -1335,7 +1360,7 @@ fn main() {
             }
             Ok(rocket)
         }))
-        .mount("/", routes![index, login_form, login, logout, create_link_form, create_post_form, create, get_comments, vote, signup, get_settings, create_invite, invite_tree, change_password, post_comment, vote_comment, get_edit_tags, edit_tags, get_tags, edit_post, get_edit_post, edit_comment, get_edit_comment, set_dark_mode, set_big_mode, mod_log, get_user_info, get_mod_queue, moderate_post, moderate_comment, get_public_signup, rebake, random, redirect_legacy_id, latest, rss, top, banner_post, robots_txt])
+        .mount("/", routes![index, login_form, login, logout, create_link_form, create_post_form, create, get_comments, vote, signup, get_settings, create_invite, invite_tree, change_password, post_comment, vote_comment, get_edit_tags, edit_tags, get_tags, edit_post, get_edit_post, edit_comment, get_edit_comment, set_dark_mode, set_big_mode, mod_log, get_user_info, get_mod_queue, moderate_post, moderate_comment, get_public_signup, rebake, random, redirect_legacy_id, latest, rss, top, banner_post, robots_txt, search_comments])
         .mount("/assets", StaticFiles::from("assets"))
         .attach(Template::custom(|engines| {
             engines.handlebars.register_helper("count", Box::new(count_helper));
