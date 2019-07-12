@@ -1028,7 +1028,36 @@ impl MoreInterestingConn {
             ))
             .filter(self::comments::dsl::visible.eq(true))
             .filter(self::comments::dsl::created_by.eq(user_id_param))
-            .order_by(self::comments::dsl::created_at.desc())
+            .order_by(self::comments::dsl::id.desc())
+            .limit(200)
+            .get_results::<(i32, String, i32, Base32, String, NaiveDateTime, i32, String)>(&self.0)?
+            .into_iter()
+            .map(|t| tuple_to_comment_search_results(t))
+            .collect();
+        Ok(all)
+    }
+    pub fn search_comments_by_user_after(&self, user_id_param: i32, after_id_param: i32) -> Result<Vec<CommentSearchResult>, DieselError> {
+        use self::comments::dsl::*;
+        use self::users::dsl::*;
+        use self::posts::dsl::*;
+        let all: Vec<CommentSearchResult> = comments
+            .inner_join(users)
+            .inner_join(posts)
+            .select((
+                self::comments::dsl::id,
+                self::comments::dsl::html,
+                self::posts::dsl::id,
+                self::posts::dsl::uuid,
+                self::posts::dsl::title,
+                self::comments::dsl::created_at,
+                self::comments::dsl::created_by,
+                self::users::dsl::username,
+            ))
+            .filter(self::comments::dsl::visible.eq(true))
+            .filter(self::comments::dsl::created_by.eq(user_id_param))
+            .filter(self::comments::dsl::id.lt(after_id_param))
+            .order_by(self::comments::dsl::id.desc())
+            .limit(200)
             .get_results::<(i32, String, i32, Base32, String, NaiveDateTime, i32, String)>(&self.0)?
             .into_iter()
             .map(|t| tuple_to_comment_search_results(t))
