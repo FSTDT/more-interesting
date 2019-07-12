@@ -12,6 +12,9 @@
             {{date this.created_at}}
         </footer>
     </aside>
+    {{#if @last}}
+    <p><a href="?user={{../title}}&after={{this.id}}">Next page</a></p>
+    {{/if}}
 {{/each}}
 {{/inline}}
 {{~> (parent)~}}

@@ -4,7 +4,8 @@
             {{#if posts.0.excerpt_html}}
                 <main>{{{posts.0.excerpt_html}}}</main>
             {{/if}}
-            <footer>
+            <footer class=footer-container>
+                <div class=footer-main>
                 submitted by <a href="@{{posts.0.submitted_by_username}}">{{posts.0.submitted_by_username}}</a>
                 {{date posts.0.created_at}}
                 {{#if starred_by}}
@@ -15,14 +16,13 @@
                     {{/each}}
                 {{/if}} and got
                 <a href="{{posts.0.uuid}}#comments">{{posts.0.comment_count}} comments</a>
-                <div class=form-footer>
-                <form class=module-aside action=moderate-post method=POST>
+                </div>
+                <form class=footer-aside action=moderate-post method=POST>
                     <input type="hidden" name="post" value="{{posts.0.uuid}}">
                         <button name="action" value="approve" class=button-default>Approve</button>
                         <a href="edit-post?post={{posts.0.uuid}}" class=button>Edit</a>
                         <button name="action" value="delete">Delete</button>
                 </form>
-                </div>
             </footer>
         </article>
         {{#each comments}}

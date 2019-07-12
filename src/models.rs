@@ -352,6 +352,83 @@ impl MoreInterestingConn {
             .collect();
         Ok(all)
     }
+    pub fn get_post_info_new(&self, user_id_param: i32) -> Result<Vec<PostInfo>, DieselError> {
+        use self::posts::dsl::*;
+        use self::stars::dsl::*;
+        use self::flags::dsl::*;
+        use self::users::dsl::*;
+        let all: Vec<PostInfo> = posts
+            .left_outer_join(stars.on(self::stars::dsl::post_id.eq(self::posts::dsl::id).and(self::stars::dsl::user_id.eq(user_id_param))))
+            .left_outer_join(flags.on(self::flags::dsl::post_id.eq(self::posts::dsl::id).and(self::flags::dsl::user_id.eq(user_id_param))))
+            .inner_join(users)
+            .select((
+                self::posts::dsl::id,
+                self::posts::dsl::uuid,
+                self::posts::dsl::title,
+                self::posts::dsl::url,
+                self::posts::dsl::visible,
+                self::posts::dsl::initial_stellar_time,
+                self::posts::dsl::score,
+                self::posts::dsl::comment_count,
+                self::posts::dsl::authored_by_submitter,
+                self::posts::dsl::created_at,
+                self::posts::dsl::submitted_by,
+                self::posts::dsl::excerpt,
+                self::posts::dsl::excerpt_html,
+                self::stars::dsl::post_id.nullable(),
+                self::flags::dsl::post_id.nullable(),
+                self::users::dsl::username,
+                self::posts::dsl::banner_title,
+                self::posts::dsl::banner_desc,
+            ))
+            .filter(visible.eq(true))
+            .order_by(self::posts::dsl::id.desc())
+            .limit(200)
+            .get_results::<(i32, Base32, String, Option<String>, bool, i32, i32, i32, bool, NaiveDateTime, i32, Option<String>, Option<String>, Option<i32>, Option<i32>, String, Option<String>, Option<String>)>(&self.0)?
+            .into_iter()
+            .map(|t| tuple_to_post_info(self, t, self.get_current_stellar_time()))
+            .collect();
+        Ok(all)
+    }
+    pub fn get_post_info_new_after(&self, user_id_param: i32, after_id_param: i32) -> Result<Vec<PostInfo>, DieselError> {
+        use self::posts::dsl::*;
+        use self::stars::dsl::*;
+        use self::flags::dsl::*;
+        use self::users::dsl::*;
+        let all: Vec<PostInfo> = posts
+            .left_outer_join(stars.on(self::stars::dsl::post_id.eq(self::posts::dsl::id).and(self::stars::dsl::user_id.eq(user_id_param))))
+            .left_outer_join(flags.on(self::flags::dsl::post_id.eq(self::posts::dsl::id).and(self::flags::dsl::user_id.eq(user_id_param))))
+            .inner_join(users)
+            .select((
+                self::posts::dsl::id,
+                self::posts::dsl::uuid,
+                self::posts::dsl::title,
+                self::posts::dsl::url,
+                self::posts::dsl::visible,
+                self::posts::dsl::initial_stellar_time,
+                self::posts::dsl::score,
+                self::posts::dsl::comment_count,
+                self::posts::dsl::authored_by_submitter,
+                self::posts::dsl::created_at,
+                self::posts::dsl::submitted_by,
+                self::posts::dsl::excerpt,
+                self::posts::dsl::excerpt_html,
+                self::stars::dsl::post_id.nullable(),
+                self::flags::dsl::post_id.nullable(),
+                self::users::dsl::username,
+                self::posts::dsl::banner_title,
+                self::posts::dsl::banner_desc,
+            ))
+            .filter(visible.eq(true))
+            .filter(self::posts::dsl::id.lt(after_id_param))
+            .order_by(self::posts::dsl::id.desc())
+            .limit(200)
+            .get_results::<(i32, Base32, String, Option<String>, bool, i32, i32, i32, bool, NaiveDateTime, i32, Option<String>, Option<String>, Option<i32>, Option<i32>, String, Option<String>, Option<String>)>(&self.0)?
+            .into_iter()
+            .map(|t| tuple_to_post_info(self, t, self.get_current_stellar_time()))
+            .collect();
+        Ok(all)
+    }
     pub fn get_post_info_top(&self, user_id_param: i32) -> Result<Vec<PostInfo>, DieselError> {
         use self::posts::dsl::*;
         use self::stars::dsl::*;
@@ -1028,7 +1105,36 @@ impl MoreInterestingConn {
             ))
             .filter(self::comments::dsl::visible.eq(true))
             .filter(self::comments::dsl::created_by.eq(user_id_param))
-            .order_by(self::comments::dsl::created_at.desc())
+            .order_by(self::comments::dsl::id.desc())
+            .limit(200)
+            .get_results::<(i32, String, i32, Base32, String, NaiveDateTime, i32, String)>(&self.0)?
+            .into_iter()
+            .map(|t| tuple_to_comment_search_results(t))
+            .collect();
+        Ok(all)
+    }
+    pub fn search_comments_by_user_after(&self, user_id_param: i32, after_id_param: i32) -> Result<Vec<CommentSearchResult>, DieselError> {
+        use self::comments::dsl::*;
+        use self::users::dsl::*;
+        use self::posts::dsl::*;
+        let all: Vec<CommentSearchResult> = comments
+            .inner_join(users)
+            .inner_join(posts)
+            .select((
+                self::comments::dsl::id,
+                self::comments::dsl::html,
+                self::posts::dsl::id,
+                self::posts::dsl::uuid,
+                self::posts::dsl::title,
+                self::comments::dsl::created_at,
+                self::comments::dsl::created_by,
+                self::users::dsl::username,
+            ))
+            .filter(self::comments::dsl::visible.eq(true))
+            .filter(self::comments::dsl::created_by.eq(user_id_param))
+            .filter(self::comments::dsl::id.lt(after_id_param))
+            .order_by(self::comments::dsl::id.desc())
+            .limit(200)
             .get_results::<(i32, String, i32, Base32, String, NaiveDateTime, i32, String)>(&self.0)?
             .into_iter()
             .map(|t| tuple_to_comment_search_results(t))

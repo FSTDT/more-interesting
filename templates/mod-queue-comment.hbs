@@ -21,7 +21,8 @@
 {{/each}}
         <aside>
             <main>{{{comments.0.html}}}</main>
-            <footer>
+            <footer class=footer-container>
+                <div class=footer-main>
                 posted by <a href="@{{comments.0.created_by_username}}">{{comments.0.created_by_username}}</a>
                 {{date comments.0.created_at}}
                 {{#if comments.0.starred_by}}
@@ -31,14 +32,13 @@
                         {{#unless @last}},{{/unless}}
                     {{/each}}
                 {{/if}}
-                <div class=form-footer>
-                <form class=module-aside action=moderate-comment method=POST>
+                </div>
+                <form class=footer-aside action=moderate-comment method=POST>
                     <input type="hidden" name="comment" value="{{comments.0.id}}">
                         <button name="action" value="approve" class=button-default>Approve</button>
                         <a href="edit-comment?comment={{comments.0.id}}" class=button>Edit</a>
                         <button name="action" value="delete">Delete</button>
                 </form>
-                </div>
             </footer>
         </aside>
 {{/inline}}

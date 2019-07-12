@@ -1,10 +1,7 @@
 {{#*inline "page"}}
-{{#each tags}}
 <header class=tight-headline>
-<h2>#{{this.name}}</h2>
-<p>{{this.description}}</p>
+<h2>New posts</h2>
 </header>
-{{/each}}
 <ajax-form>
 {{#each posts}}
     {{#if this.banner_title}}
@@ -40,6 +37,9 @@
         </form>
         </footer>
     </details></article>
+    {{#if @last}}
+    <p><a href="?after={{this.uuid}}">Next page</a></p>
+    {{/if}}
 {{/each}}
 </ajax-form>
 {{/inline}}

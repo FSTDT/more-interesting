@@ -306,6 +306,7 @@ fn index(conn: MoreInterestingConn, user: Option<User>, flash: Option<FlashMessa
 #[derive(FromForm)]
 struct SearchCommentsParams {
     user: Option<String>,
+    after: Option<i32>,
 }
 
 #[get("/comments?<params..>")]
@@ -313,7 +314,11 @@ fn search_comments(conn: MoreInterestingConn, user: Option<User>, flash: Option<
     let user = user.unwrap_or(User::default());
     if let Some(username) = params.as_ref().and_then(|params| params.user.as_ref()) {
         let by_user = conn.get_user_by_username(&username[..]).into_option()?;
-        let comment_search_result = conn.search_comments_by_user(by_user.id).into_option()?;
+        let comment_search_result = if let Some(after_id) = params.as_ref().and_then(|params| params.after.as_ref()) {
+            conn.search_comments_by_user_after(by_user.id, *after_id).into_option()?
+        } else {
+            conn.search_comments_by_user(by_user.id).into_option()?
+        };
         let title = Cow::Owned(by_user.username.clone());
         Some(Template::render("profile-comments", &TemplateContext {
             parent: "layout",
@@ -331,8 +336,32 @@ fn search_comments(conn: MoreInterestingConn, user: Option<User>, flash: Option<
 fn top(conn: MoreInterestingConn, user: Option<User>, flash: Option<FlashMessage>, config: State<SiteConfig>) -> Option<impl Responder<'static>> {
     let user = user.unwrap_or(User::default());
     let posts = conn.get_post_info_top(user.id).ok()?;
-    Some(Template::render("index", &TemplateContext {
+    Some(Template::render("index-top", &TemplateContext {
         title: Cow::Borrowed("top"),
+        parent: "layout",
+        alert: flash.map(|f| f.msg().to_owned()),
+        config: config.clone(),
+        user, posts,
+        ..default()
+    }))
+}
+
+#[derive(FromForm)]
+struct NewParams {
+    after: Option<Base32>,
+}
+
+#[get("/new?<params..>")]
+fn new(conn: MoreInterestingConn, user: Option<User>, flash: Option<FlashMessage>, config: State<SiteConfig>, params: Option<Form<NewParams>>) -> Option<impl Responder<'static>> {
+    let user = user.unwrap_or(User::default());
+    let posts = if let Some(after_uuid) = params.as_ref().and_then(|params| params.after.as_ref()) {
+        let after = conn.get_post_info_by_uuid(user.id, *after_uuid).ok()?;
+        conn.get_post_info_new_after(user.id, after.id).ok()?
+    } else {
+        conn.get_post_info_new(user.id).ok()?
+    };
+    Some(Template::render("index-new", &TemplateContext {
+        title: Cow::Borrowed("new"),
         parent: "layout",
         alert: flash.map(|f| f.msg().to_owned()),
         config: config.clone(),
@@ -1360,7 +1389,7 @@ fn main() {
             }
             Ok(rocket)
         }))
-        .mount("/", routes![index, login_form, login, logout, create_link_form, create_post_form, create, get_comments, vote, signup, get_settings, create_invite, invite_tree, change_password, post_comment, vote_comment, get_edit_tags, edit_tags, get_tags, edit_post, get_edit_post, edit_comment, get_edit_comment, set_dark_mode, set_big_mode, mod_log, get_user_info, get_mod_queue, moderate_post, moderate_comment, get_public_signup, rebake, random, redirect_legacy_id, latest, rss, top, banner_post, robots_txt, search_comments])
+        .mount("/", routes![index, login_form, login, logout, create_link_form, create_post_form, create, get_comments, vote, signup, get_settings, create_invite, invite_tree, change_password, post_comment, vote_comment, get_edit_tags, edit_tags, get_tags, edit_post, get_edit_post, edit_comment, get_edit_comment, set_dark_mode, set_big_mode, mod_log, get_user_info, get_mod_queue, moderate_post, moderate_comment, get_public_signup, rebake, random, redirect_legacy_id, latest, rss, top, banner_post, robots_txt, search_comments, new])
         .mount("/assets", StaticFiles::from("assets"))
         .attach(Template::custom(|engines| {
             engines.handlebars.register_helper("count", Box::new(count_helper));

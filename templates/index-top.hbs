@@ -1,0 +1,29 @@
+{{#*inline "page"}}
+<header class=tight-headline>
+<h2>Top posts</h2>
+</header>
+<ajax-form>
+{{#each posts}}
+    {{#if this.banner_title}}
+        <p class=post-banner>{{{this.banner_title}}}</p>
+    {{/if}}
+    {{#if this.banner_desc}}
+        <p class=post-banner-desc>{{{this.banner_desc}}}</p>
+    {{/if}}
+    <article><details open><summary title="Hide post" class=module-summary>Show post</summary>
+        <h3 class=article-header>{{{this.title_html}}}</h3>
+        {{#if this.excerpt_html}}
+            <main>{{{this.excerpt_html}}}</main>
+        {{/if}}
+        <footer class=footer-container>
+        <div class=footer-main>
+            submitted by <a href="@{{this.submitted_by_username}}">{{this.submitted_by_username}}</a>
+            {{date this.created_at}} and got
+            <a href="{{this.uuid}}#comments">{{this.comment_count}} comments</a>
+        </div>
+        </footer>
+    </details></article>
+{{/each}}
+</ajax-form>
+{{/inline}}
+{{~> (parent)~}}

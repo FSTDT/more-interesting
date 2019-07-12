@@ -638,10 +638,6 @@ html.dark article, html.dark aside {
     float: right;
 }
 
-.module-aside {
-    float: right;
-}
-
 details[open] .module-summary {
     position: absolute;
     top: 0;
@@ -660,7 +656,6 @@ details[open] .module-summary:before {
 }
 
 .module-summary:before {
-    font-size: 0.75em;
     margin-right: 0.5em;
     margin-left: -1px;
     width: 1em;
@@ -691,6 +686,10 @@ details[open] .module-summary:before {
     margin-left: -1.5em;
     list-style-type: none;
     cursor: default;
+}
+
+article .module-summary {
+    margin-left: -1.75em;
 }
 
 details-dialog, .details-menu-inner, .inner-banner {
@@ -963,4 +962,19 @@ details[open] > .img-lightbox:before {
 }
 .tight-headline h2, .tight-headline p {
     margin: 0;
+}
+
+.footer-main {
+    float: left;
+}
+.footer-aside {
+    float: right;
+    text-align: right;
+    flex-grow: 1;
+    white-space: nowrap;
+}
+.footer-container {
+    display: flex;
+    flex-direction: row;
+    align-items: flex-end;
 }
