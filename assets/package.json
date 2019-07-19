@@ -7,7 +7,7 @@
     "@babel/preset-env": "^7.5.4",
     "babel-loader": "^8.0.6",
     "webpack": "^4.36.0",
-    "webpack-cli": "^3.3.5"
+    "webpack-cli": "^3.3.6"
   },
   "dependencies": {
     "@webcomponents/webcomponentsjs": "^2.2.7",
