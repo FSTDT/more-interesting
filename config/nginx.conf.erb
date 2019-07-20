@@ -44,6 +44,17 @@ http {
 		server_name _;
 		keepalive_timeout 5;
 
+		set $botck start;
+		if ($request_uri = /robots.txt) {
+			set $botck "{botck}txt";
+		}
+		if ($http_user_agent ~* (mj12bot|ahrefsbot|semrushbot|mauibot)) {
+			set $botck "${botck}bad";
+		}
+		if ($botck = "startbad") {
+			return 403;
+		}
+
 		location ~ ^/assets/ {
 			add_header X-Content-Type-Options nosniff;
 			add_header Cache-Control public;
