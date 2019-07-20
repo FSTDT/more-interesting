@@ -1266,7 +1266,20 @@ Disallow: /mod-log
 Disallow: /login
 Disallow: /signup
 Disallow: /vote
-Disallow: /submit"
+Disallow: /submit
+
+User-agent: MJ12bot
+Disallow: /
+
+User-agent: AhrefsBot
+Disallow: /
+
+User-agent: SemrushBot
+Disallow: /
+
+User-agent: MauiBot
+Disallow: /
+"
 }
 
 fn docs_helper(
