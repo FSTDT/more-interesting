@@ -13,7 +13,7 @@
             {{#if user.username}}
                 <details class="details-menu-outer backwards" role=menuitem>
                     <summary class="details-menu-summary backwards" aria-haspopup=menu>+</summary>
-                    <form class="details-menu-inner backwards" role=menu>
+                    <div class="details-menu-inner backwards" role=menu>
                         {{#if (not config.hide_link_post)}}
                         <a class=details-menu-item href="submit" role=menuitem>Submit a link</a>
                         {{/if}}
@@ -23,7 +23,7 @@
                         {{#if (gte user.trust_level 3)}}
                         <a class=details-menu-item href="edit-tags" role=menuitem>Edit tags</a>
                         {{/if}}
-                    </form>
+                    </div>
                 </details>
                 <details class="details-menu-outer backwards" role=menuitem>
                     <summary class="details-menu-summary backwards" aria-haspopup=menu>{{user.username}}</summary>
@@ -37,9 +37,16 @@
                     </form>
                 </details>
             {{else}}
-                <a class=button href=login role=menuitem>Sign in</a>
                 {{#if config.enable_public_signup}}
-                    <a class=button href=signup role=menuitem>Register</a>
+                <details class="details-menu-outer backwards" role=menuitem>
+                    <summary class="details-menu-summary backwards" aria-haspopup=menu>Your account</summary>
+                    <div class="details-menu-inner backwards" role=menu>
+                        <a class=details-menu-item href=signup role=menuitem>Register</a>
+                        <a class=details-menu-item href=login role=menuitem>Sign in</a>
+                    </div>
+                </details>
+                {{else}}
+                    <a class=button href=login role=menuitem>Sign in</a>
                 {{/if}}
             {{/if}}
         </details-menu-bar>
