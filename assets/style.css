@@ -122,6 +122,10 @@ nav {
     padding: 0.5em;
 }
 
+.nav-second {
+     padding-top: 0;
+}
+
 html, body {
     margin: 0;
 }
