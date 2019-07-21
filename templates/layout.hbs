@@ -53,10 +53,10 @@
     </nav>
     {{#if is_home}}
         {{# if config.custom_header_html}}
-            <nav>{{{config.custom_header_html}}}</nav>
+            <nav class=nav-second>{{{config.custom_header_html}}}</nav>
         {{else}}
             {{#if config.enable_anonymous_submissions}}
-                <nav><a class=button href=submit role=menuitem>Submit a link</a></nav>
+                <nav class=nav-second><a class=button href=submit role=menuitem>Submit a link</a></nav>
             {{/if}}
         {{/if}}
     {{/if}}
@@ -85,7 +85,7 @@
         <a href=assets/{{docs config.body_format}} class=top-header-link>Documentation</a>
     </nav>
     {{# if config.custom_footer_html}}
-        <div class=page-wrapper>
+        <nav class=nav-second>
             {{{config.custom_footer_html}}}
         </div>
     {{/if}}
