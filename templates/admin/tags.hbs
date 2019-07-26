@@ -1,0 +1,35 @@
+{{#*inline "page"}}
+    <div class=admin-list>
+        {{#each tags}}
+        <details>
+            <summary class="admin-list-item details-dialog-summary-special">{{name}}</summary>
+            <details-dialog>
+                <form action=tags method=POST>
+                <input name=name value="{{name}}" type=hidden>
+                <label>Description <input name=description value="{{description}}" autofocus></label>
+                <div class=form-footer>
+                    <button class=button-default>Save</button>
+                    <details-dialog-close><a href="." class=button>Cancel</a></details-dialog-close>
+                </div>
+                </form>
+            </details-dialog>
+        </details>
+        {{/each}}
+    </div>
+    <details-menu-bar>
+        <details class=details-dialog-outer>
+            <summary class=details-dialog-summary>+ New tag</summary>
+            <details-dialog>
+                <form action=tags method=POST>
+                <label>Name <input name=name required autofocus></label>
+                <label>Description <input name=description></label>
+                <div class=form-footer>
+                    <button class=button-default>Save</button>
+                    <details-dialog-close><a href="." class=button>Cancel</a></details-dialog-close>
+                </div>
+                </form>
+            </details-dialog>
+        </details>
+    </details-menu-bar>
+{{/inline}}
+{{~> admin/layout~}}
