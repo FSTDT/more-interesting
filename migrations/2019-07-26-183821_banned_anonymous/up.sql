@@ -1,0 +1,1 @@
+UPDATE users SET banned = 't' WHERE username = 'anonymous';

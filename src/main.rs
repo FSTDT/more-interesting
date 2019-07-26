@@ -462,7 +462,7 @@ struct NewPostForm {
 #[post("/submit", data = "<post>")]
 fn create(user: Option<User>, conn: MoreInterestingConn, post: Form<NewPostForm>, config: State<SiteConfig>) -> Result<impl Responder<'static>, Status> {
     let user = if let Some(user) = user {
-        if user.trust_level < 0 {
+        if user.banned {
             return Err(Status::InternalServerError);
         }
         user
@@ -477,6 +477,7 @@ fn create(user: Option<User>, conn: MoreInterestingConn, post: Form<NewPostForm>
                 invited_by: None,
             })?;
             conn.change_user_trust_level(user.id, -1)?;
+            conn.change_user_banned(user.id, true)?;
             Ok(user)
         }).map_err(|_: diesel::result::Error| Status::InternalServerError)?
     } else {
@@ -548,7 +549,7 @@ fn login(conn: MoreInterestingConn, post: Form<UserForm>, mut cookies: Cookies) 
         password: &post.password,
     }) {
         Some(user) => {
-            if user.trust_level < 0 {
+            if user.banned {
                 return Flash::error(Redirect::to("/"), "Sorry. Not sorry. You're banned.");
             }
             cookies.add_private(Cookie::new("user_id", user.id.to_string()));

@@ -963,6 +963,12 @@ impl MoreInterestingConn {
             .execute(&self.0)
             .map(|k| { assert_eq!(k, 1); })
     }
+    pub fn change_user_banned(&self, user_id_value: i32, banned_value: bool) -> Result<(), DieselError> {
+        use self::users::dsl::*;
+        diesel::update(users.find(user_id_value)).set(banned.eq(banned_value))
+            .execute(&self.0)
+            .map(|k| { assert_eq!(k, 1); })
+    }
     pub fn create_invite_token(&self, invited_by: i32) -> Result<InviteToken, DieselError> {
         #[derive(Insertable)]
         #[table_name="invite_tokens"]
