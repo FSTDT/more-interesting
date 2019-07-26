@@ -100,6 +100,15 @@ struct TemplateContext {
     is_home: bool,
 }
 
+#[derive(Serialize, Default)]
+struct AdminTemplateContext {
+    title: Cow<'static, str>,
+    user: User,
+    alert: Option<String>,
+    tags: Vec<Tag>,
+    config: SiteConfig,
+}
+
 fn default<T: Default>() -> T { T::default() }
 
 trait ResultTo {
@@ -807,15 +816,15 @@ fn invite_tree(conn: MoreInterestingConn, user: Option<User>, config: State<Site
     })
 }
 
-#[get("/edit-tags")]
-fn get_edit_tags(_conn: MoreInterestingConn, user: Moderator, flash: Option<FlashMessage>, config: State<SiteConfig>) -> impl Responder<'static> {
-    Template::render("edit-tags", &TemplateContext {
+#[get("/admin/tags")]
+fn get_admin_tags(conn: MoreInterestingConn, user: Moderator, flash: Option<FlashMessage>, config: State<SiteConfig>) -> impl Responder<'static> {
+    let tags = conn.get_all_tags().unwrap_or(Vec::new());
+    Template::render("admin/tags", &AdminTemplateContext {
         title: Cow::Borrowed("add or edit tags"),
-        parent: "layout",
         user: user.0,
         alert: flash.map(|f| f.msg().to_owned()),
         config: config.clone(),
-        ..default()
+        tags, ..default()
     })
 }
 
@@ -825,19 +834,19 @@ struct EditTagsForm {
     description: Option<String>,
 }
 
-#[post("/edit-tags", data = "<form>")]
-fn edit_tags(conn: MoreInterestingConn, _user: Moderator, form: Form<EditTagsForm>) -> impl Responder<'static> {
+#[post("/admin/tags", data = "<form>")]
+fn admin_tags(conn: MoreInterestingConn, _user: Moderator, form: Form<EditTagsForm>) -> impl Responder<'static> {
     let name = if form.name.starts_with('#') { &form.name[1..] } else { &form.name[..] };
     match conn.create_or_update_tag(&NewTag {
         name,
         description: form.description.as_ref().map(|d| &d[..])
     }) {
         Ok(_) => {
-            Flash::success(Redirect::to(uri!(get_edit_tags)), "Updated site tags")
+            Flash::success(Redirect::to(uri!(get_admin_tags)), "Updated site tags")
         }
         Err(e) => {
             debug!("Unable to update site tags: {:?}", e);
-            Flash::error(Redirect::to(uri!(get_edit_tags)), "Unable to update site tags")
+            Flash::error(Redirect::to(uri!(get_admin_tags)), "Unable to update site tags")
         }
     }
 }
@@ -1402,7 +1411,7 @@ fn main() {
             }
             Ok(rocket)
         }))
-        .mount("/", routes![index, login_form, login, logout, create_link_form, create_post_form, create, get_comments, vote, signup, get_settings, create_invite, invite_tree, change_password, post_comment, vote_comment, get_edit_tags, edit_tags, get_tags, edit_post, get_edit_post, edit_comment, get_edit_comment, set_dark_mode, set_big_mode, mod_log, get_user_info, get_mod_queue, moderate_post, moderate_comment, get_public_signup, rebake, random, redirect_legacy_id, latest, rss, top, banner_post, robots_txt, search_comments, new])
+        .mount("/", routes![index, login_form, login, logout, create_link_form, create_post_form, create, get_comments, vote, signup, get_settings, create_invite, invite_tree, change_password, post_comment, vote_comment, get_admin_tags, admin_tags, get_tags, edit_post, get_edit_post, edit_comment, get_edit_comment, set_dark_mode, set_big_mode, mod_log, get_user_info, get_mod_queue, moderate_post, moderate_comment, get_public_signup, rebake, random, redirect_legacy_id, latest, rss, top, banner_post, robots_txt, search_comments, new])
         .mount("/assets", StaticFiles::from("assets"))
         .attach(Template::custom(|engines| {
             engines.handlebars.register_helper("count", Box::new(count_helper));

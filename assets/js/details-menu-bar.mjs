@@ -267,3 +267,12 @@ if (!window.customElements.get('details-menu-bar')) {
     window.DetailsMenuBarElement = DetailsMenuBarElement;
     window.customElements.define('details-menu-bar', DetailsMenuBarElement);
 }
+
+document.documentElement.addEventListener("keydown", function ss(e) {
+    switch (e.key.toLowerCase()) {
+        case "tab":
+            document.getElementsByTagName("html")[0].className += " uses-tab";
+            document.documentElement.removeEventListener("keydown", ss);
+            break;
+    }
+});

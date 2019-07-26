@@ -1,0 +1,140 @@
+<!DOCTYPE html>
+<html class="{{#if user.dark_mode}}dark{{/if}} {{#if user.big_mode}}big{{/if}}">
+<meta name=viewport content="width=device-width">
+<link rel=stylesheet href="../assets/admin.css?26">
+<style>{{{config.custom_css}}}</style>
+<title>{{title}}</title>
+<div class=admin-panel>
+    <div class=admin-panel-side>
+        <a href=".." class=admin-list-item>‹ Back to home</a>
+        <nav class=admin-list>
+            <a class="admin-list-item current" href="/admin/tags">Tags</a>
+            <a class="admin-list-item" href="/admin/domains">Domains</a>
+        </nav>
+    </div>
+    <div class=admin-panel-main>
+    {{#if alert}}
+        <div class=inner-banner role=alert>{{alert}}</div>
+    {{/if}}
+    {{#if is_home}}
+        {{# if config.front_notice_html}}
+            <div class=inner-banner>{{{config.front_notice_html}}}</div>
+        {{/if}}
+    {{/if}}
+    {{~> page}}
+    </div>
+</div>
+<script>
+    window.addEventListener("load", function() {
+    Array.prototype.slice.call(document.getElementsByClassName("admin-list")).forEach(function(el) {
+        el.setAttribute("tabindex", 0);
+        el.setAttribute("role", "listbox");
+        var items = [];
+        Array.prototype.slice.call(el.getElementsByClassName("admin-list-item")).forEach(function(item) {
+            item.setAttribute("tabindex", -1);
+            item.setAttribute("role", "option");
+            items.push(item);
+        });
+        var item_ = el.getElementsByClassName("current")[0];
+        if (item_) {
+            item_.setAttribute("aria-selected", "true");
+        }
+        el.addEventListener("focus", function(e) {
+            var item = el.getElementsByClassName("current")[0];
+            if (!item) {
+                items[0].className += " current focus";
+            } else if (item.className.indexOf("focus") === -1) {
+                item.className += " focus";
+            }
+        });
+        el.addEventListener("blur", function(e) {
+            var item = el.getElementsByClassName("current")[0];
+            if (item) item.className = item.className.replace("focus", "");
+        });
+        el.addEventListener("keydown", function(e) {
+            var item = el.getElementsByClassName("current")[0];
+            if (!item) item = items[0];
+            var itemIdx = items.indexOf(item);
+            switch (e.key.toLowerCase()) {
+                case "arrowdown":
+                case "down":
+                    item.className = item.className.replace("current", "");
+                    item.className = item.className.replace("focus", "");
+                    item.removeAttribute("aria-selected");
+                    itemIdx += 1;
+                    itemIdx %= items.length;
+                    items[itemIdx].className += " current focus";
+                    items[itemIdx].setAttribute("aria-selected", "true");
+                    e.preventDefault();
+                break;
+                case "arrowup":
+                case "up":
+                    item.className = item.className.replace("current", "");
+                    item.className = item.className.replace("focus", "");
+                    item.removeAttribute("aria-selected");
+                    itemIdx -= 1;
+                    if (itemIdx === -1) {
+                        itemIdx = items.length - 1;
+                    } else {
+                        itemIdx %= items.length;
+                    }
+                    items[itemIdx].className += " current focus";
+                    items[itemIdx].setAttribute("aria-selected", "true");
+                    e.preventDefault();
+                break;
+                case "enter":
+                case "return":
+                    item.click();
+                    e.preventDefault();
+                break;
+                case "home":
+                    item.className = item.className.replace("current", "");
+                    item.className = item.className.replace("focus", "");
+                    item.removeAttribute("aria-selected");
+                    itemIdx = 0;
+                    items[itemIdx].className += " current focus";
+                    items[itemIdx].setAttribute("aria-selected", "true");
+                    e.preventDefault();
+                break;
+                case "end":
+                    item.className = item.className.replace("current", "");
+                    item.className = item.className.replace("focus", "");
+                    item.removeAttribute("aria-selected");
+                    itemIdx = items.length - 1;
+                    items[itemIdx].className += " current focus";
+                    items[itemIdx].setAttribute("aria-selected", "true");
+                    e.preventDefault();
+                break;
+                case "tab":
+                    return;
+            }
+            if (el.scrollHeight > el.clientHeight) {
+                var scrollBottom = el.clientHeight + el.scrollTop;
+                var elementBottom = items[itemIdx].offsetTop + items[itemIdx].offsetHeight;
+                if (elementBottom > scrollBottom) {
+                  el.scrollTop = elementBottom - items[itemIdx].clientHeight;
+                } else if (items[itemIdx].offsetTop < el.scrollTop) {
+                  el.scrollTop = items[itemIdx].offsetTop;
+                }
+            }
+            el.focus();
+        });
+    });
+    });
+</script>
+<script>
+    const a = async () => {};
+    let b = a;
+    window.moreInterestingIsAsyncAvailable = b;
+</script>
+<script>
+    var s = document.createElement("script");
+    if (window.HTMLDetailsElement && window.URLSearchParams && window.customElements && window.moreInterestingIsAsyncAvailable && window.fetch) {
+        s.src = "../assets/dist/modern.min.js?23";
+    } else {
+        s.src = "../assets/dist/legacy.min.js?23";
+    }
+    s.defer = true;
+    s.async = true;
+    document.body.appendChild(s);
+</script>
