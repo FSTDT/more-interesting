@@ -290,6 +290,14 @@ textarea,
     box-sizing: border-box;
     overflow-wrap: break-word;
     white-space: pre-wrap;
+    font-family: SFMono-Regular,Consolas,Liberation Mono,Menlo,Courier,monospace;
+    padding: 0.25em;
+    font-size: 1.1em;
+    line-height: 1.62;
+}
+
+input {
+    line-height: 1.05;
 }
 
 button,
@@ -466,8 +474,11 @@ progress {
 
 textarea,
 .smart-textarea {
-    overflow: auto;
     min-height: 8em;
+}
+
+.smart-textarea {
+    overflow: auto;
 }
 
 textarea.smart-textarea {
