@@ -1,5 +1,5 @@
 {{#*inline "page"}}
-    <form action='' method=POST>
+    <form action="?U={{session.uuid}}" method=POST>
         <input type=hidden name=comment value="{{comment.id}}">
         <label>Edit comment
         <smart-textarea><textarea name=text required is=smart-punct-textarea>{{comment.text}}</textarea></smart-textarea>

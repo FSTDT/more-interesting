@@ -27,7 +27,7 @@
                 </details>
                 <details class="details-menu-outer backwards" role=menuitem>
                     <summary class="details-menu-summary backwards" aria-haspopup=menu>{{user.username}}</summary>
-                    <form class="details-menu-inner backwards" role=menu action=logout method=POST>
+                    <form class="details-menu-inner backwards" role=menu action="logout?U={{session.uuid}}" method=POST>
                         {{#if (gte user.trust_level 3)}}
                             <a class=details-menu-item href="mod-queue">Mod queue</a>
                         {{/if}}

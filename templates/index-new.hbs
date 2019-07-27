@@ -21,7 +21,7 @@
             {{date this.created_at}} and got
             <a href="{{this.uuid}}#comments">{{this.comment_count}} comments</a>
         </div>
-        <form class=footer-aside action="vote?redirect=2" method=POST>
+        <form class=footer-aside action="vote?redirect=2&U={{../session.uuid}}" method=POST>
             {{#if (gte ../user.trust_level 3)}}
                 <a href="edit-post?post={{this.uuid}}" class=button>Edit</a>
             {{/if}}

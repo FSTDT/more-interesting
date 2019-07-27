@@ -1,5 +1,5 @@
 {{#*inline "page"}}
-    <form action='submit' method=POST>
+    <form action="submit{{#if user.id}}?U={{session.uuid}}{{/if}}" method=POST>
         <label>Title and #hashtags <input name=title autofocus required is="smart-punct-input"></label>
         <label>Write your post
             <smart-textarea><textarea name=excerpt is=smart-punct-textarea required></textarea></smart-textarea>

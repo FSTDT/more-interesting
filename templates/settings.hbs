@@ -5,14 +5,14 @@
         <main class="main-mini">
             <details-menu-bar>
                 {{#if (or config.enable_public_signup (gt user.trust_level 1))}}
-                <form class=inline-form action=create-invite method=post>
+                <form class=inline-form action="create-invite?U={{session.uuid}}" method=post>
                     <button>Invite someone to this site</button>
                 </form>
                 {{/if}}
                 <details class=details-dialog-outer>
                     <summary class=details-dialog-summary>Change password</summary>
                     <details-dialog>
-                        <form action=change-password method=POST>
+                        <form action="change-password?U={{session.uuid}}" method=POST>
                             <label>Make sure you know your old password <input name=old_password autofocus type=password required></label>
                             <label>New Password <input name=new_password type=password required></label>
                             <div class=form-footer>
@@ -31,14 +31,14 @@
             <details-menu-bar>
                 <details class=details-menu-outer>
                     <summary class=details-menu-summary aria-haspopup=menu>Dark mode</summary>
-                    <form class=details-menu-inner method=POST action=set-dark-mode role=menu>
+                    <form class=details-menu-inner method=POST action="set-dark-mode?U={{session.uuid}}" role=menu>
                         <button class=details-menu-item name=active value=false role=menuitem aria-checked="{{#if user.dark_mode}}false{{else}}true{{/if}}">Turn off</button>
                         <button class=details-menu-item name=active value=true role=menuitem aria-checked="{{#if user.dark_mode}}true{{else}}false{{/if}}">Turn on</button>
                     </form>
                 </details>
                 <details class=details-menu-outer>
                     <summary class=details-menu-summary>Big mode</summary>
-                    <form class=details-menu-inner method=POST action=set-big-mode role=menu>
+                    <form class=details-menu-inner method=POST action="set-big-mode?U={{session.uuid}}" role=menu>
                         <button class=details-menu-item name=active value=false role=menuitem aria-checked="{{#if user.big_mode}}false{{else}}true{{/if}}">Turn off</button>
                         <button class=details-menu-item name=active value=true role=menuitem aria-checked="{{#if user.big_mode}}true{{else}}false{{/if}}">Turn on</button>
                     </form>
