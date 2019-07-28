@@ -52,9 +52,26 @@
             if (item) item.className = item.className.replace("focus", "");
         });
         el.addEventListener("keydown", function(e) {
-            var item = el.getElementsByClassName("current")[0];
-            if (!item) item = items[0];
-            var itemIdx = items.indexOf(item);
+            var item;
+            var itemIdx;
+            if (document.activeElement !== el) {
+              if (document.activeElement.className.indexOf("admin-list-item) !== -1) {
+                for (itemIdx = 0; itemIdx !== items.length; itemIdx += 1) {
+                  item = items[itemIdx];
+                  item.className = item.className.replace("current", "");
+                  item.className = item.className.replace("focus", "");
+                  item.removeAttribute("aria-selected");
+                }
+                item = el.activeElement;
+                el.focus();
+              } else {
+                return;
+              }
+            } else {
+              item = el.getElementsByClassName("current")[0];
+              if (!item) item = items[0];
+            }
+            itemIdx = items.indexOf(item);
             switch (e.key.toLowerCase()) {
                 case "arrowdown":
                 case "down":
@@ -117,7 +134,6 @@
                   el.scrollTop = items[itemIdx].offsetTop;
                 }
             }
-            el.focus();
         });
     });
     });
