@@ -4,7 +4,7 @@
         <details>
             <summary class="admin-list-item details-dialog-summary-special">{{name}}</summary>
             <details-dialog>
-                <form action=tags method=POST>
+                <form action="tags?U={{session.uuid}}" method=POST>
                 <input name=name value="{{name}}" type=hidden>
                 <label>Description <input name=description value="{{description}}" autofocus></label>
                 <div class=form-footer>
@@ -20,7 +20,7 @@
         <details class=details-dialog-outer>
             <summary class=details-dialog-summary>+ New tag</summary>
             <details-dialog>
-                <form action=tags method=POST>
+                <form action="tags?U={{session.uuid}}" method=POST>
                 <label>Name <input name=name required autofocus></label>
                 <label>Description <input name=description></label>
                 <div class=form-footer>

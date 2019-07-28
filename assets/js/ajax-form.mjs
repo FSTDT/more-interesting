@@ -54,10 +54,11 @@ export class AjaxFormElement extends HTMLElement {
             const img = t.querySelector("img");
             const body = new URLSearchParams();
             body.append(t.name, t.value);
+            const session_uuid = t.form.action.split("&U=")[1];
             switch (t.name) {
                 case "add_star":
                     this._setImage(t, "star_active");
-                    fetch("vote", {
+                    fetch("vote?U=" + session_uuid, {
                         method: "post",
                         credentials: "include",
                         body
@@ -67,7 +68,7 @@ export class AjaxFormElement extends HTMLElement {
                     break;
                 case "rm_star":
                     this._setImage(t, "star");
-                    fetch("vote", {
+                    fetch("vote?U=" + session_uuid, {
                         method: "post",
                         credentials: "include",
                         body
@@ -77,7 +78,7 @@ export class AjaxFormElement extends HTMLElement {
                     break;
                 case "add_flag":
                     this._setImage(t, "flag_active");
-                    fetch("vote", {
+                    fetch("vote?U=" + session_uuid, {
                         method: "post",
                         credentials: "include",
                         body
@@ -87,7 +88,7 @@ export class AjaxFormElement extends HTMLElement {
                     break;
                 case "rm_flag":
                     this._setImage(t, "flag");
-                    fetch("vote", {
+                    fetch("vote?U=" + session_uuid, {
                         method: "post",
                         credentials: "include",
                         body
@@ -97,7 +98,7 @@ export class AjaxFormElement extends HTMLElement {
                     break;
                 case "add_star_comment":
                     this._setImage(t, "star_active");
-                    fetch("vote-comment", {
+                    fetch("vote-comment?U=" + session_uuid, {
                         method: "post",
                         credentials: "include",
                         body
@@ -107,7 +108,7 @@ export class AjaxFormElement extends HTMLElement {
                     break;
                 case "rm_star_comment":
                     this._setImage(t, "star");
-                    fetch("vote-comment", {
+                    fetch("vote-comment?U=" + session_uuid, {
                         method: "post",
                         credentials: "include",
                         body
@@ -117,7 +118,7 @@ export class AjaxFormElement extends HTMLElement {
                     break;
                 case "add_flag_comment":
                     this._setImage(t, "flag_active");
-                    fetch("vote-comment", {
+                    fetch("vote-comment?U=" + session_uuid, {
                         method: "post",
                         credentials: "include",
                         body
@@ -127,7 +128,7 @@ export class AjaxFormElement extends HTMLElement {
                     break;
                 case "rm_flag_comment":
                     this._setImage(t, "flag");
-                    fetch("vote-comment", {
+                    fetch("vote-comment?U=" + session_uuid, {
                         method: "post",
                         credentials: "include",
                         body

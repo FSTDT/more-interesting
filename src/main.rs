@@ -19,18 +19,18 @@ mod pid_file_fairing;
 mod extract_excerpt;
 mod sql_types;
 
-use rocket::request::{Form, FlashMessage, FromParam};
+use rocket::request::{Form, FlashMessage, FromParam, LenientForm};
 use rocket::response::{Responder, Redirect, Flash, Content};
 use rocket::http::{Cookies, Cookie, RawStr, ContentType};
 pub use models::MoreInterestingConn;
 use models::User;
 use models::UserAuth;
-use rocket::http::Status;
+use rocket::http::{SameSite, Status};
 use rocket_contrib::serve::StaticFiles;
 use rocket_contrib::templates::{Template, handlebars};
 use serde::Serialize;
 use std::borrow::Cow;
-use crate::models::{PostInfo, NewStar, NewUser, CommentInfo, NewPost, NewComment, NewStarComment, NewTag, Tag, Comment, ModerationInfo, NewFlag, NewFlagComment, LegacyComment, CommentSearchResult};
+use crate::models::{UserSession, PostInfo, NewStar, NewUser, CommentInfo, NewPost, NewComment, NewStarComment, NewTag, Tag, Comment, ModerationInfo, NewFlag, NewFlagComment, LegacyComment, CommentSearchResult};
 use base32::Base32;
 use url::Url;
 use std::collections::HashMap;
@@ -39,8 +39,8 @@ use handlebars::{Helper, Handlebars, Context, RenderContext, Output, HelperResul
 use crate::pid_file_fairing::PidFileFairing;
 use rocket::fairing;
 use rocket::State;
-use session::Moderator;
 use std::str::FromStr;
+use crate::session::{LoginSession, ModeratorSession, UserAgentString};
 
 #[derive(Clone, Serialize)]
 struct SiteConfig {
@@ -90,6 +90,7 @@ struct TemplateContext {
     comment_search_result: Vec<CommentSearchResult>,
     comment: Option<Comment>,
     user: User,
+    session: UserSession,
     parent: &'static str,
     alert: Option<String>,
     invite_token: Option<Base32>,
@@ -104,6 +105,7 @@ struct TemplateContext {
 struct AdminTemplateContext {
     title: Cow<'static, str>,
     user: User,
+    session: UserSession,
     alert: Option<String>,
     tags: Vec<Tag>,
     config: SiteConfig,
@@ -139,7 +141,7 @@ struct MaybeRedirect {
 impl MaybeRedirect {
     pub fn maybe_redirect(self) -> Result<impl Responder<'static>, Status> {
         match self.redirect {
-            Some(b) if b == Base32::zero() => Ok(Redirect::to("/")),
+            Some(b) if b == Base32::zero() => Ok(Redirect::to(".")),
             Some(b) => Ok(Redirect::to(uri!(get_comments: b))),
             None => Err(Status::Created)
         }
@@ -165,7 +167,8 @@ struct VoteForm {
 }
 
 #[post("/vote?<redirect..>", data = "<post>")]
-fn vote(conn: MoreInterestingConn, user: User, redirect: Form<MaybeRedirect>, post: Form<VoteForm>) -> Result<impl Responder<'static>, Status> {
+fn vote(conn: MoreInterestingConn, login: LoginSession, redirect: LenientForm<MaybeRedirect>, post: Form<VoteForm>) -> Result<impl Responder<'static>, Status> {
+    let user = login.user;
     let result = match (post.add_star, post.rm_star, post.add_flag, post.rm_flag) {
         (Some(post), None, None, None) => {
             let post = conn.get_post_info_by_uuid(user.id, post).map_err(|_| Status::NotFound)?;
@@ -219,7 +222,8 @@ struct VoteCommentForm {
 }
 
 #[post("/vote-comment?<redirect..>", data = "<comment>")]
-fn vote_comment(conn: MoreInterestingConn, user: User, redirect: Form<MaybeRedirect>, comment: Form<VoteCommentForm>) -> Result<impl Responder<'static>, Status> {
+fn vote_comment(conn: MoreInterestingConn, login: LoginSession, redirect: LenientForm<MaybeRedirect>, comment: Form<VoteCommentForm>) -> Result<impl Responder<'static>, Status> {
+    let user = login.user;
     let result = match (comment.add_star_comment, comment.rm_star_comment, comment.add_flag_comment, comment.rm_flag_comment) {
         (Some(comment), None, None, None) => conn.add_star_comment(&NewStarComment{
             user_id: user.id,
@@ -260,8 +264,9 @@ struct IndexParams {
 }
 
 #[get("/?<params..>")]
-fn index(conn: MoreInterestingConn, user: Option<User>, flash: Option<FlashMessage>, params: Option<Form<IndexParams>>, config: State<SiteConfig>) -> Option<impl Responder<'static>> {
-    let user = user.unwrap_or(User::default());
+fn index(conn: MoreInterestingConn, login: Option<LoginSession>, flash: Option<FlashMessage>, params: Option<Form<IndexParams>>, config: State<SiteConfig>) -> Option<impl Responder<'static>> {
+    let (user, session) = login.map(|l| (l.user, l.session)).unwrap_or((User::default(), UserSession::default()));
+
     let title;
     let mut is_home = false;
     let mut tags = vec![];
@@ -307,7 +312,7 @@ fn index(conn: MoreInterestingConn, user: Option<User>, flash: Option<FlashMessa
         alert: flash.map(|f| f.msg().to_owned()),
         config: config.clone(),
         title, user, posts, is_home,
-        tags,
+        tags, session,
         ..default()
     }))
 }
@@ -319,8 +324,8 @@ struct SearchCommentsParams {
 }
 
 #[get("/comments?<params..>")]
-fn search_comments(conn: MoreInterestingConn, user: Option<User>, flash: Option<FlashMessage>, params: Option<Form<SearchCommentsParams>>, config: State<SiteConfig>) -> Option<impl Responder<'static>> {
-    let user = user.unwrap_or(User::default());
+fn search_comments(conn: MoreInterestingConn, login: Option<LoginSession>, flash: Option<FlashMessage>, params: Option<Form<SearchCommentsParams>>, config: State<SiteConfig>) -> Option<impl Responder<'static>> {
+    let (user, session) = login.map(|l| (l.user, l.session)).unwrap_or((User::default(), UserSession::default()));
     if let Some(username) = params.as_ref().and_then(|params| params.user.as_ref()) {
         let by_user = conn.get_user_by_username(&username[..]).into_option()?;
         let comment_search_result = if let Some(after_id) = params.as_ref().and_then(|params| params.after.as_ref()) {
@@ -333,7 +338,7 @@ fn search_comments(conn: MoreInterestingConn, user: Option<User>, flash: Option<
             parent: "layout",
             alert: flash.map(|f| f.msg().to_owned()),
             config: config.clone(),
-            title, user, comment_search_result,
+            title, user, comment_search_result, session,
             ..default()
         }))
     } else {
@@ -342,15 +347,15 @@ fn search_comments(conn: MoreInterestingConn, user: Option<User>, flash: Option<
 }
 
 #[get("/top")]
-fn top(conn: MoreInterestingConn, user: Option<User>, flash: Option<FlashMessage>, config: State<SiteConfig>) -> Option<impl Responder<'static>> {
-    let user = user.unwrap_or(User::default());
+fn top(conn: MoreInterestingConn, login: Option<LoginSession>, flash: Option<FlashMessage>, config: State<SiteConfig>) -> Option<impl Responder<'static>> {
+    let (user, session) = login.map(|l| (l.user, l.session)).unwrap_or((User::default(), UserSession::default()));
     let posts = conn.get_post_info_top(user.id).ok()?;
     Some(Template::render("index-top", &TemplateContext {
         title: Cow::Borrowed("top"),
         parent: "layout",
         alert: flash.map(|f| f.msg().to_owned()),
         config: config.clone(),
-        user, posts,
+        user, posts, session,
         ..default()
     }))
 }
@@ -361,8 +366,8 @@ struct NewParams {
 }
 
 #[get("/new?<params..>")]
-fn new(conn: MoreInterestingConn, user: Option<User>, flash: Option<FlashMessage>, config: State<SiteConfig>, params: Option<Form<NewParams>>) -> Option<impl Responder<'static>> {
-    let user = user.unwrap_or(User::default());
+fn new(conn: MoreInterestingConn, login: Option<LoginSession>, flash: Option<FlashMessage>, config: State<SiteConfig>, params: Option<Form<NewParams>>) -> Option<impl Responder<'static>> {
+    let (user, session) = login.map(|l| (l.user, l.session)).unwrap_or((User::default(), UserSession::default()));
     let posts = if let Some(after_uuid) = params.as_ref().and_then(|params| params.after.as_ref()) {
         let after = conn.get_post_info_by_uuid(user.id, *after_uuid).ok()?;
         conn.get_post_info_new_after(user.id, after.id).ok()?
@@ -374,21 +379,21 @@ fn new(conn: MoreInterestingConn, user: Option<User>, flash: Option<FlashMessage
         parent: "layout",
         alert: flash.map(|f| f.msg().to_owned()),
         config: config.clone(),
-        user, posts,
+        user, posts, session,
         ..default()
     }))
 }
 
 #[get("/latest")]
-fn latest(conn: MoreInterestingConn, user: Option<User>, flash: Option<FlashMessage>, config: State<SiteConfig>) -> Option<impl Responder<'static>> {
-    let user = user.unwrap_or(User::default());
+fn latest(conn: MoreInterestingConn, login: Option<LoginSession>, flash: Option<FlashMessage>, config: State<SiteConfig>) -> Option<impl Responder<'static>> {
+    let (user, session) = login.map(|l| (l.user, l.session)).unwrap_or((User::default(), UserSession::default()));
     let posts = conn.get_post_info_latest(user.id).ok()?;
     Some(Template::render("index", &TemplateContext {
         title: Cow::Borrowed("latest"),
         parent: "layout",
         alert: flash.map(|f| f.msg().to_owned()),
         config: config.clone(),
-        user, posts,
+        user, posts, session,
         ..default()
     }))
 }
@@ -414,8 +419,8 @@ struct ModLogParams {
 }
 
 #[get("/mod-log?<params..>")]
-fn mod_log(conn: MoreInterestingConn, user: Option<User>, flash: Option<FlashMessage>, params: Option<Form<ModLogParams>>, config: State<SiteConfig>) -> impl Responder<'static> {
-    let user = user.unwrap_or(User::default());
+fn mod_log(conn: MoreInterestingConn, login: Option<LoginSession>, flash: Option<FlashMessage>, params: Option<Form<ModLogParams>>, config: State<SiteConfig>) -> impl Responder<'static> {
+    let (user, session) = login.map(|l| (l.user, l.session)).unwrap_or((User::default(), UserSession::default()));
     let log = if let Some(after) = params.as_ref().and_then(|params| params.after) {
         conn.get_mod_log_starting_with(after)
     } else {
@@ -426,28 +431,30 @@ fn mod_log(conn: MoreInterestingConn, user: Option<User>, flash: Option<FlashMes
         parent: "layout",
         alert: flash.map(|f| f.msg().to_owned()),
         config: config.clone(),
-        user, log,
+        user, log, session,
         ..default()
     })
 }
 
 #[get("/post")]
-fn create_post_form(user: Option<User>, config: State<SiteConfig>) -> impl Responder<'static> {
+fn create_post_form(login: Option<LoginSession>, config: State<SiteConfig>) -> impl Responder<'static> {
+    let (user, session) = login.map(|l| (l.user, l.session)).unwrap_or((User::default(), UserSession::default()));
     Template::render("post", &TemplateContext {
         title: Cow::Borrowed("post"),
         parent: "layout",
         config: config.clone(),
-        user: user.unwrap_or(User::default()),
+        user, session,
         ..default()
     })
 }
 #[get("/submit")]
-fn create_link_form(user: Option<User>, config: State<SiteConfig>) -> impl Responder<'static> {
+fn create_link_form(login: Option<LoginSession>, config: State<SiteConfig>) -> impl Responder<'static> {
+    let (user, session) = login.map(|l| (l.user, l.session)).unwrap_or((User::default(), UserSession::default()));
     Template::render("submit", &TemplateContext {
         title: Cow::Borrowed("submit"),
         parent: "layout",
         config: config.clone(),
-        user: user.unwrap_or(User::default()),
+        user, session,
         ..default()
     })
 }
@@ -460,7 +467,8 @@ struct NewPostForm {
 }
 
 #[post("/submit", data = "<post>")]
-fn create(user: Option<User>, conn: MoreInterestingConn, post: Form<NewPostForm>, config: State<SiteConfig>) -> Result<impl Responder<'static>, Status> {
+fn create(login: Option<LoginSession>, conn: MoreInterestingConn, post: Form<NewPostForm>, config: State<SiteConfig>) -> Result<impl Responder<'static>, Status> {
+    let user = login.as_ref().map(|l| l.user.clone());
     let user = if let Some(user) = user {
         if user.banned {
             return Err(Status::InternalServerError);
@@ -527,11 +535,12 @@ fn create(user: Option<User>, conn: MoreInterestingConn, post: Form<NewPostForm>
 }
 
 #[get("/login")]
-fn login_form(config: State<SiteConfig>) -> impl Responder<'static> {
+fn login_form(config: State<SiteConfig>, flash: Option<FlashMessage>) -> impl Responder<'static> {
     Template::render("login", &TemplateContext {
         title: Cow::Borrowed("log in"),
         parent: "layout",
         config: config.clone(),
+        alert: flash.map(|f| f.msg().to_owned()),
         ..default()
     })
 }
@@ -543,30 +552,31 @@ struct UserForm {
 }
 
 #[post("/login", data = "<post>")]
-fn login(conn: MoreInterestingConn, post: Form<UserForm>, mut cookies: Cookies) -> impl Responder<'static> {
+fn login(conn: MoreInterestingConn, post: Form<UserForm>, mut cookies: Cookies, user_agent: UserAgentString) -> impl Responder<'static> {
     match conn.authenticate_user(&UserAuth {
         username: &post.username,
         password: &post.password,
     }) {
         Some(user) => {
             if user.banned {
-                return Flash::error(Redirect::to("/"), "Sorry. Not sorry. You're banned.");
+                return Flash::error(Redirect::to("."), "Sorry. Not sorry. You're banned.");
             }
-            cookies.add_private(Cookie::new("user_id", user.id.to_string()));
-            Flash::success(Redirect::to("/"), "Congrats, you're in!")
+            let session = conn.create_session(user.id, user_agent.user_agent).expect("failed to allocate a session");
+            let cookie = Cookie::build("U", session.uuid.to_string()).path("/").permanent().same_site(SameSite::None).finish();
+            cookies.add(cookie);
+            Flash::success(Redirect::to("."), "Congrats, you're in!")
         },
         None => {
-            Flash::error(Redirect::to("/"), "Incorrect username or password")
+            Flash::error(Redirect::to("login"), "Incorrect username or password")
         },
     }
 }
 
 #[post("/logout")]
 fn logout(mut cookies: Cookies) -> impl Responder<'static> {
-    if let Some(cookie) = cookies.get_private("user_id") {
-        cookies.remove_private(cookie);
-    }
-    Redirect::to("/")
+    let cookie = Cookie::build("U", "").path("/").permanent().same_site(SameSite::None).finish();
+    cookies.add(cookie);
+    Redirect::to(".")
 }
 
 struct UserInfoName(String);
@@ -583,8 +593,8 @@ impl<'a> FromParam<'a> for UserInfoName {
 }
 
 #[get("/<username>")]
-fn get_user_info(conn: MoreInterestingConn, user: Option<User>, username: UserInfoName, config: State<SiteConfig>, flash: Option<FlashMessage>) -> Result<impl Responder<'static>, Status> {
-    let user = user.unwrap_or(User::default());
+fn get_user_info(conn: MoreInterestingConn, login: Option<LoginSession>, username: UserInfoName, config: State<SiteConfig>, flash: Option<FlashMessage>) -> Result<impl Responder<'static>, Status> {
+    let (user, session) = login.map(|l| (l.user, l.session)).unwrap_or((User::default(), UserSession::default()));
     let user_info = if let Ok(user_info) = conn.get_user_by_username(&username.0) {
         user_info
     } else {
@@ -600,14 +610,14 @@ fn get_user_info(conn: MoreInterestingConn, user: Option<User>, username: UserIn
         parent: "layout",
         alert: flash.map(|f| f.msg().to_owned()),
         config: config.clone(),
-        posts, user,
+        posts, user, session,
         ..default()
     }))
 }
 
 #[get("/<uuid>", rank = 1)]
-fn get_comments(conn: MoreInterestingConn, user: Option<User>, uuid: Base32, config: State<SiteConfig>, flash: Option<FlashMessage>) -> Result<impl Responder<'static>, Status> {
-    let user = user.unwrap_or(User::default());
+fn get_comments(conn: MoreInterestingConn, login: Option<LoginSession>, uuid: Base32, config: State<SiteConfig>, flash: Option<FlashMessage>) -> Result<impl Responder<'static>, Status> {
+    let (user, session) = login.map(|l| (l.user, l.session)).unwrap_or((User::default(), UserSession::default()));
     if let Ok(post_info) = conn.get_post_info_by_uuid(user.id, uuid) {
         let comments = conn.get_comments_from_post(post_info.id, user.id).unwrap_or_else(|e| {
             warn!("Failed to get comments: {:?}", e);
@@ -625,7 +635,7 @@ fn get_comments(conn: MoreInterestingConn, user: Option<User>, uuid: Base32, con
             alert: flash.map(|f| f.msg().to_owned()),
             starred_by: conn.get_post_starred_by(post_id).unwrap_or(Vec::new()),
             config: config.clone(),
-            comments, user, title, legacy_comments,
+            comments, user, title, legacy_comments, session,
             ..default()
         }))
     } else if conn.check_invite_token_exists(uuid) && user.id == 0 {
@@ -634,6 +644,7 @@ fn get_comments(conn: MoreInterestingConn, user: Option<User>, uuid: Base32, con
             parent: "layout",
             invite_token: Some(uuid),
             config: config.clone(),
+            session,
             ..default()
         }))
     } else {
@@ -648,13 +659,13 @@ struct CommentForm {
 }
 
 #[post("/comment", data = "<comment>")]
-fn post_comment(conn: MoreInterestingConn, user: User, comment: Form<CommentForm>, config: State<SiteConfig>) -> Option<impl Responder<'static>> {
-    let post_info = conn.get_post_info_by_uuid(user.id, comment.post).into_option()?;
-    let visible = user.trust_level > 0;
+fn post_comment(conn: MoreInterestingConn, login: LoginSession, comment: Form<CommentForm>, config: State<SiteConfig>) -> Option<impl Responder<'static>> {
+    let post_info = conn.get_post_info_by_uuid(login.user.id, comment.post).into_option()?;
+    let visible = login.user.trust_level > 0;
     conn.comment_on_post(NewComment {
         post_id: post_info.id,
         text: &comment.text,
-        created_by: user.id,
+        created_by: login.user.id,
         visible,
     }, config.body_format).into_option()?;
     Some(Flash::success(
@@ -671,7 +682,7 @@ struct SignupForm {
 }
 
 #[post("/signup", data = "<form>")]
-fn signup(conn: MoreInterestingConn, form: Form<SignupForm>, mut cookies: Cookies, config: State<SiteConfig>) -> Result<impl Responder<'static>, Status> {
+fn signup(conn: MoreInterestingConn, user_agent: UserAgentString, form: Form<SignupForm>, mut cookies: Cookies, config: State<SiteConfig>) -> Result<impl Responder<'static>, Status> {
     if form.username == "" || form.username == "anonymous" {
         return Err(Status::BadRequest);
     }
@@ -696,8 +707,10 @@ fn signup(conn: MoreInterestingConn, form: Form<SignupForm>, mut cookies: Cookie
         if invited_by.as_ref().and_then(|user_id| conn.get_user_by_id(*user_id).ok()).map(|user| user.trust_level).unwrap_or(-1) >= 2 {
             conn.change_user_trust_level(user.id, 1).expect("if logging in worked, then so should changing trust level");
         }
-        cookies.add_private(Cookie::new("user_id", user.id.to_string()));
-        return Ok(Flash::success(Redirect::to("/"), "Congrats, you're in!"));
+        let session = conn.create_session(user.id, user_agent.user_agent).expect("failed to allocate a session");
+        let cookie = Cookie::build("U", session.uuid.to_string()).path("/").permanent().same_site(SameSite::None).finish();
+        cookies.add(cookie);
+        return Ok(Flash::success(Redirect::to("."), "Congrats, you're in!"));
     }
     Err(Status::BadRequest)
 }
@@ -717,13 +730,15 @@ fn get_public_signup(flash: Option<FlashMessage>, config: State<SiteConfig>) -> 
 }
 
 #[get("/settings")]
-fn get_settings(_conn: MoreInterestingConn, user: User, flash: Option<FlashMessage>, config: State<SiteConfig>) -> impl Responder<'static> {
+fn get_settings(_conn: MoreInterestingConn, login: LoginSession, flash: Option<FlashMessage>, config: State<SiteConfig>) -> impl Responder<'static> {
+    let user = login.user;
+    let session = login.session;
     Template::render("settings", &TemplateContext {
         title: Cow::Borrowed("settings"),
         parent: "layout",
         alert: flash.map(|f| f.msg().to_owned()),
         config: config.clone(),
-        user,
+        user, session,
         ..default()
     })
 }
@@ -734,8 +749,8 @@ struct DarkModeForm {
 }
 
 #[post("/set-dark-mode", data="<form>")]
-fn set_dark_mode<'a>(conn: MoreInterestingConn, user: User, form: Form<DarkModeForm>) -> impl Responder<'static> {
-    match conn.set_dark_mode(user.id, form.active) {
+fn set_dark_mode<'a>(conn: MoreInterestingConn, login: LoginSession, form: Form<DarkModeForm>) -> impl Responder<'static> {
+    match conn.set_dark_mode(login.user.id, form.active) {
         Ok(()) => {
             Flash::success(Redirect::to(uri!(get_settings)), "")
         }
@@ -747,8 +762,8 @@ fn set_dark_mode<'a>(conn: MoreInterestingConn, user: User, form: Form<DarkModeF
 }
 
 #[post("/set-big-mode", data="<form>")]
-fn set_big_mode<'a>(conn: MoreInterestingConn, user: User, form: Form<DarkModeForm>) -> impl Responder<'static> {
-    match conn.set_big_mode(user.id, form.active) {
+fn set_big_mode<'a>(conn: MoreInterestingConn, login: LoginSession, form: Form<DarkModeForm>) -> impl Responder<'static> {
+    match conn.set_big_mode(login.user.id, form.active) {
         Ok(()) => {
             Flash::success(Redirect::to(uri!(get_settings)), "")
         }
@@ -760,8 +775,8 @@ fn set_big_mode<'a>(conn: MoreInterestingConn, user: User, form: Form<DarkModeFo
 }
 
 #[post("/create-invite")]
-fn create_invite<'a>(conn: MoreInterestingConn, user: User, config: State<SiteConfig>) -> impl Responder<'static> {
-    match conn.create_invite_token(user.id) {
+fn create_invite<'a>(conn: MoreInterestingConn, login: LoginSession, config: State<SiteConfig>) -> impl Responder<'static> {
+    match conn.create_invite_token(login.user.id) {
         Ok(invite_token) => {
             let public_url = &config.public_url;
             let created_invite_url = public_url.join(&invite_token.uuid.to_string()).expect("base128 is a valid relative URL");
@@ -775,22 +790,23 @@ fn create_invite<'a>(conn: MoreInterestingConn, user: User, config: State<SiteCo
 }
 
 #[get("/tags")]
-fn get_tags(conn: MoreInterestingConn, user: Option<User>, config: State<SiteConfig>) -> impl Responder<'static> {
-    let user = user.unwrap_or(User::default());
+fn get_tags(conn: MoreInterestingConn, login: Option<LoginSession>, config: State<SiteConfig>) -> impl Responder<'static> {
+    let (user, session) = login.map(|l| (l.user, l.session)).unwrap_or((User::default(), UserSession::default()));
     assert!((user.id == 0) ^ (user.username != ""));
     let tags = conn.get_all_tags().unwrap_or(Vec::new());
     Template::render("tags", &TemplateContext {
         title: Cow::Borrowed("all tags"),
         parent: "layout",
         config: config.clone(),
-        tags, user,
+        tags, user, session,
         ..default()
     })
 }
 
 #[get("/@")]
-fn invite_tree(conn: MoreInterestingConn, user: Option<User>, config: State<SiteConfig>) -> impl Responder<'static> {
-    let user = user.unwrap_or(User::default());
+fn invite_tree(conn: MoreInterestingConn, login: Option<LoginSession>, config: State<SiteConfig>) -> impl Responder<'static> {
+    let (user, session) = login.map(|l| (l.user, l.session)).unwrap_or((User::default(), UserSession::default()));
+
     assert!((user.id == 0) ^ (user.username != ""));
     fn handle_invite_tree(invite_tree_html: &mut String, invite_tree: &HashMap<i32, Vec<User>>, id: i32) {
         if let Some(users) = invite_tree.get(&id) {
@@ -812,17 +828,18 @@ fn invite_tree(conn: MoreInterestingConn, user: Option<User>, config: State<Site
         title: Cow::Borrowed("user invite tree"),
         parent: "layout",
         config: config.clone(),
-        user, raw_html,
+        user, raw_html, session,
         ..default()
     })
 }
 
 #[get("/admin/tags")]
-fn get_admin_tags(conn: MoreInterestingConn, user: Moderator, flash: Option<FlashMessage>, config: State<SiteConfig>) -> impl Responder<'static> {
+fn get_admin_tags(conn: MoreInterestingConn, login: ModeratorSession, flash: Option<FlashMessage>, config: State<SiteConfig>) -> impl Responder<'static> {
     let tags = conn.get_all_tags().unwrap_or(Vec::new());
     Template::render("admin/tags", &AdminTemplateContext {
         title: Cow::Borrowed("add or edit tags"),
-        user: user.0,
+        user: login.user,
+        session: login.session,
         alert: flash.map(|f| f.msg().to_owned()),
         config: config.clone(),
         tags, ..default()
@@ -836,7 +853,7 @@ struct EditTagsForm {
 }
 
 #[post("/admin/tags", data = "<form>")]
-fn admin_tags(conn: MoreInterestingConn, _user: Moderator, form: Form<EditTagsForm>) -> impl Responder<'static> {
+fn admin_tags(conn: MoreInterestingConn, _login: ModeratorSession, form: Form<EditTagsForm>) -> impl Responder<'static> {
     let name = if form.name.starts_with('#') { &form.name[1..] } else { &form.name[..] };
     match conn.create_or_update_tag(&NewTag {
         name,
@@ -858,12 +875,13 @@ struct GetEditPost {
 }
 
 #[get("/edit-post?<post..>")]
-fn get_edit_post(conn: MoreInterestingConn, user: Moderator, flash: Option<FlashMessage>, post: Form<GetEditPost>, config: State<SiteConfig>) -> Option<impl Responder<'static>> {
-    let post_info = conn.get_post_info_by_uuid(user.0.id, post.post).ok()?;
+fn get_edit_post(conn: MoreInterestingConn, login: ModeratorSession, flash: Option<FlashMessage>, post: Form<GetEditPost>, config: State<SiteConfig>) -> Option<impl Responder<'static>> {
+    let post_info = conn.get_post_info_by_uuid(login.user.id, post.post).ok()?;
     Some(Template::render("edit-post", &TemplateContext {
         title: Cow::Borrowed("edit post"),
         parent: "layout",
-        user: user.0,
+        user: login.user,
+        session: login.session,
         alert: flash.map(|f| f.msg().to_owned()),
         config: config.clone(),
         posts: vec![post_info],
@@ -881,8 +899,8 @@ struct EditPostForm {
 }
 
 #[post("/edit-post", data = "<form>")]
-fn edit_post(conn: MoreInterestingConn, user: Moderator, form: Form<EditPostForm>, config: State<SiteConfig>) -> Result<impl Responder<'static>, Status> {
-    let post_info = if let Ok(post_info) = conn.get_post_info_by_uuid(user.0.id, form.post) {
+fn edit_post(conn: MoreInterestingConn, login: ModeratorSession, form: Form<EditPostForm>, config: State<SiteConfig>) -> Result<impl Responder<'static>, Status> {
+    let post_info = if let Ok(post_info) = conn.get_post_info_by_uuid(login.user.id, form.post) {
         post_info
     } else {
         return Err(Status::NotFound);
@@ -902,7 +920,7 @@ fn edit_post(conn: MoreInterestingConn, user: Moderator, form: Form<EditPostForm
         match conn.delete_post(post_id) {
             Ok(_) => {
                 conn.mod_log_delete_post(
-                    user.0.id,
+                    login.user.id,
                     post_info.uuid,
                     &post_info.title,
                     post_info.url.as_ref().map(|x| &x[..]).unwrap_or(""),
@@ -919,13 +937,13 @@ fn edit_post(conn: MoreInterestingConn, user: Moderator, form: Form<EditPostForm
         match conn.update_post(post_id, !post_info.visible && post_info.score == 0, &NewPost {
             title: &form.title,
             url: url.as_ref().map(|s| &s[..]),
-            submitted_by: user.0.id,
+            submitted_by: login.user.id,
             excerpt: excerpt.as_ref().map(|s| &s[..]),
-            visible: user.0.trust_level >= 3,
+            visible: login.user.trust_level >= 3,
         }, config.body_format) {
             Ok(_) => {
                 conn.mod_log_edit_post(
-                    user.0.id,
+                    login.user.id,
                     post_info.uuid,
                     &post_info.title,
                     &form.title,
@@ -950,9 +968,9 @@ struct GetEditComment {
 }
 
 #[get("/edit-comment?<comment..>")]
-fn get_edit_comment(conn: MoreInterestingConn, user: User, flash: Option<FlashMessage>, comment: Form<GetEditComment>, config: State<SiteConfig>) -> Option<impl Responder<'static>> {
+fn get_edit_comment(conn: MoreInterestingConn, login: LoginSession, flash: Option<FlashMessage>, comment: Form<GetEditComment>, config: State<SiteConfig>) -> Option<impl Responder<'static>> {
     let comment = conn.get_comment_by_id(comment.comment).ok()?;
-    if user.trust_level < 3 && comment.created_by != user.id {
+    if login.user.trust_level < 3 && comment.created_by != login.user.id {
         return None;
     }
     Some(Template::render("edit-comment", &TemplateContext {
@@ -961,7 +979,8 @@ fn get_edit_comment(conn: MoreInterestingConn, user: User, flash: Option<FlashMe
         alert: flash.map(|f| f.msg().to_owned()),
         config: config.clone(),
         comment: Some(comment),
-        user,
+        user: login.user,
+        session: login.session,
         ..default()
     }))
 }
@@ -974,7 +993,8 @@ struct EditCommentForm {
 }
 
 #[post("/edit-comment", data = "<form>")]
-fn edit_comment(conn: MoreInterestingConn, user: User, form: Form<EditCommentForm>, config: State<SiteConfig>) -> Result<impl Responder<'static>, Status> {
+fn edit_comment(conn: MoreInterestingConn, login: LoginSession, form: Form<EditCommentForm>, config: State<SiteConfig>) -> Result<impl Responder<'static>, Status> {
+    let user = login.user;
     let comment = conn.get_comment_by_id(form.comment).map_err(|_| Status::NotFound)?;
     let post = conn.get_post_info_from_comment(user.id, form.comment).map_err(|_| Status::NotFound)?;
     if user.trust_level < 3 && comment.created_by != user.id {
@@ -1025,7 +1045,8 @@ struct ChangePasswordForm {
 }
 
 #[post("/change-password", data = "<form>")]
-fn change_password(conn: MoreInterestingConn, user: User, form: Form<ChangePasswordForm>) -> Result<impl Responder<'static>, Status> {
+fn change_password(conn: MoreInterestingConn, login: LoginSession, form: Form<ChangePasswordForm>) -> Result<impl Responder<'static>, Status> {
+    let user = login.user;
     if form.new_password == "" {
         return Err(Status::BadRequest);
     }
@@ -1042,11 +1063,13 @@ fn change_password(conn: MoreInterestingConn, user: User, form: Form<ChangePassw
 }
 
 #[get("/mod-queue")]
-fn get_mod_queue(conn: MoreInterestingConn, user: Moderator, flash: Option<FlashMessage>, config: State<SiteConfig>) -> Result<impl Responder<'static>, Status> {
+fn get_mod_queue(conn: MoreInterestingConn, login: ModeratorSession, flash: Option<FlashMessage>, config: State<SiteConfig>) -> Result<impl Responder<'static>, Status> {
+    let user = login.user;
+    let session = login.session;
     let mod_a_comment: bool = rand::random();
     if mod_a_comment {
-        if let Some(comment_info) = conn.find_moderated_comment(user.0.id) {
-            let post_info = conn.get_post_info_from_comment(user.0.id, comment_info.id).unwrap();
+        if let Some(comment_info) = conn.find_moderated_comment(user.id) {
+            let post_info = conn.get_post_info_from_comment(user.id, comment_info.id).unwrap();
             return Ok(Template::render("mod-queue-comment", &TemplateContext {
                 title: Cow::Borrowed("moderate comment"),
                 parent: "layout",
@@ -1054,13 +1077,13 @@ fn get_mod_queue(conn: MoreInterestingConn, user: Moderator, flash: Option<Flash
                 config: config.clone(),
                 comments: vec![comment_info],
                 posts: vec![post_info],
-                user: user.0,
+                user, session,
                 ..default()
             }))
         }
     }
-    if let Some(post_info) = conn.find_moderated_post(user.0.id) {
-        let comments = conn.get_comments_from_post(post_info.id, user.0.id).unwrap_or_else(|e| {
+    if let Some(post_info) = conn.find_moderated_post(user.id) {
+        let comments = conn.get_comments_from_post(post_info.id, user.id).unwrap_or_else(|e| {
             warn!("Failed to get comments: {:?}", e);
             Vec::new()
         });
@@ -1070,13 +1093,12 @@ fn get_mod_queue(conn: MoreInterestingConn, user: Moderator, flash: Option<Flash
             alert: flash.map(|f| f.msg().to_owned()),
             config: config.clone(),
             posts: vec![post_info],
-            user: user.0,
-            comments,
+            user, session, comments,
             ..default()
         }))
     }
-    if let Some(comment_info) = conn.find_moderated_comment(user.0.id) {
-        let post_info = conn.get_post_info_from_comment(user.0.id, comment_info.id).unwrap();
+    if let Some(comment_info) = conn.find_moderated_comment(user.id) {
+        let post_info = conn.get_post_info_from_comment(user.id, comment_info.id).unwrap();
         return Ok(Template::render("mod-queue-comment", &TemplateContext {
             title: Cow::Borrowed("moderate comment"),
             parent: "layout",
@@ -1084,7 +1106,7 @@ fn get_mod_queue(conn: MoreInterestingConn, user: Moderator, flash: Option<Flash
             config: config.clone(),
             comments: vec![comment_info],
             posts: vec![post_info],
-            user: user.0,
+            user, session,
             ..default()
         }))
     }
@@ -1093,7 +1115,7 @@ fn get_mod_queue(conn: MoreInterestingConn, user: Moderator, flash: Option<Flash
         parent: "layout",
         alert: flash.map(|f| f.msg().to_owned()),
         config: config.clone(),
-        user: user.0,
+        user, session,
         ..default()
     }))
 }
@@ -1105,8 +1127,9 @@ struct ModeratePostForm {
 }
 
 #[post("/moderate-post", data = "<form>")]
-fn moderate_post(conn: MoreInterestingConn, user: Moderator, form: Form<ModeratePostForm>) -> Result<impl Responder<'static>, Status> {
-    let post_info = if let Ok(post_info) = conn.get_post_info_by_uuid(user.0.id, form.post) {
+fn moderate_post(conn: MoreInterestingConn, login: ModeratorSession, form: Form<ModeratePostForm>) -> Result<impl Responder<'static>, Status> {
+    let user = login.user;
+    let post_info = if let Ok(post_info) = conn.get_post_info_by_uuid(user.id, form.post) {
         post_info
     } else {
         return Err(Status::NotFound);
@@ -1116,7 +1139,7 @@ fn moderate_post(conn: MoreInterestingConn, user: Moderator, form: Form<Moderate
         match conn.approve_post(post_id) {
             Ok(_) => {
                 conn.mod_log_approve_post(
-                    user.0.id,
+                    user.id,
                     post_info.uuid,
                     &post_info.title,
                     post_info.url.as_ref().map(|x| &x[..]).unwrap_or(""),
@@ -1133,7 +1156,7 @@ fn moderate_post(conn: MoreInterestingConn, user: Moderator, form: Form<Moderate
         match conn.delete_post(post_id) {
             Ok(_) => {
                 conn.mod_log_delete_post(
-                    user.0.id,
+                    user.id,
                     post_info.uuid,
                     &post_info.title,
                     post_info.url.as_ref().map(|x| &x[..]).unwrap_or(""),
@@ -1157,8 +1180,8 @@ struct BannerPostForm {
 }
 
 #[post("/banner-post", data = "<form>")]
-fn banner_post(conn: MoreInterestingConn, user: Moderator, form: Form<BannerPostForm>) -> Result<impl Responder<'static>, Status> {
-    let post_info = if let Ok(post_info) = conn.get_post_info_by_uuid(user.0.id, form.post) {
+fn banner_post(conn: MoreInterestingConn, login: ModeratorSession, form: Form<BannerPostForm>) -> Result<impl Responder<'static>, Status> {
+    let post_info = if let Ok(post_info) = conn.get_post_info_by_uuid(login.user.id, form.post) {
         post_info
     } else {
         return Err(Status::NotFound);
@@ -1169,7 +1192,7 @@ fn banner_post(conn: MoreInterestingConn, user: Moderator, form: Form<BannerPost
     match conn.banner_post(post_id, banner_title, banner_desc) {
         Ok(_) => {
             conn.mod_log_banner_post(
-                user.0.id,
+                login.user.id,
                 post_info.uuid,
                 banner_title.unwrap_or(""),
                 banner_desc.unwrap_or(""),
@@ -1190,7 +1213,7 @@ struct ModerateCommentForm {
 }
 
 #[get("/rebake/<from>/<to>")]
-fn rebake(conn: MoreInterestingConn, _user: Moderator, from: i32, to: i32, config: State<SiteConfig>) -> &'static str {
+fn rebake(conn: MoreInterestingConn, _login: ModeratorSession, from: i32, to: i32, config: State<SiteConfig>) -> &'static str {
     for i in from ..= to {
         if let Ok(post) = conn.get_post_by_id(i) {
             let _ = conn.update_post(i, false, &NewPost{
@@ -1212,18 +1235,18 @@ fn rebake(conn: MoreInterestingConn, _user: Moderator, from: i32, to: i32, confi
 }
 
 #[post("/moderate-comment", data = "<form>")]
-fn moderate_comment(conn: MoreInterestingConn, user: Moderator, form: Form<ModerateCommentForm>) -> Result<impl Responder<'static>, Status> {
+fn moderate_comment(conn: MoreInterestingConn, login: ModeratorSession, form: Form<ModerateCommentForm>) -> Result<impl Responder<'static>, Status> {
     let comment_info = if let Ok(comment) = conn.get_comment_by_id(form.comment) {
         comment
     } else {
         return Err(Status::NotFound);
     };
-    let post_info = conn.get_post_info_from_comment(user.0.id, comment_info.id).unwrap();
+    let post_info = conn.get_post_info_from_comment(login.user.id, comment_info.id).unwrap();
     if form.action == "approve" {
         match conn.approve_comment(comment_info.id) {
             Ok(_) => {
                 conn.mod_log_approve_comment(
-                    user.0.id,
+                    login.user.id,
                     comment_info.id,
                     post_info.uuid,
                     &comment_info.text,
@@ -1239,7 +1262,7 @@ fn moderate_comment(conn: MoreInterestingConn, user: Moderator, form: Form<Moder
         match conn.delete_comment(comment_info.id) {
             Ok(_) => {
                 conn.mod_log_delete_comment(
-                    user.0.id,
+                    login.user.id,
                     comment_info.id,
                     post_info.uuid,
                     &comment_info.text,

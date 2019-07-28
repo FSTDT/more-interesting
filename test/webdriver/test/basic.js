@@ -22,9 +22,11 @@ describe("testing javascript in the browser", function() {
         await username.sendKeys("root");
         var password = await this.browser.findElement(By.css('input[type="password"]'));
         await password.sendKeys("ready2go");
-        var button = await this.browser.findElement(By.css('form[action=""] button'));
-        await button.click();
+        await password.submit();
         await this.browser.wait(until.urlIs("http://localhost:3001/"));
+        var inner_banner = await this.browser.findElement(By.css('.inner-banner'));
+        var text = await inner_banner.getText();
+        return assert.equal("Congrats, you're in!", text);
     });
 
     afterEach(function() {
@@ -36,16 +38,18 @@ describe("testing javascript in the browser", function() {
         await this.browser.wait(until.urlIs("http://localhost:3001/submit"));
         var headline = await this.browser.findElement(By.css('a'));
         var text = await headline.getText();
-        return assert.equal(text, "More Interesting");
+        return assert.equal("More Interesting", text);
     });
 
     it("log out button should go away when you log out", async function() {
+        await this.browser.get("http://localhost:3001/");
+        await this.browser.wait(until.urlIs("http://localhost:3001/"));
         var user_menu = await this.browser.findElements(By.css('.details-menu-summary'));
         await user_menu[1].click();
-        var logout_button = await this.browser.findElement(By.css('form[action="logout"] button'));
+        var logout_button = await this.browser.findElement(By.css('form[action*="logout"] button'));
         await logout_button.click();
         await this.browser.wait(until.urlIs("http://localhost:3001/"));
-        logout_button = await this.browser.findElements(By.css('form[action="logout"] button'));
+        logout_button = await this.browser.findElements(By.css('form[action*="logout"] button'));
         return assert(!logout_button.length);
     });
 });

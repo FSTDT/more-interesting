@@ -2,7 +2,7 @@ use rocket_contrib::databases::diesel::PgConnection;
 use diesel::prelude::*;
 use diesel::result::Error as DieselError;
 use chrono::NaiveDateTime;
-use crate::schema::{users, posts, stars, invite_tokens, comments, comment_stars, tags, post_tagging, moderation, flags, comment_flags, domains, legacy_comments};
+use crate::schema::{users, user_sessions, posts, stars, invite_tokens, comments, comment_stars, tags, post_tagging, moderation, flags, comment_flags, domains, legacy_comments};
 use crate::password::{password_hash, password_verify, PasswordResult};
 use serde::Serialize;
 use crate::base32::Base32;
@@ -61,7 +61,15 @@ pub struct Post {
     pub banner_desc: Option<String>,
 }
 
-#[derive(Queryable, Serialize)]
+#[derive(Clone, Queryable, Serialize)]
+pub struct UserSession {
+    pub uuid: Base32,
+    pub created_at: NaiveDateTime,
+    pub user_agent: String,
+    pub user_id: i32,
+}
+
+#[derive(Clone, Queryable, Serialize)]
 pub struct User {
     pub id: i32,
     pub banned: bool,
@@ -97,6 +105,17 @@ impl Default for User {
             invited_by: None,
             dark_mode: false,
             big_mode: false,
+        }
+    }
+}
+
+impl Default for UserSession {
+    fn default() -> Self {
+        UserSession {
+            uuid: Base32::zero(),
+            user_id: 0,
+            user_agent: String::new(),
+            created_at: NaiveDateTime::from_timestamp(0, 0),
         }
     }
 }
@@ -1646,6 +1665,25 @@ impl MoreInterestingConn {
             ))
             .execute(&self.0)
             .map(|_| ())
+    }
+    pub fn create_session(&self, user_id: i32, user_agent: &str) -> Result<UserSession, DieselError> {
+        #[derive(Insertable)]
+        #[table_name="user_sessions"]
+        struct CreateSession<'a> {
+            uuid: i64,
+            user_agent: &'a str,
+            user_id: i32,
+        }
+        let uuid = rand::random();
+        diesel::insert_into(user_sessions::table)
+            .values(CreateSession {
+                uuid, user_agent, user_id
+            })
+            .get_result::<UserSession>(&self.0)
+    }
+    pub fn get_session_by_uuid(&self, base32: Base32) -> Result<UserSession, DieselError> {
+        use self::user_sessions::dsl::*;
+        user_sessions.filter(uuid.eq(base32.into_i64())).get_result(&self.0)
     }
 }
 

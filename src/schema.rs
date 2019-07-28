@@ -159,6 +159,17 @@ table! {
 table! {
     use crate::sql_types::*;
 
+    user_sessions (uuid) {
+        uuid -> Int8,
+        created_at -> Timestamp,
+        user_agent -> Text,
+        user_id -> Int4,
+    }
+}
+
+table! {
+    use crate::sql_types::*;
+
     users (id) {
         id -> Int4,
         banned -> Bool,
@@ -190,6 +201,7 @@ joinable!(posts -> domains (domain_id));
 joinable!(posts -> users (submitted_by));
 joinable!(stars -> posts (post_id));
 joinable!(stars -> users (user_id));
+joinable!(user_sessions -> users (user_id));
 
 allow_tables_to_appear_in_same_query!(
     comment_flags,
@@ -205,5 +217,6 @@ allow_tables_to_appear_in_same_query!(
     posts,
     stars,
     tags,
+    user_sessions,
     users,
 );

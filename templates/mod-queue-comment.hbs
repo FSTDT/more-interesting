@@ -33,7 +33,7 @@
                     {{/each}}
                 {{/if}}
                 </div>
-                <form class=footer-aside action=moderate-comment method=POST>
+                <form class=footer-aside action="moderate-comment?U={{session.uuid}}" method=POST>
                     <input type="hidden" name="comment" value="{{comments.0.id}}">
                         <button name="action" value="approve" class=button-default>Approve</button>
                         <a href="edit-comment?comment={{comments.0.id}}" class=button>Edit</a>

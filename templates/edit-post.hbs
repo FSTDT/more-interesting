@@ -1,5 +1,5 @@
 {{#*inline "page"}}
-    <form action='' method=POST>
+    <form action="?U={{session.uuid}}" method=POST>
         <input type=hidden name=post value="{{posts.0.uuid}}">
         <label>Title and #hashtags <input name=title autofocus value="{{posts.0.title}}" required is="smart-punct-input"></label>
         <label>URL <input name=url value="{{posts.0.url}}"></label>
