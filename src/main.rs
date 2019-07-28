@@ -562,7 +562,7 @@ fn login(conn: MoreInterestingConn, post: Form<UserForm>, mut cookies: Cookies, 
                 return Flash::error(Redirect::to("."), "Sorry. Not sorry. You're banned.");
             }
             let session = conn.create_session(user.id, user_agent.user_agent).expect("failed to allocate a session");
-            let cookie = Cookie::build("U", session.uuid.to_string()).path("/").secure(true).permanent().same_site(SameSite::None).finish();
+            let cookie = Cookie::build("U", session.uuid.to_string()).path("/").permanent().same_site(SameSite::None).finish();
             cookies.add(cookie);
             Flash::success(Redirect::to("."), "Congrats, you're in!")
         },
@@ -574,7 +574,7 @@ fn login(conn: MoreInterestingConn, post: Form<UserForm>, mut cookies: Cookies, 
 
 #[post("/logout")]
 fn logout(mut cookies: Cookies) -> impl Responder<'static> {
-    let cookie = Cookie::build("U", "").path("/").secure(true).permanent().same_site(SameSite::None).finish();
+    let cookie = Cookie::build("U", "").path("/").permanent().same_site(SameSite::None).finish();
     cookies.add(cookie);
     Redirect::to(".")
 }
@@ -708,7 +708,7 @@ fn signup(conn: MoreInterestingConn, user_agent: UserAgentString, form: Form<Sig
             conn.change_user_trust_level(user.id, 1).expect("if logging in worked, then so should changing trust level");
         }
         let session = conn.create_session(user.id, user_agent.user_agent).expect("failed to allocate a session");
-        let cookie = Cookie::build("U", session.uuid.to_string()).path("/").secure(true).permanent().same_site(SameSite::None).finish();
+        let cookie = Cookie::build("U", session.uuid.to_string()).path("/").permanent().same_site(SameSite::None).finish();
         cookies.add(cookie);
         return Ok(Flash::success(Redirect::to("."), "Congrats, you're in!"));
     }
