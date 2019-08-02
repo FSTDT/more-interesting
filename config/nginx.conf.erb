@@ -91,15 +91,5 @@ http {
 			limit_req_status 429;
 		}
 
-    location ~* ^/QuoteComment.aspx {
-      rewrite ^ /id/$arg_QID;
-    }
-
-    location ~* ^/Default.aspx {
-      rewrite ^ /;
-    }
-		location ~* ^/RandomQuotes.aspx {
-			rewrite ^ /random;
-    }
 	}
 }
