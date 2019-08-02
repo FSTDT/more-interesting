@@ -61,6 +61,14 @@ http {
 			return 403;
 		}
 
+
+		if ($request_uri ~* "%2525") {
+			return 404;
+		}
+		if ($request_uri ~* "%253F") {
+			return 404;
+		}
+
 		location ~ ^/assets/ {
 			add_header X-Content-Type-Options nosniff;
 			add_header Cache-Control public;
