@@ -48,8 +48,14 @@ http {
 		if ($request_uri = /robots.txt) {
 			set $botck "{botck}txt";
 		}
-		if ($http_user_agent ~* (mj12bot|ahrefsbot|semrushbot|mauibot)) {
-			set $botck "${botck}bad";
+		if ($http_user_agent ~* "KHTML,like") {
+			set $botck "startbad";
+		}
+		if ($http_user_agent ~* "link Gecko") {
+			set $botck "startbad";
+		}
+		if ($http_user_agent ~* "Mozilla/5.0\(") {
+			set $botck "startbad";
 		}
 		if ($botck = "startbad") {
 			return 403;
