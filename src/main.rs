@@ -30,7 +30,7 @@ use rocket_contrib::serve::StaticFiles;
 use rocket_contrib::templates::{Template, handlebars};
 use serde::Serialize;
 use std::borrow::Cow;
-use crate::models::{UserSession, PostInfo, NewStar, NewUser, CommentInfo, NewPost, NewComment, NewStarComment, NewTag, Tag, Comment, ModerationInfo, NewFlag, NewFlagComment, LegacyComment, CommentSearchResult};
+use crate::models::{PostSearch, PostSearchOrderBy, UserSession, PostInfo, NewStar, NewUser, CommentInfo, NewPost, NewComment, NewStarComment, NewTag, Tag, Comment, ModerationInfo, NewFlag, NewFlagComment, LegacyComment, CommentSearchResult};
 use base32::Base32;
 use url::Url;
 use std::collections::HashMap;
@@ -267,46 +267,44 @@ struct IndexParams {
 fn index(conn: MoreInterestingConn, login: Option<LoginSession>, flash: Option<FlashMessage>, params: Option<Form<IndexParams>>, config: State<SiteConfig>) -> Option<impl Responder<'static>> {
     let (user, session) = login.map(|l| (l.user, l.session)).unwrap_or((User::default(), UserSession::default()));
 
-    let title;
-    let mut is_home = false;
+    let title = Cow::Owned(config.site_title_html.clone());
+    let is_home = params.is_none();
     let mut tags = vec![];
-    let posts = if let Some(tag_name) = params.as_ref().and_then(|params| params.tag.as_ref()) {
-        if let Ok((recent, tag)) = conn.get_tag_by_name(tag_name)
-            .and_then(|tag| Ok((conn.get_post_info_recent_by_tag(user.id, tag.id)?, tag))) {
-            title = Cow::Owned(tag_name.clone());
-            tags = vec![tag];
-            recent
+    let mut search = PostSearch::with_my_user_id(user.id);
+    if let Some(tag_names) = params.as_ref().and_then(|params| params.tag.as_ref()) {
+        if tag_names.contains("/") {
+            for tag_name in tag_names.split("/") {
+                if let Ok(tag) = conn.get_tag_by_name(tag_name) {
+                    search.or_tags.push(tag.id);
+                    tags.push(tag);
+                } else {
+                    return None;
+                }
+            }
         } else {
-            return None;
+            for tag_name in tag_names.split(" ") {
+                if let Ok(tag) = conn.get_tag_by_name(tag_name) {
+                    search.and_tags.push(tag.id);
+                    tags.push(tag);
+                } else {
+                    return None;
+                }
+            }
         }
-    } else if let Some(query) = params.as_ref().and_then(|params| params.q.as_ref()) {
-        if let Ok(recent) = conn.get_post_info_search(user.id, query) {
-            title = Cow::Owned(query.clone());
-            recent
-        } else {
-            return None;
-        }
-    } else if let Some(domain_name) = params.as_ref().and_then(|params| params.domain.as_ref()) {
-        let domain = conn.get_domain_by_hostname(domain_name);
-        if let Ok(domain) = domain {
-            if let Ok(recent) = conn.get_post_info_recent_by_domain(user.id, domain.id) {
-                title = Cow::Owned(domain_name.clone());
-                recent
+    }
+    if let Some(query) = params.as_ref().and_then(|params| params.q.as_ref()) {
+        search.keywords = query.to_string();
+    }
+    if let Some(domain_names) = params.as_ref().and_then(|params| params.domain.as_ref()) {
+        for domain_name in domain_names.split("/") {
+            if let Ok(domain) = conn.get_tag_by_name(domain_name) {
+                search.or_domains.push(domain.id);
             } else {
                 return None;
             }
-        } else {
-            return None;
         }
-    } else {
-        if let Ok(recent) = conn.get_post_info_recent(user.id) {
-            title = Cow::Owned(config.site_title_html.clone());
-            is_home = true;
-            recent
-        } else {
-            return None;
-        }
-    };
+    }
+    let posts = conn.search_posts(&search).ok()?;
     Some(Template::render("index", &TemplateContext {
         parent: "layout",
         alert: flash.map(|f| f.msg().to_owned()),
@@ -349,7 +347,11 @@ fn search_comments(conn: MoreInterestingConn, login: Option<LoginSession>, flash
 #[get("/top")]
 fn top(conn: MoreInterestingConn, login: Option<LoginSession>, flash: Option<FlashMessage>, config: State<SiteConfig>) -> Option<impl Responder<'static>> {
     let (user, session) = login.map(|l| (l.user, l.session)).unwrap_or((User::default(), UserSession::default()));
-    let posts = conn.get_post_info_top(user.id).ok()?;
+    let search = PostSearch {
+        order_by: PostSearchOrderBy::Top,
+        .. PostSearch::with_my_user_id(user.id)
+    };
+    let posts = conn.search_posts(&search).ok()?;
     Some(Template::render("index-top", &TemplateContext {
         title: Cow::Borrowed("top"),
         parent: "layout",
@@ -368,12 +370,15 @@ struct NewParams {
 #[get("/new?<params..>")]
 fn new(conn: MoreInterestingConn, login: Option<LoginSession>, flash: Option<FlashMessage>, config: State<SiteConfig>, params: Option<Form<NewParams>>) -> Option<impl Responder<'static>> {
     let (user, session) = login.map(|l| (l.user, l.session)).unwrap_or((User::default(), UserSession::default()));
-    let posts = if let Some(after_uuid) = params.as_ref().and_then(|params| params.after.as_ref()) {
-        let after = conn.get_post_info_by_uuid(user.id, *after_uuid).ok()?;
-        conn.get_post_info_new_after(user.id, after.id).ok()?
-    } else {
-        conn.get_post_info_new(user.id).ok()?
+    let mut search = PostSearch {
+        order_by: PostSearchOrderBy::Newest,
+        .. PostSearch::with_my_user_id(user.id)
     };
+    if let Some(after_uuid) = params.as_ref().and_then(|params| params.after.as_ref()) {
+        let after = conn.get_post_info_by_uuid(user.id, *after_uuid).ok()?;
+        search.after_post_id = after.id;
+    }
+    let posts = conn.search_posts(&search).ok()?;
     Some(Template::render("index-new", &TemplateContext {
         title: Cow::Borrowed("new"),
         parent: "layout",
@@ -387,7 +392,11 @@ fn new(conn: MoreInterestingConn, login: Option<LoginSession>, flash: Option<Fla
 #[get("/latest")]
 fn latest(conn: MoreInterestingConn, login: Option<LoginSession>, flash: Option<FlashMessage>, config: State<SiteConfig>) -> Option<impl Responder<'static>> {
     let (user, session) = login.map(|l| (l.user, l.session)).unwrap_or((User::default(), UserSession::default()));
-    let posts = conn.get_post_info_latest(user.id).ok()?;
+    let search = PostSearch {
+        order_by: PostSearchOrderBy::Latest,
+        .. PostSearch::with_my_user_id(user.id)
+    };
+    let posts = conn.search_posts(&search).ok()?;
     Some(Template::render("index", &TemplateContext {
         title: Cow::Borrowed("latest"),
         parent: "layout",
@@ -400,7 +409,11 @@ fn latest(conn: MoreInterestingConn, login: Option<LoginSession>, flash: Option<
 
 #[get("/rss")]
 fn rss(conn: MoreInterestingConn, config: State<SiteConfig>) -> Option<impl Responder<'static>> {
-    let posts = conn.get_post_info_latest(0).ok()?;
+    let search = PostSearch {
+        order_by: PostSearchOrderBy::Newest,
+        .. PostSearch::with_my_user_id(0)
+    };
+    let posts = conn.search_posts(&search).ok()?;
     #[derive(Serialize)]
     struct RssContext {
         config: SiteConfig,
