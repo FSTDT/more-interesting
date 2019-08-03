@@ -33,8 +33,7 @@ matrix:
         - diesel migration run
         - cargo build
         - cargo run &
-        - sleep 5
-        - pwd && cd test/webdriver && npm test && cd ../..
+        - pwd && cd test/webdriver && sh test.sh && cd ../..
 
 branches:
   only:
