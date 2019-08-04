@@ -13,7 +13,7 @@ describe("testing javascript in the browser", function() {
     beforeEach(async function() {
         this.browser = await new Builder()
             .forBrowser(process.env.MORE_INTERESTING_WEBDRIVER || "firefox")
-            .setChromeOptions(new chrome.Options().headless().windowSize(screen))
+            .setChromeOptions(new chrome.Options({'goog:chromeOptions': {'w3c': false}}).headless().windowSize(screen))
             .setFirefoxOptions(new firefox.Options().headless().windowSize(screen))
             .build();
         await this.browser.get("http://localhost:3001/login");
