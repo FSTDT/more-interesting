@@ -264,7 +264,7 @@ struct IndexParams {
     after: Option<Base32>,
 }
 
-fn parse_index_params(conn: &MoreInterestingConn, user: &User, params: Option<IndexParams>) -> Option<(PostSearch, Vec<Tag>)> {
+fn parse_index_params(conn: &MoreInterestingConn, user: &User, params: Option<Form<IndexParams>>) -> Option<(PostSearch, Vec<Tag>)> {
     let mut tags = vec![];
     let mut search = PostSearch::with_my_user_id(user.id);
     if let Some(after_uuid) = params.as_ref().and_then(|params| params.after.as_ref()) {
@@ -354,12 +354,13 @@ fn search_comments(conn: MoreInterestingConn, login: Option<LoginSession>, flash
     }
 }
 
-#[get("/top")]
-fn top(conn: MoreInterestingConn, login: Option<LoginSession>, flash: Option<FlashMessage>, config: State<SiteConfig>) -> Option<impl Responder<'static>> {
+#[get("/top?<params..>")]
+fn top(conn: MoreInterestingConn, login: Option<LoginSession>, flash: Option<FlashMessage>, config: State<SiteConfig>, params: Option<Form<IndexParams>>) -> Option<impl Responder<'static>> {
     let (user, session) = login.map(|l| (l.user, l.session)).unwrap_or((User::default(), UserSession::default()));
+    let (search, tags) = parse_index_params(&conn, &user, params)?;
     let search = PostSearch {
         order_by: PostSearchOrderBy::Top,
-        .. PostSearch::with_my_user_id(user.id)
+        .. search
     };
     let posts = conn.search_posts(&search).ok()?;
     Some(Template::render("index-top", &TemplateContext {
@@ -367,7 +368,7 @@ fn top(conn: MoreInterestingConn, login: Option<LoginSession>, flash: Option<Fla
         parent: "layout",
         alert: flash.map(|f| f.msg().to_owned()),
         config: config.clone(),
-        user, posts, session,
+        user, posts, session, tags,
         ..default()
     }))
 }
@@ -391,20 +392,21 @@ fn new(conn: MoreInterestingConn, login: Option<LoginSession>, flash: Option<Fla
     }))
 }
 
-#[get("/latest")]
-fn latest(conn: MoreInterestingConn, login: Option<LoginSession>, flash: Option<FlashMessage>, config: State<SiteConfig>) -> Option<impl Responder<'static>> {
+#[get("/latest?<params..>")]
+fn latest(conn: MoreInterestingConn, login: Option<LoginSession>, params: Option<Form<IndexParams>>, flash: Option<FlashMessage>, config: State<SiteConfig>) -> Option<impl Responder<'static>> {
     let (user, session) = login.map(|l| (l.user, l.session)).unwrap_or((User::default(), UserSession::default()));
+    let (search, tags) = parse_index_params(&conn, &user, params)?;
     let search = PostSearch {
         order_by: PostSearchOrderBy::Latest,
-        .. PostSearch::with_my_user_id(user.id)
+        .. search
     };
     let posts = conn.search_posts(&search).ok()?;
-    Some(Template::render("index", &TemplateContext {
+    Some(Template::render("index-latest", &TemplateContext {
         title: Cow::Borrowed("latest"),
         parent: "layout",
         alert: flash.map(|f| f.msg().to_owned()),
         config: config.clone(),
-        user, posts, session,
+        user, posts, session, tags,
         ..default()
     }))
 }
