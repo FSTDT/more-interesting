@@ -1,7 +1,17 @@
 {{#*inline "page"}}
+{{~#if tags~}}
+{{~else~}}
 <header class=tight-headline>
 <h2>Top posts</h2>
 </header>
+{{~/if}}
+{{#each tags}}
+<header class=tight-headline>
+<h2>#{{this.name}}</h2>
+<p>{{this.description}}</p>
+<nav><a href=?tag={{this.name}}>Home</a> &bull; <a href=latest?tag={{this.name}}>Latest</a> &bull; <b>Top</b> &bull; <a href=new?tag={{this.name}}>New</a></nav>
+</header>
+{{/each}}
 <ajax-form>
 {{#each posts}}
     {{#if this.banner_title}}

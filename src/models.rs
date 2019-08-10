@@ -424,7 +424,7 @@ impl MoreInterestingConn {
             .filter(visible.eq(true))
             .filter(self::posts::dsl::submitted_by.eq(user_info_id_param))
             .order_by((initial_stellar_time.desc(), self::posts::dsl::created_at.desc()))
-            .limit(200)
+            .limit(150)
             .get_results::<(i32, Base32, String, Option<String>, bool, i32, i32, i32, bool, NaiveDateTime, i32, Option<String>, Option<String>, Option<i32>, Option<i32>, String, Option<String>, Option<String>)>(&self.0)?
             .into_iter()
             .map(|t| tuple_to_post_info(self, t, self.get_current_stellar_time()))
@@ -909,7 +909,7 @@ impl MoreInterestingConn {
             .filter(self::comments::dsl::visible.eq(true))
             .filter(self::comments::dsl::created_by.eq(user_id_param))
             .order_by(self::comments::dsl::id.desc())
-            .limit(200)
+            .limit(100)
             .get_results::<(i32, String, i32, Base32, String, NaiveDateTime, i32, String)>(&self.0)?
             .into_iter()
             .map(|t| tuple_to_comment_search_results(t))
@@ -937,7 +937,7 @@ impl MoreInterestingConn {
             .filter(self::comments::dsl::created_by.eq(user_id_param))
             .filter(self::comments::dsl::id.lt(after_id_param))
             .order_by(self::comments::dsl::id.desc())
-            .limit(200)
+            .limit(100)
             .get_results::<(i32, String, i32, Base32, String, NaiveDateTime, i32, String)>(&self.0)?
             .into_iter()
             .map(|t| tuple_to_comment_search_results(t))
@@ -988,7 +988,7 @@ impl MoreInterestingConn {
                 self::users::dsl::username,
             ))
             .filter(self::stars::dsl::post_id.eq(post_id_param))
-            .limit(400)
+            .limit(100)
             .get_results::<(String,)>(&self.0)?
             .into_iter()
             .map(|(t,)| t)
@@ -1004,7 +1004,7 @@ impl MoreInterestingConn {
                 self::users::dsl::username,
             ))
             .filter(self::comment_stars::dsl::comment_id.eq(comment_id_param))
-            .limit(400)
+            .limit(100)
             .get_results::<(String,)>(&self.0)?
             .into_iter()
             .map(|(t,)| t)
