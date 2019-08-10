@@ -261,16 +261,16 @@ struct IndexParams {
     tag: Option<String>,
     domain: Option<String>,
     q: Option<String>,
+    after: Option<Base32>,
 }
 
-#[get("/?<params..>")]
-fn index(conn: MoreInterestingConn, login: Option<LoginSession>, flash: Option<FlashMessage>, params: Option<Form<IndexParams>>, config: State<SiteConfig>) -> Option<impl Responder<'static>> {
-    let (user, session) = login.map(|l| (l.user, l.session)).unwrap_or((User::default(), UserSession::default()));
-
-    let title = Cow::Owned(config.site_title_html.clone());
-    let is_home = params.is_none();
+fn parse_index_params(conn: &MoreInterestingConn, user: &User, params: Option<IndexParams>) -> Option<(PostSearch, Vec<Tag>)> {
     let mut tags = vec![];
     let mut search = PostSearch::with_my_user_id(user.id);
+    if let Some(after_uuid) = params.as_ref().and_then(|params| params.after.as_ref()) {
+        let after = conn.get_post_info_by_uuid(user.id, *after_uuid).ok()?;
+        search.after_post_id = after.id;
+    }
     if let Some(tag_names) = params.as_ref().and_then(|params| params.tag.as_ref()) {
         if tag_names.contains("/") {
             for tag_name in tag_names.split("/") {
@@ -304,6 +304,16 @@ fn index(conn: MoreInterestingConn, login: Option<LoginSession>, flash: Option<F
             }
         }
     }
+    Some((search, tags))
+}
+
+#[get("/?<params..>")]
+fn index(conn: MoreInterestingConn, login: Option<LoginSession>, flash: Option<FlashMessage>, params: Option<Form<IndexParams>>, config: State<SiteConfig>) -> Option<impl Responder<'static>> {
+    let (user, session) = login.map(|l| (l.user, l.session)).unwrap_or((User::default(), UserSession::default()));
+
+    let title = Cow::Owned(config.site_title_html.clone());
+    let is_home = params.is_none();
+    let (search, tags) = parse_index_params(&conn, &user, params)?;
     let posts = conn.search_posts(&search).ok()?;
     Some(Template::render("index", &TemplateContext {
         parent: "layout",
@@ -362,29 +372,21 @@ fn top(conn: MoreInterestingConn, login: Option<LoginSession>, flash: Option<Fla
     }))
 }
 
-#[derive(FromForm)]
-struct NewParams {
-    after: Option<Base32>,
-}
-
 #[get("/new?<params..>")]
-fn new(conn: MoreInterestingConn, login: Option<LoginSession>, flash: Option<FlashMessage>, config: State<SiteConfig>, params: Option<Form<NewParams>>) -> Option<impl Responder<'static>> {
+fn new(conn: MoreInterestingConn, login: Option<LoginSession>, flash: Option<FlashMessage>, config: State<SiteConfig>, params: Option<Form<IndexParams>>) -> Option<impl Responder<'static>> {
     let (user, session) = login.map(|l| (l.user, l.session)).unwrap_or((User::default(), UserSession::default()));
-    let mut search = PostSearch {
+    let (search, tags) = parse_index_params(&conn, &user, params)?;
+    let search = PostSearch {
         order_by: PostSearchOrderBy::Newest,
-        .. PostSearch::with_my_user_id(user.id)
+        .. search
     };
-    if let Some(after_uuid) = params.as_ref().and_then(|params| params.after.as_ref()) {
-        let after = conn.get_post_info_by_uuid(user.id, *after_uuid).ok()?;
-        search.after_post_id = after.id;
-    }
     let posts = conn.search_posts(&search).ok()?;
     Some(Template::render("index-new", &TemplateContext {
         title: Cow::Borrowed("new"),
         parent: "layout",
         alert: flash.map(|f| f.msg().to_owned()),
         config: config.clone(),
-        user, posts, session,
+        user, posts, session, tags,
         ..default()
     }))
 }
