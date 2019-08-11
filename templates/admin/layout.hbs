@@ -30,6 +30,22 @@
         el.setAttribute("tabindex", 0);
         el.setAttribute("role", "listbox");
         var items = [];
+        var setActiveIdx = function(activeIdx) {
+            var item;
+            for (var itemIdx = 0; itemIdx !== items.length; itemIdx += 1) {
+                item = items[itemIdx];
+                while (item.className.indexOf("current") !== -1) {
+                    item.className = item.className.replace("current", "");
+                }
+                while (item.className.indexOf("focus") !== -1) {
+                    item.className = item.className.replace("focus", "");
+                }
+                item.removeAttribute("aria-selected");
+            }
+            items[activeIdx].className += document.activeElement === el ? " focus current " : " current ";
+            items[activeIdx].setAttribute("aria-selected", true);
+            return activeIdx;
+        };
         Array.prototype.slice.call(el.getElementsByClassName("admin-list-item")).forEach(function(item) {
             item.setAttribute("tabindex", -1);
             item.setAttribute("role", "option");
@@ -39,30 +55,36 @@
         if (item_) {
             item_.setAttribute("aria-selected", "true");
         }
+        el.addEventListener("click", function(e) {
+            if (e.target.className.indexOf("admin-list-item") !== -1) {
+                var itemIdx = items.indexOf(e.target);
+                if (itemIdx !== -1) {
+                    setActiveIdx(itemIdx);
+                }
+            }
+        });
         el.addEventListener("focus", function(e) {
             var item = el.getElementsByClassName("current")[0];
             if (!item) {
-                items[0].className += " current focus";
+                setActiveIdx(0);
             } else if (item.className.indexOf("focus") === -1) {
                 item.className += " focus";
             }
         });
         el.addEventListener("blur", function(e) {
             var item = el.getElementsByClassName("current")[0];
-            if (item) item.className = item.className.replace("focus", "");
+            if (item) {
+                while (item.className.indexOf("focus") !== -1) {
+                    item.className = item.className.replace("focus", "");
+                }
+            }
         });
         el.addEventListener("keydown", function(e) {
             var item;
             var itemIdx;
             if (document.activeElement !== el) {
-              if (document.activeElement.className.indexOf("admin-list-item) !== -1) {
-                for (itemIdx = 0; itemIdx !== items.length; itemIdx += 1) {
-                  item = items[itemIdx];
-                  item.className = item.className.replace("current", "");
-                  item.className = item.className.replace("focus", "");
-                  item.removeAttribute("aria-selected");
-                }
-                item = el.activeElement;
+              if (document.activeElement.className.indexOf("admin-list-item") !== -1) {
+                item = document.activeElement;
                 el.focus();
               } else {
                 return;
@@ -75,28 +97,20 @@
             switch (e.key.toLowerCase()) {
                 case "arrowdown":
                 case "down":
-                    item.className = item.className.replace("current", "");
-                    item.className = item.className.replace("focus", "");
-                    item.removeAttribute("aria-selected");
                     itemIdx += 1;
                     itemIdx %= items.length;
-                    items[itemIdx].className += " current focus";
-                    items[itemIdx].setAttribute("aria-selected", "true");
+                    setActiveIdx(itemIdx);
                     e.preventDefault();
                 break;
                 case "arrowup":
                 case "up":
-                    item.className = item.className.replace("current", "");
-                    item.className = item.className.replace("focus", "");
-                    item.removeAttribute("aria-selected");
                     itemIdx -= 1;
                     if (itemIdx === -1) {
                         itemIdx = items.length - 1;
                     } else {
                         itemIdx %= items.length;
                     }
-                    items[itemIdx].className += " current focus";
-                    items[itemIdx].setAttribute("aria-selected", "true");
+                    setActiveIdx(itemIdx);
                     e.preventDefault();
                 break;
                 case "enter":
@@ -105,21 +119,11 @@
                     e.preventDefault();
                 break;
                 case "home":
-                    item.className = item.className.replace("current", "");
-                    item.className = item.className.replace("focus", "");
-                    item.removeAttribute("aria-selected");
-                    itemIdx = 0;
-                    items[itemIdx].className += " current focus";
-                    items[itemIdx].setAttribute("aria-selected", "true");
+                    itemIdx = setActiveIdx(0);
                     e.preventDefault();
                 break;
                 case "end":
-                    item.className = item.className.replace("current", "");
-                    item.className = item.className.replace("focus", "");
-                    item.removeAttribute("aria-selected");
-                    itemIdx = items.length - 1;
-                    items[itemIdx].className += " current focus";
-                    items[itemIdx].setAttribute("aria-selected", "true");
+                    itemIdx = setActiveIdx(items.length - 1);
                     e.preventDefault();
                 break;
                 case "tab":
