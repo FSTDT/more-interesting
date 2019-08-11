@@ -312,8 +312,8 @@ fn index(conn: MoreInterestingConn, login: Option<LoginSession>, flash: Option<F
     let (user, session) = login.map(|l| (l.user, l.session)).unwrap_or((User::default(), UserSession::default()));
 
     let title = Cow::Owned(config.site_title_html.clone());
-    let is_home = params.is_none();
     let (search, tags) = parse_index_params(&conn, &user, params)?;
+    let is_home = tags.is_empty();
     let posts = conn.search_posts(&search).ok()?;
     Some(Template::render("index", &TemplateContext {
         parent: "layout",
