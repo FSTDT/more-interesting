@@ -37,6 +37,15 @@ table! {
 table! {
     use crate::sql_types::*;
 
+    domain_synonyms (from_hostname) {
+        from_hostname -> Varchar,
+        to_domain_id -> Int4,
+    }
+}
+
+table! {
+    use crate::sql_types::*;
+
     domains (id) {
         id -> Int4,
         banned -> Bool,
@@ -189,6 +198,7 @@ joinable!(comment_stars -> comments (comment_id));
 joinable!(comment_stars -> users (user_id));
 joinable!(comments -> posts (post_id));
 joinable!(comments -> users (created_by));
+joinable!(domain_synonyms -> domains (to_domain_id));
 joinable!(flags -> posts (post_id));
 joinable!(flags -> users (user_id));
 joinable!(invite_tokens -> users (invited_by));
@@ -207,6 +217,7 @@ allow_tables_to_appear_in_same_query!(
     comment_flags,
     comment_stars,
     comments,
+    domain_synonyms,
     domains,
     flags,
     invite_tokens,

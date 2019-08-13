@@ -2,7 +2,7 @@ use rocket_contrib::databases::diesel::PgConnection;
 use diesel::prelude::*;
 use diesel::result::Error as DieselError;
 use chrono::NaiveDateTime;
-use crate::schema::{users, user_sessions, posts, stars, invite_tokens, comments, comment_stars, tags, post_tagging, moderation, flags, comment_flags, domains, legacy_comments};
+use crate::schema::{users, user_sessions, posts, stars, invite_tokens, comments, comment_stars, tags, post_tagging, moderation, flags, comment_flags, domains, legacy_comments, domain_synonyms};
 use crate::password::{password_hash, password_verify, PasswordResult};
 use serde::Serialize;
 use crate::base32::Base32;
@@ -166,6 +166,19 @@ pub struct NewDomain {
     pub hostname: String,
     pub is_www: bool,
     pub is_https: bool,
+}
+
+#[derive(Insertable, Queryable, Serialize)]
+#[table_name="domain_synonyms"]
+pub struct DomainSynonym {
+    pub from_hostname: String,
+    pub to_domain_id: i32,
+}
+
+#[derive(Queryable, Serialize)]
+pub struct DomainSynonymInfo {
+    pub from_hostname: String,
+    pub to_hostname: String,
 }
 
 #[derive(Queryable, Serialize)]
@@ -823,10 +836,15 @@ impl MoreInterestingConn {
     }
     pub fn get_domain_by_hostname(&self, mut hostname_value: &str) -> Result<Domain, DieselError> {
         use self::domains::dsl::*;
+        use self::domain_synonyms::*;
         if hostname_value.starts_with("www.") {
             hostname_value = &hostname_value[4..];
         }
-        domains.filter(hostname.eq(hostname_value)).get_result::<Domain>(&self.0)
+        if let Ok(domain_synonym) = domain_synonyms::table.filter(from_hostname.eq(hostname_value)).get_result::<DomainSynonym>(&self.0) {
+            domains.filter(id.eq(domain_synonym.to_domain_id)).get_result::<Domain>(&self.0)
+        } else {
+            domains.filter(hostname.eq(hostname_value)).get_result::<Domain>(&self.0)
+        }
     }
     pub fn comment_on_post(&self, new_post: NewComment, body_format: BodyFormat) -> Result<Comment, DieselError> {
         #[derive(Insertable)]
@@ -1045,6 +1063,39 @@ impl MoreInterestingConn {
                 })
                 .get_result(&self.0)
         }
+    }
+    pub fn add_domain_synonym(&self, new_domain_synonym: &DomainSynonym) -> Result<(), DieselError> {
+        use self::posts::dsl::*;
+        use self::domain_synonyms::dsl::*;
+        use self::domains::dsl::*;
+        if let Ok(old_domain) = self.get_domain_by_hostname(&new_domain_synonym.from_hostname) {
+            if old_domain.hostname == new_domain_synonym.from_hostname {
+                diesel::update(posts.filter(domain_id.eq(old_domain.id)))
+                    .set(domain_id.eq(new_domain_synonym.to_domain_id))
+                    .execute(&self.0)?;
+                diesel::delete(domains.find(old_domain.id))
+                    .execute(&self.0)?;
+            }
+        }
+        if let Ok(old_domain_synonym) = domain_synonyms.find(&new_domain_synonym.from_hostname).get_result::<DomainSynonym>(&self.0) {
+            diesel::update(domain_synonyms.find(old_domain_synonym.from_hostname))
+                .set(to_domain_id.eq(new_domain_synonym.to_domain_id))
+                .execute(&self.0)
+                .map(|_| ())
+        } else {
+            diesel::insert_into(domain_synonyms)
+                .values(new_domain_synonym)
+                .execute(&self.0)
+                .map(|_| ())
+        }
+    }
+    pub fn get_all_domain_synonyms(&self) -> Result<Vec<DomainSynonymInfo>, DieselError> {
+        use self::domain_synonyms::dsl::*;
+        use self::domains::dsl::*;
+        domain_synonyms
+            .inner_join(domains)
+            .select((from_hostname, hostname))
+            .get_results::<DomainSynonymInfo>(&self.0)
     }
     pub fn get_all_tags(&self) -> Result<Vec<Tag>, DieselError> {
         use self::tags::dsl::*;
@@ -1542,5 +1593,10 @@ impl<'a> prettify::Data for PrettifyData<'a> {
     }
     fn check_username(&mut self, username: &str) -> bool {
         self.0.get_user_by_username(username).is_ok()
+    }
+    fn get_domain_canonical(&mut self, hostname: &str) -> String {
+        self.0.get_domain_by_hostname(hostname)
+            .map(|domain| domain.hostname)
+            .unwrap_or_else(|_| hostname.to_owned())
     }
 }

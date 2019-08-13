@@ -28,9 +28,9 @@ use models::UserAuth;
 use rocket::http::{SameSite, Status};
 use rocket_contrib::serve::StaticFiles;
 use rocket_contrib::templates::{Template, handlebars};
-use serde::Serialize;
+use serde::{Serialize, Serializer};
 use std::borrow::Cow;
-use crate::models::{PostSearch, PostSearchOrderBy, UserSession, PostInfo, NewStar, NewUser, CommentInfo, NewPost, NewComment, NewStarComment, NewTag, Tag, Comment, ModerationInfo, NewFlag, NewFlagComment, LegacyComment, CommentSearchResult};
+use crate::models::{PostSearch, PostSearchOrderBy, UserSession, PostInfo, NewStar, NewUser, CommentInfo, NewPost, NewComment, NewStarComment, NewTag, Tag, Comment, ModerationInfo, NewFlag, NewFlagComment, LegacyComment, CommentSearchResult, DomainSynonym, DomainSynonymInfo, NewDomain};
 use base32::Base32;
 use url::Url;
 use std::collections::HashMap;
@@ -101,6 +101,27 @@ struct TemplateContext {
     is_home: bool,
 }
 
+#[derive(Clone, Copy, Eq, PartialEq)]
+enum AdminPage {
+    Tags = 0,
+    Domains = 1,
+}
+
+impl Serialize for AdminPage {
+    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+    where
+        S: Serializer,
+    {
+        serializer.serialize_i32(*self as i32)
+    }
+}
+
+impl Default for AdminPage {
+    fn default() -> AdminPage {
+        AdminPage::Tags
+    }
+}
+
 #[derive(Serialize, Default)]
 struct AdminTemplateContext {
     title: Cow<'static, str>,
@@ -108,7 +129,9 @@ struct AdminTemplateContext {
     session: UserSession,
     alert: Option<String>,
     tags: Vec<Tag>,
+    domain_synonyms: Vec<DomainSynonymInfo>,
     config: SiteConfig,
+    page: AdminPage,
 }
 
 fn default<T: Default>() -> T { T::default() }
@@ -272,8 +295,8 @@ fn parse_index_params(conn: &MoreInterestingConn, user: &User, params: Option<Fo
         search.after_post_id = after.id;
     }
     if let Some(tag_names) = params.as_ref().and_then(|params| params.tag.as_ref()) {
-        if tag_names.contains("/") {
-            for tag_name in tag_names.split("/") {
+        if tag_names.contains("|") {
+            for tag_name in tag_names.split("|") {
                 if let Ok(tag) = conn.get_tag_by_name(tag_name) {
                     search.or_tags.push(tag.id);
                     tags.push(tag);
@@ -296,7 +319,7 @@ fn parse_index_params(conn: &MoreInterestingConn, user: &User, params: Option<Fo
         search.keywords = query.to_string();
     }
     if let Some(domain_names) = params.as_ref().and_then(|params| params.domain.as_ref()) {
-        for domain_name in domain_names.split("/") {
+        for domain_name in domain_names.split("|") {
             if let Ok(domain) = conn.get_domain_by_hostname(domain_name) {
                 search.or_domains.push(domain.id);
             } else {
@@ -859,6 +882,7 @@ fn get_admin_tags(conn: MoreInterestingConn, login: ModeratorSession, flash: Opt
         session: login.session,
         alert: flash.map(|f| f.msg().to_owned()),
         config: config.clone(),
+        page: AdminPage::Tags,
         tags, ..default()
     })
 }
@@ -882,6 +906,51 @@ fn admin_tags(conn: MoreInterestingConn, _login: ModeratorSession, form: Form<Ed
         Err(e) => {
             debug!("Unable to update site tags: {:?}", e);
             Flash::error(Redirect::to(uri!(get_admin_tags)), "Unable to update site tags")
+        }
+    }
+}
+
+#[get("/admin/domains")]
+fn get_admin_domains(conn: MoreInterestingConn, login: ModeratorSession, flash: Option<FlashMessage>, config: State<SiteConfig>) -> impl Responder<'static> {
+    let domain_synonyms = conn.get_all_domain_synonyms().unwrap_or(Vec::new());
+    Template::render("admin/domains", &AdminTemplateContext {
+        title: Cow::Borrowed("add or edit domain synonyms"),
+        user: login.user,
+        session: login.session,
+        alert: flash.map(|f| f.msg().to_owned()),
+        config: config.clone(),
+        page: AdminPage::Domains,
+        domain_synonyms, ..default()
+    })
+}
+
+#[derive(FromForm)]
+struct EditDomainSynonymForm {
+    from_hostname: String,
+    to_hostname: String,
+}
+
+#[post("/admin/domains", data = "<form>")]
+fn admin_domains(conn: MoreInterestingConn, _login: ModeratorSession, form: Form<EditDomainSynonymForm>) -> Option<impl Responder<'static>> {
+    let to_domain_id = if let Ok(to_domain) = conn.get_domain_by_hostname(&form.to_hostname) {
+        to_domain.id
+    } else {
+        conn.create_domain(NewDomain {
+            hostname: form.to_hostname.clone(),
+            is_www: false,
+            is_https: false,
+        }).ok()?.id
+    };
+    let from_hostname = form.from_hostname.clone();
+    match conn.add_domain_synonym(&DomainSynonym {
+        from_hostname, to_domain_id
+    }) {
+        Ok(_) => {
+            Some(Flash::success(Redirect::to(uri!(get_admin_domains)), "Updated domain synonym"))
+        }
+        Err(e) => {
+            warn!("Unable to update domain synonym: {:?}", e);
+            Some(Flash::error(Redirect::to(uri!(get_admin_domains)), "Unable to update domain synonym"))
         }
     }
 }
@@ -1452,7 +1521,7 @@ fn main() {
             }
             Ok(rocket)
         }))
-        .mount("/", routes![index, login_form, login, logout, create_link_form, create_post_form, create, get_comments, vote, signup, get_settings, create_invite, invite_tree, change_password, post_comment, vote_comment, get_admin_tags, admin_tags, get_tags, edit_post, get_edit_post, edit_comment, get_edit_comment, set_dark_mode, set_big_mode, mod_log, get_user_info, get_mod_queue, moderate_post, moderate_comment, get_public_signup, rebake, random, redirect_legacy_id, latest, rss, top, banner_post, robots_txt, search_comments, new])
+        .mount("/", routes![index, login_form, login, logout, create_link_form, create_post_form, create, get_comments, vote, signup, get_settings, create_invite, invite_tree, change_password, post_comment, vote_comment, get_admin_tags, admin_tags, get_tags, edit_post, get_edit_post, edit_comment, get_edit_comment, set_dark_mode, set_big_mode, mod_log, get_user_info, get_mod_queue, moderate_post, moderate_comment, get_public_signup, rebake, random, redirect_legacy_id, latest, rss, top, banner_post, robots_txt, search_comments, new, get_admin_domains, admin_domains])
         .mount("/assets", StaticFiles::from("assets"))
         .attach(Template::custom(|engines| {
             engines.handlebars.register_helper("count", Box::new(count_helper));

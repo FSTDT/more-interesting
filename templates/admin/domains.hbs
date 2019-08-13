@@ -1,12 +1,12 @@
 {{#*inline "page"}}
     <div class=admin-list>
-        {{#each tags}}
+        {{#each domain_synonyms}}
         <details>
-            <summary class="admin-list-item details-dialog-summary-special">{{name}}</summary>
+            <summary class="admin-list-item details-dialog-summary-special">{{from_hostname}} ➡ {{to_hostname}}</summary>
             <details-dialog>
-                <form action="tags?U={{../session.uuid}}" method=POST>
-                <input name=name value="{{name}}" type=hidden>
-                <label>Description <input name=description value="{{description}}" autofocus></label>
+                <form action="domains?U={{../session.uuid}}" method=POST>
+                <input name=from_hostname value="{{from_hostname}}" type=hidden>
+                <label>To canonical <input name=to_hostname value="{{to_hostname}}" autofocus></label>
                 <div class=form-footer>
                     <button class=button-default>Save</button>
                     <details-dialog-close><a href="." class=button>Cancel</a></details-dialog-close>
@@ -20,9 +20,9 @@
         <details class=details-dialog-outer>
             <summary class=details-dialog-summary>+ New tag</summary>
             <details-dialog>
-                <form action="tags?U={{session.uuid}}" method=POST>
-                <label>Name <input name=name required autofocus></label>
-                <label>Description <input name=description></label>
+                <form action="domains?U={{session.uuid}}" method=POST>
+                <label>From hostname <input name=from_hostname required autofocus></label>
+                <label>To canonical <input name=to_hostname></label>
                 <div class=form-footer>
                     <button class=button-default>Save</button>
                     <details-dialog-close><a href="." class=button>Cancel</a></details-dialog-close>
