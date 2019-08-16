@@ -330,6 +330,8 @@ impl MoreInterestingConn {
         use self::flags::dsl::*;
         use self::users::dsl::*;
         use self::post_tagging::dsl::*;
+        use crate::schema::post_search_index::dsl::*;
+        use diesel_full_text_search::{plainto_tsquery, TsVectorExtensions};
         let query = posts.filter(visible.eq(true));
         let mut query = match search.order_by {
             PostSearchOrderBy::Hottest => query.order_by((initial_stellar_time.desc(), self::posts::dsl::created_at.desc())).into_boxed(),
@@ -356,6 +358,12 @@ impl MoreInterestingConn {
         }
         if search.after_post_id != 0 {
             query = query.filter(self::posts::dsl::id.lt(search.after_post_id));
+        }
+        if search.keywords != "" {
+            let ids = post_search_index
+                .filter(search_index.matches(plainto_tsquery(&search.keywords)))
+                .select(crate::schema::post_search_index::dsl::post_id);
+            query = query.filter(self::posts::dsl::id.eq_any(ids));
         }
         let mut all: Vec<PostInfo> = query
             .left_outer_join(stars.on(self::stars::dsl::post_id.eq(self::posts::dsl::id).and(self::stars::dsl::user_id.eq(search.my_user_id))))
