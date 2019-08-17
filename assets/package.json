@@ -12,6 +12,6 @@
   "dependencies": {
     "@webcomponents/webcomponentsjs": "^2.2.7",
     "details-dialog-element": "^3.0.3",
-    "details-element-polyfill": "^2.3.1"
+    "details-element-polyfill": "^2.4.0"
   }
 }
