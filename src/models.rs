@@ -538,11 +538,11 @@ impl MoreInterestingConn {
             visible: bool,
             domain_id: Option<i32>,
         }
-        let title_html_and_stuff = crate::prettify::prettify_title(new_post.title, "", &mut PrettifyData(self, 0));
+        let title_html_and_stuff = crate::prettify::prettify_title(new_post.title, "", &mut PrettifyData::new(self, 0));
         let excerpt_html_and_stuff = if let Some(excerpt) = new_post.excerpt {
             let body = match body_format {
-                BodyFormat::Plain => crate::prettify::prettify_body(excerpt, &mut PrettifyData(self, 0)),
-                BodyFormat::BBCode => crate::prettify::prettify_body_bbcode(excerpt, &mut PrettifyData(self, 0)),
+                BodyFormat::Plain => crate::prettify::prettify_body(excerpt, &mut PrettifyData::new(self, 0)),
+                BodyFormat::BBCode => crate::prettify::prettify_body_bbcode(excerpt, &mut PrettifyData::new(self, 0)),
             };
             Some(body)
         } else {
@@ -577,11 +577,11 @@ impl MoreInterestingConn {
         result
     }
     pub fn update_post(&self, post_id_value: i32, bump: bool, new_post: &NewPost, body_format: BodyFormat) -> Result<(), DieselError> {
-        let title_html_and_stuff = crate::prettify::prettify_title(new_post.title, "", &mut PrettifyData(self, 0));
+        let title_html_and_stuff = crate::prettify::prettify_title(new_post.title, "", &mut PrettifyData::new(self, 0));
         let excerpt_html_and_stuff = if let Some(e) = new_post.excerpt {
             let body = match body_format {
-                BodyFormat::Plain => crate::prettify::prettify_body(e, &mut PrettifyData(self, 0)),
-                BodyFormat::BBCode => crate::prettify::prettify_body_bbcode(e, &mut PrettifyData(self, 0)),
+                BodyFormat::Plain => crate::prettify::prettify_body(e, &mut PrettifyData::new(self, 0)),
+                BodyFormat::BBCode => crate::prettify::prettify_body_bbcode(e, &mut PrettifyData::new(self, 0)),
             };
             Some(body)
         } else {
@@ -857,8 +857,8 @@ impl MoreInterestingConn {
             visible: bool,
         }
         let html_and_stuff = match body_format {
-            BodyFormat::Plain => crate::prettify::prettify_body(&new_post.text, &mut PrettifyData(self, new_post.post_id)),
-            BodyFormat::BBCode => crate::prettify::prettify_body_bbcode(&new_post.text, &mut PrettifyData(self, new_post.post_id)),
+            BodyFormat::Plain => crate::prettify::prettify_body(&new_post.text, &mut PrettifyData::new(self, new_post.post_id)),
+            BodyFormat::BBCode => crate::prettify::prettify_body_bbcode(&new_post.text, &mut PrettifyData::new(self, new_post.post_id)),
         };
         self.update_comment_count_on_post(new_post.post_id, 1)?;
         diesel::insert_into(comments::table)
@@ -873,8 +873,8 @@ impl MoreInterestingConn {
     }
     pub fn update_comment(&self, post_id_value: i32, comment_id_value: i32, text_value: &str, body_format: BodyFormat) -> Result<(), DieselError> {
         let html_and_stuff = match body_format {
-            BodyFormat::Plain => crate::prettify::prettify_body(text_value, &mut PrettifyData(self, post_id_value)),
-            BodyFormat::BBCode => crate::prettify::prettify_body_bbcode(text_value, &mut PrettifyData(self, post_id_value)),
+            BodyFormat::Plain => crate::prettify::prettify_body(text_value, &mut PrettifyData::new(self, post_id_value)),
+            BodyFormat::BBCode => crate::prettify::prettify_body_bbcode(text_value, &mut PrettifyData::new(self, post_id_value)),
         };
         use self::comments::dsl::*;
         diesel::update(comments.find(comment_id_value))
@@ -1491,8 +1491,8 @@ impl MoreInterestingConn {
     }
     pub fn update_legacy_comment(&self, post_id_value: i32, legacy_comment_id_value: i32, text_value: &str, body_format: BodyFormat) -> Result<(), DieselError> {
         let html_and_stuff = match body_format {
-            BodyFormat::Plain => crate::prettify::prettify_body(text_value, &mut PrettifyData(self, post_id_value)),
-            BodyFormat::BBCode => crate::prettify::prettify_body_bbcode(text_value, &mut PrettifyData(self, post_id_value)),
+            BodyFormat::Plain => crate::prettify::prettify_body(text_value, &mut PrettifyData::new(self, post_id_value)),
+            BodyFormat::BBCode => crate::prettify::prettify_body_bbcode(text_value, &mut PrettifyData::new(self, post_id_value)),
         };
         use self::legacy_comments::dsl::*;
         diesel::update(legacy_comments.find(legacy_comment_id_value))
@@ -1530,7 +1530,7 @@ fn tuple_to_post_info(conn: &MoreInterestingConn, (id, uuid, title, url, visible
     } else {
         uuid.to_string()
     };
-    let title_html_output = prettify_title(&title, &link_url, &mut PrettifyData(conn, 0));
+    let title_html_output = prettify_title(&title, &link_url, &mut PrettifyData::new(conn, 0));
     let title_html = title_html_output.string;
     PostInfo {
         id, uuid, title, url, visible, score, authored_by_submitter, created_at,
@@ -1574,29 +1574,64 @@ fn compute_hotness(initial_stellar_time: i32, current_stellar_time: i32, score: 
     (boost + (score as f64) + 1.0) / (stellar_age + 1.0).powf(gravity)
 }
 
-struct PrettifyData<'a>(&'a MoreInterestingConn, i32);
+struct PrettifyData<'a> {
+    conn: &'a MoreInterestingConn,
+    post_id: i32,
+    has_tag_cache: HashSet<String>,
+    has_user_cache: HashSet<String>,
+    domain_map_cache: HashMap<String, String>,
+}
+impl<'a> PrettifyData<'a> {
+    fn new(conn: &'a MoreInterestingConn, post_id: i32) -> PrettifyData<'a> {
+        PrettifyData {
+            conn, post_id,
+            has_tag_cache: HashSet::new(),
+            has_user_cache: HashSet::new(),
+            domain_map_cache: HashMap::new(),
+        }
+    }
+}
 impl<'a> prettify::Data for PrettifyData<'a> {
     fn check_comment_ref(&mut self, comment_id: i32) -> bool {
-        let post_id = self.1;
-        if post_id == 0 {
+        if self.post_id == 0 {
             false
         } else {
-            if let Ok(comment) = self.0.get_comment_by_id(comment_id) {
-                comment.post_id == post_id
+            if let Ok(comment) = self.conn.get_comment_by_id(comment_id) {
+                comment.post_id == self.post_id
             } else {
                 false
             }
         }
     }
     fn check_hash_tag(&mut self, tag: &str) -> bool {
-        self.0.get_tag_by_name(tag).is_ok()
+        if self.has_tag_cache.contains(tag) {
+            true
+        } else {
+            let has_tag = self.conn.get_tag_by_name(tag).is_ok();
+            if has_tag {
+                self.has_tag_cache.insert(tag.to_string());
+            }
+            has_tag
+        }
     }
     fn check_username(&mut self, username: &str) -> bool {
-        self.0.get_user_by_username(username).is_ok()
+        if self.has_user_cache.contains(username) {
+            true
+        } else {
+            let has_user = self.conn.get_user_by_username(username).is_ok();
+            if has_user {
+                self.has_user_cache.insert(username.to_string());
+            }
+            has_user
+        }
     }
     fn get_domain_canonical(&mut self, hostname: &str) -> String {
-        self.0.get_domain_by_hostname(hostname)
-            .map(|domain| domain.hostname)
-            .unwrap_or_else(|_| hostname.to_owned())
+        let domain_map_cache = &mut self.domain_map_cache;
+        let conn = self.conn;
+        domain_map_cache.entry(hostname.to_string()).or_insert_with(|| {
+            conn.get_domain_by_hostname(hostname)
+                .map(|domain| domain.hostname)
+                .unwrap_or_else(|_| hostname.to_owned())
+        }).clone()
     }
 }

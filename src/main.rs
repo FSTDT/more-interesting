@@ -1402,11 +1402,11 @@ Disallow: /
 }
 
 fn nop_helper(
-    h: &Helper,
+    _: &Helper,
     _: &Handlebars,
     _: &Context,
     _: &mut RenderContext,
-    out: &mut dyn Output
+    _: &mut dyn Output
 ) -> HelperResult {
     Ok(())
 }
