@@ -2,7 +2,7 @@ use rocket_contrib::databases::diesel::PgConnection;
 use diesel::prelude::*;
 use diesel::result::Error as DieselError;
 use chrono::NaiveDateTime;
-use crate::schema::{users, user_sessions, posts, stars, invite_tokens, comments, comment_stars, tags, post_tagging, moderation, flags, comment_flags, domains, legacy_comments};
+use crate::schema::{users, user_sessions, posts, stars, invite_tokens, comments, comment_stars, tags, post_tagging, moderation, flags, comment_flags, domains, legacy_comments, domain_synonyms};
 use crate::password::{password_hash, password_verify, PasswordResult};
 use serde::Serialize;
 use crate::base32::Base32;
@@ -166,6 +166,19 @@ pub struct NewDomain {
     pub hostname: String,
     pub is_www: bool,
     pub is_https: bool,
+}
+
+#[derive(Insertable, Queryable, Serialize)]
+#[table_name="domain_synonyms"]
+pub struct DomainSynonym {
+    pub from_hostname: String,
+    pub to_domain_id: i32,
+}
+
+#[derive(Queryable, Serialize)]
+pub struct DomainSynonymInfo {
+    pub from_hostname: String,
+    pub to_hostname: String,
 }
 
 #[derive(Queryable, Serialize)]
@@ -525,11 +538,11 @@ impl MoreInterestingConn {
             visible: bool,
             domain_id: Option<i32>,
         }
-        let title_html_and_stuff = crate::prettify::prettify_title(new_post.title, "", &mut PrettifyData(self, 0));
+        let title_html_and_stuff = crate::prettify::prettify_title(new_post.title, "", &mut PrettifyData::new(self, 0));
         let excerpt_html_and_stuff = if let Some(excerpt) = new_post.excerpt {
             let body = match body_format {
-                BodyFormat::Plain => crate::prettify::prettify_body(excerpt, &mut PrettifyData(self, 0)),
-                BodyFormat::BBCode => crate::prettify::prettify_body_bbcode(excerpt, &mut PrettifyData(self, 0)),
+                BodyFormat::Plain => crate::prettify::prettify_body(excerpt, &mut PrettifyData::new(self, 0)),
+                BodyFormat::BBCode => crate::prettify::prettify_body_bbcode(excerpt, &mut PrettifyData::new(self, 0)),
             };
             Some(body)
         } else {
@@ -564,11 +577,11 @@ impl MoreInterestingConn {
         result
     }
     pub fn update_post(&self, post_id_value: i32, bump: bool, new_post: &NewPost, body_format: BodyFormat) -> Result<(), DieselError> {
-        let title_html_and_stuff = crate::prettify::prettify_title(new_post.title, "", &mut PrettifyData(self, 0));
+        let title_html_and_stuff = crate::prettify::prettify_title(new_post.title, "", &mut PrettifyData::new(self, 0));
         let excerpt_html_and_stuff = if let Some(e) = new_post.excerpt {
             let body = match body_format {
-                BodyFormat::Plain => crate::prettify::prettify_body(e, &mut PrettifyData(self, 0)),
-                BodyFormat::BBCode => crate::prettify::prettify_body_bbcode(e, &mut PrettifyData(self, 0)),
+                BodyFormat::Plain => crate::prettify::prettify_body(e, &mut PrettifyData::new(self, 0)),
+                BodyFormat::BBCode => crate::prettify::prettify_body_bbcode(e, &mut PrettifyData::new(self, 0)),
             };
             Some(body)
         } else {
@@ -823,10 +836,15 @@ impl MoreInterestingConn {
     }
     pub fn get_domain_by_hostname(&self, mut hostname_value: &str) -> Result<Domain, DieselError> {
         use self::domains::dsl::*;
+        use self::domain_synonyms::*;
         if hostname_value.starts_with("www.") {
             hostname_value = &hostname_value[4..];
         }
-        domains.filter(hostname.eq(hostname_value)).get_result::<Domain>(&self.0)
+        if let Ok(domain_synonym) = domain_synonyms::table.filter(from_hostname.eq(hostname_value)).get_result::<DomainSynonym>(&self.0) {
+            domains.filter(id.eq(domain_synonym.to_domain_id)).get_result::<Domain>(&self.0)
+        } else {
+            domains.filter(hostname.eq(hostname_value)).get_result::<Domain>(&self.0)
+        }
     }
     pub fn comment_on_post(&self, new_post: NewComment, body_format: BodyFormat) -> Result<Comment, DieselError> {
         #[derive(Insertable)]
@@ -839,8 +857,8 @@ impl MoreInterestingConn {
             visible: bool,
         }
         let html_and_stuff = match body_format {
-            BodyFormat::Plain => crate::prettify::prettify_body(&new_post.text, &mut PrettifyData(self, new_post.post_id)),
-            BodyFormat::BBCode => crate::prettify::prettify_body_bbcode(&new_post.text, &mut PrettifyData(self, new_post.post_id)),
+            BodyFormat::Plain => crate::prettify::prettify_body(&new_post.text, &mut PrettifyData::new(self, new_post.post_id)),
+            BodyFormat::BBCode => crate::prettify::prettify_body_bbcode(&new_post.text, &mut PrettifyData::new(self, new_post.post_id)),
         };
         self.update_comment_count_on_post(new_post.post_id, 1)?;
         diesel::insert_into(comments::table)
@@ -855,8 +873,8 @@ impl MoreInterestingConn {
     }
     pub fn update_comment(&self, post_id_value: i32, comment_id_value: i32, text_value: &str, body_format: BodyFormat) -> Result<(), DieselError> {
         let html_and_stuff = match body_format {
-            BodyFormat::Plain => crate::prettify::prettify_body(text_value, &mut PrettifyData(self, post_id_value)),
-            BodyFormat::BBCode => crate::prettify::prettify_body_bbcode(text_value, &mut PrettifyData(self, post_id_value)),
+            BodyFormat::Plain => crate::prettify::prettify_body(text_value, &mut PrettifyData::new(self, post_id_value)),
+            BodyFormat::BBCode => crate::prettify::prettify_body_bbcode(text_value, &mut PrettifyData::new(self, post_id_value)),
         };
         use self::comments::dsl::*;
         diesel::update(comments.find(comment_id_value))
@@ -1045,6 +1063,39 @@ impl MoreInterestingConn {
                 })
                 .get_result(&self.0)
         }
+    }
+    pub fn add_domain_synonym(&self, new_domain_synonym: &DomainSynonym) -> Result<(), DieselError> {
+        use self::posts::dsl::*;
+        use self::domain_synonyms::dsl::*;
+        use self::domains::dsl::*;
+        if let Ok(old_domain) = self.get_domain_by_hostname(&new_domain_synonym.from_hostname) {
+            if old_domain.hostname == new_domain_synonym.from_hostname {
+                diesel::update(posts.filter(domain_id.eq(old_domain.id)))
+                    .set(domain_id.eq(new_domain_synonym.to_domain_id))
+                    .execute(&self.0)?;
+                diesel::delete(domains.find(old_domain.id))
+                    .execute(&self.0)?;
+            }
+        }
+        if let Ok(old_domain_synonym) = domain_synonyms.find(&new_domain_synonym.from_hostname).get_result::<DomainSynonym>(&self.0) {
+            diesel::update(domain_synonyms.find(old_domain_synonym.from_hostname))
+                .set(to_domain_id.eq(new_domain_synonym.to_domain_id))
+                .execute(&self.0)
+                .map(|_| ())
+        } else {
+            diesel::insert_into(domain_synonyms)
+                .values(new_domain_synonym)
+                .execute(&self.0)
+                .map(|_| ())
+        }
+    }
+    pub fn get_all_domain_synonyms(&self) -> Result<Vec<DomainSynonymInfo>, DieselError> {
+        use self::domain_synonyms::dsl::*;
+        use self::domains::dsl::*;
+        domain_synonyms
+            .inner_join(domains)
+            .select((from_hostname, hostname))
+            .get_results::<DomainSynonymInfo>(&self.0)
     }
     pub fn get_all_tags(&self) -> Result<Vec<Tag>, DieselError> {
         use self::tags::dsl::*;
@@ -1440,8 +1491,8 @@ impl MoreInterestingConn {
     }
     pub fn update_legacy_comment(&self, post_id_value: i32, legacy_comment_id_value: i32, text_value: &str, body_format: BodyFormat) -> Result<(), DieselError> {
         let html_and_stuff = match body_format {
-            BodyFormat::Plain => crate::prettify::prettify_body(text_value, &mut PrettifyData(self, post_id_value)),
-            BodyFormat::BBCode => crate::prettify::prettify_body_bbcode(text_value, &mut PrettifyData(self, post_id_value)),
+            BodyFormat::Plain => crate::prettify::prettify_body(text_value, &mut PrettifyData::new(self, post_id_value)),
+            BodyFormat::BBCode => crate::prettify::prettify_body_bbcode(text_value, &mut PrettifyData::new(self, post_id_value)),
         };
         use self::legacy_comments::dsl::*;
         diesel::update(legacy_comments.find(legacy_comment_id_value))
@@ -1479,7 +1530,7 @@ fn tuple_to_post_info(conn: &MoreInterestingConn, (id, uuid, title, url, visible
     } else {
         uuid.to_string()
     };
-    let title_html_output = prettify_title(&title, &link_url, &mut PrettifyData(conn, 0));
+    let title_html_output = prettify_title(&title, &link_url, &mut PrettifyData::new(conn, 0));
     let title_html = title_html_output.string;
     PostInfo {
         id, uuid, title, url, visible, score, authored_by_submitter, created_at,
@@ -1523,24 +1574,64 @@ fn compute_hotness(initial_stellar_time: i32, current_stellar_time: i32, score: 
     (boost + (score as f64) + 1.0) / (stellar_age + 1.0).powf(gravity)
 }
 
-struct PrettifyData<'a>(&'a MoreInterestingConn, i32);
+struct PrettifyData<'a> {
+    conn: &'a MoreInterestingConn,
+    post_id: i32,
+    has_tag_cache: HashSet<String>,
+    has_user_cache: HashSet<String>,
+    domain_map_cache: HashMap<String, String>,
+}
+impl<'a> PrettifyData<'a> {
+    fn new(conn: &'a MoreInterestingConn, post_id: i32) -> PrettifyData<'a> {
+        PrettifyData {
+            conn, post_id,
+            has_tag_cache: HashSet::new(),
+            has_user_cache: HashSet::new(),
+            domain_map_cache: HashMap::new(),
+        }
+    }
+}
 impl<'a> prettify::Data for PrettifyData<'a> {
     fn check_comment_ref(&mut self, comment_id: i32) -> bool {
-        let post_id = self.1;
-        if post_id == 0 {
+        if self.post_id == 0 {
             false
         } else {
-            if let Ok(comment) = self.0.get_comment_by_id(comment_id) {
-                comment.post_id == post_id
+            if let Ok(comment) = self.conn.get_comment_by_id(comment_id) {
+                comment.post_id == self.post_id
             } else {
                 false
             }
         }
     }
     fn check_hash_tag(&mut self, tag: &str) -> bool {
-        self.0.get_tag_by_name(tag).is_ok()
+        if self.has_tag_cache.contains(tag) {
+            true
+        } else {
+            let has_tag = self.conn.get_tag_by_name(tag).is_ok();
+            if has_tag {
+                self.has_tag_cache.insert(tag.to_string());
+            }
+            has_tag
+        }
     }
     fn check_username(&mut self, username: &str) -> bool {
-        self.0.get_user_by_username(username).is_ok()
+        if self.has_user_cache.contains(username) {
+            true
+        } else {
+            let has_user = self.conn.get_user_by_username(username).is_ok();
+            if has_user {
+                self.has_user_cache.insert(username.to_string());
+            }
+            has_user
+        }
+    }
+    fn get_domain_canonical(&mut self, hostname: &str) -> String {
+        let domain_map_cache = &mut self.domain_map_cache;
+        let conn = self.conn;
+        domain_map_cache.entry(hostname.to_string()).or_insert_with(|| {
+            conn.get_domain_by_hostname(hostname)
+                .map(|domain| domain.hostname)
+                .unwrap_or_else(|_| hostname.to_owned())
+        }).clone()
     }
 }

@@ -790,14 +790,11 @@ pub fn prettify_title<D: Data>(mut text: &str, url: &str, data: &mut D) -> Outpu
     let empty_link = format!("{} </a></span>", link);
     ret_val.string = ret_val.string.replace(&empty_link, " </span>");
     if let Ok(url) = Url::parse(url) {
-        if let Some(mut host) = url.host_str() {
-            if host.starts_with("www.") {
-                host = &host[4..];
-            }
+        if let Some(host) = url.host_str().map(|hostname| data.get_domain_canonical(hostname)) {
             ret_val.push_str("</span> <span class=article-header-inner><a class=domain-link href=\"./?domain=");
-            ret_val.push_str(host);
+            ret_val.push_str(&host);
             ret_val.push_str("\">");
-            ret_val.push_str(host);
+            ret_val.push_str(&host);
             ret_val.push_str("</a></span>");
         }
     }
@@ -980,6 +977,7 @@ pub trait Data {
     fn check_comment_ref(&mut self, id: i32) -> bool;
     fn check_hash_tag(&mut self, tag: &str) -> bool;
     fn check_username(&mut self, username: &str) -> bool;
+    fn get_domain_canonical(&mut self, hostname: &str) -> String;
     fn check_number_sign<'a>(&mut self, number: &'a str) -> NumberSign<'a> {
         let id: Option<i32> = number.parse().ok();
         if let Some(id) = id {
@@ -1100,6 +1098,9 @@ mod test {
             fn check_username(&mut self, username: &str) -> bool {
                 username == "mentioning"
             }
+            fn get_domain_canonical(&mut self, hostname: &str) -> String {
+                hostname.to_owned()
+            }
         }
 
         let html = "<span class=article-header-inner><a href=\"url\">this is a #test for </a></span><span class=article-header-inner><a class=inner-link href=\"./?tag=words\">#words</a></span><span class=article-header-inner><a href=\"url\"> here</a></span>";
@@ -1120,6 +1121,9 @@ mod test {
             }
             fn check_username(&mut self, username: &str) -> bool {
                 username == "mentioning"
+            }
+            fn get_domain_canonical(&mut self, hostname: &str) -> String {
+                hostname.to_owned()
             }
         }
 
@@ -1142,6 +1146,9 @@ mod test {
             fn check_username(&mut self, username: &str) -> bool {
                 username == "mentioning"
             }
+            fn get_domain_canonical(&mut self, hostname: &str) -> String {
+                hostname.to_owned()
+            }
         }
         assert_eq!(prettify_body(comment, &mut MyData).string, CLEANER.clean(html).to_string());
     }
@@ -1159,6 +1166,9 @@ mod test {
             }
             fn check_username(&mut self, username: &str) -> bool {
                 username == "mentioning"
+            }
+            fn get_domain_canonical(&mut self, hostname: &str) -> String {
+                hostname.to_owned()
             }
         }
         assert_eq!(prettify_body(comment, &mut MyData).string, CLEANER.clean(html).to_string());
@@ -1178,6 +1188,9 @@ mod test {
             fn check_username(&mut self, username: &str) -> bool {
                 username == "mentioning"
             }
+            fn get_domain_canonical(&mut self, hostname: &str) -> String {
+                hostname.to_owned()
+            }
         }
         assert_eq!(prettify_body(comment, &mut MyData).string, CLEANER.clean(html).to_string());
     }
@@ -1195,6 +1208,9 @@ mod test {
             }
             fn check_username(&mut self, username: &str) -> bool {
                 username == "mentioning"
+            }
+            fn get_domain_canonical(&mut self, hostname: &str) -> String {
+                hostname.to_owned()
             }
         }
         assert_eq!(prettify_title(comment, "url", &mut MyData).string, CLEANER.clean(html).to_string());
@@ -1214,6 +1230,9 @@ mod test {
             fn check_username(&mut self, username: &str) -> bool {
                 username == "mentioning"
             }
+            fn get_domain_canonical(&mut self, hostname: &str) -> String {
+                hostname.to_owned()
+            }
         }
         assert_eq!(prettify_title(comment, "url", &mut MyData).string, CLEANER.clean(html).to_string());
     }
@@ -1231,6 +1250,9 @@ mod test {
             }
             fn check_username(&mut self, username: &str) -> bool {
                 username == "mentioning"
+            }
+            fn get_domain_canonical(&mut self, hostname: &str) -> String {
+                hostname.to_owned()
             }
         }
         assert_eq!(prettify_body_bbcode(comment, &mut MyData).string, CLEANER.clean(html).to_string());
@@ -1250,6 +1272,9 @@ mod test {
             fn check_username(&mut self, username: &str) -> bool {
                 username == "mentioning"
             }
+            fn get_domain_canonical(&mut self, hostname: &str) -> String {
+                hostname.to_owned()
+            }
         }
         assert_eq!(prettify_body_bbcode(comment, &mut MyData).string, CLEANER.clean(html).to_string());
     }
@@ -1267,6 +1292,9 @@ mod test {
             }
             fn check_username(&mut self, username: &str) -> bool {
                 username == "mentioning"
+            }
+            fn get_domain_canonical(&mut self, hostname: &str) -> String {
+                hostname.to_owned()
             }
         }
         assert_eq!(prettify_body_bbcode(comment, &mut MyData).string, CLEANER.clean(html).to_string());
@@ -1286,6 +1314,9 @@ mod test {
             fn check_username(&mut self, username: &str) -> bool {
                 username == "mentioning"
             }
+            fn get_domain_canonical(&mut self, hostname: &str) -> String {
+                hostname.to_owned()
+            }
         }
         assert_eq!(prettify_body_bbcode(comment, &mut MyData).string, CLEANER.clean(html).to_string());
     }
@@ -1303,6 +1334,9 @@ mod test {
             }
             fn check_username(&mut self, username: &str) -> bool {
                 username == "mentioning"
+            }
+            fn get_domain_canonical(&mut self, hostname: &str) -> String {
+                hostname.to_owned()
             }
         }
         assert_eq!(prettify_body_bbcode(comment, &mut MyData).string, CLEANER.clean(html).to_string());
@@ -1322,6 +1356,9 @@ mod test {
             fn check_username(&mut self, username: &str) -> bool {
                 username == "mentioning"
             }
+            fn get_domain_canonical(&mut self, hostname: &str) -> String {
+                hostname.to_owned()
+            }
         }
         assert_eq!(prettify_body_bbcode(comment, &mut MyData).string, CLEANER.clean(html).to_string());
     }
@@ -1339,6 +1376,9 @@ mod test {
             }
             fn check_username(&mut self, username: &str) -> bool {
                 username == "mentioning"
+            }
+            fn get_domain_canonical(&mut self, hostname: &str) -> String {
+                hostname.to_owned()
             }
         }
         assert_eq!(prettify_body_bbcode(comment, &mut MyData).string, CLEANER.clean(html).to_string());
@@ -1358,6 +1398,9 @@ mod test {
             fn check_username(&mut self, username: &str) -> bool {
                 username == "mentioning"
             }
+            fn get_domain_canonical(&mut self, hostname: &str) -> String {
+                hostname.to_owned()
+            }
         }
         assert_eq!(prettify_body_bbcode(comment, &mut MyData).string, CLEANER.clean(html).to_string());
     }
@@ -1376,6 +1419,9 @@ mod test {
             fn check_username(&mut self, username: &str) -> bool {
                 username == "mentioning"
             }
+            fn get_domain_canonical(&mut self, hostname: &str) -> String {
+                hostname.to_owned()
+            }
         }
         assert_eq!(prettify_body_bbcode(comment, &mut MyData).string, CLEANER.clean(html).to_string());
     }
@@ -1393,6 +1439,9 @@ mod test {
             }
             fn check_username(&mut self, username: &str) -> bool {
                 username == "mentioning"
+            }
+            fn get_domain_canonical(&mut self, hostname: &str) -> String {
+                hostname.to_owned()
             }
         }
         assert_eq!(prettify_body_bbcode(comment, &mut MyData).string, CLEANER.clean(html).to_string());
@@ -1477,6 +1526,9 @@ fn check_hash_tag(&mut self, tag: &str) -> bool {
 }
 fn check_username(&mut self, username: &str) -> bool {
  username == "mentioning"
+}
+fn get_domain_canonical(&mut self, hostname: &str) -> String {
+    hostname.to_owned()
 }
 }
 
