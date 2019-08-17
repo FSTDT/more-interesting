@@ -1401,6 +1401,16 @@ Disallow: /
 "
 }
 
+fn nop_helper(
+    h: &Helper,
+    _: &Handlebars,
+    _: &Context,
+    _: &mut RenderContext,
+    out: &mut dyn Output
+) -> HelperResult {
+    Ok(())
+}
+
 fn docs_helper(
     h: &Helper,
     _: &Handlebars,
@@ -1527,6 +1537,7 @@ fn main() {
             engines.handlebars.register_helper("count", Box::new(count_helper));
             engines.handlebars.register_helper("date", Box::new(date_helper));
             engines.handlebars.register_helper("docs", Box::new(docs_helper));
+            engines.handlebars.register_helper("nop", Box::new(nop_helper));
         }))
         .attach(PidFileFairing)
         .launch();
