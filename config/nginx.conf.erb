@@ -48,6 +48,9 @@ http {
 		if ($request_uri = /robots.txt) {
 			set $botck "{botck}txt";
 		}
+		if ($http_user_agent ~* (mj12bot|ahrefsbot|semrushbot|mauibot)) {
+			set $botck "${botck}bad";
+		}
 		if ($http_user_agent ~* "KHTML,like") {
 			set $botck "startbad";
 		}
@@ -58,9 +61,8 @@ http {
 			set $botck "startbad";
 		}
 		if ($botck = "startbad") {
-			return 403;
+			return 404;
 		}
-
 
 		if ($request_uri ~* "%2525") {
 			return 404;
