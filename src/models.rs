@@ -402,7 +402,7 @@ impl MoreInterestingConn {
                 self::posts::dsl::banner_title,
                 self::posts::dsl::banner_desc,
             ))
-            .limit(150)
+            .limit(75)
             .get_results::<(i32, Base32, String, Option<String>, bool, i32, i32, i32, bool, NaiveDateTime, i32, Option<String>, Option<String>, Option<i32>, Option<i32>, String, Option<String>, Option<String>)>(&self.0)?
             .into_iter()
             .map(|t| tuple_to_post_info(self, t, self.get_current_stellar_time()))
@@ -410,7 +410,7 @@ impl MoreInterestingConn {
         if let PostSearchOrderBy::Hottest = search.order_by {
             all.sort_by_key(|info| OrderedFloat(-info.hotness));
         }
-        all.truncate(100);
+        all.truncate(50);
         Ok(all)
     }
     pub fn get_post_info_recent_by_user(&self, user_id_param: i32, user_info_id_param: i32) -> Result<Vec<PostInfo>, DieselError> {
@@ -445,13 +445,13 @@ impl MoreInterestingConn {
             .filter(visible.eq(true))
             .filter(self::posts::dsl::submitted_by.eq(user_info_id_param))
             .order_by((initial_stellar_time.desc(), self::posts::dsl::created_at.desc()))
-            .limit(150)
+            .limit(75)
             .get_results::<(i32, Base32, String, Option<String>, bool, i32, i32, i32, bool, NaiveDateTime, i32, Option<String>, Option<String>, Option<i32>, Option<i32>, String, Option<String>, Option<String>)>(&self.0)?
             .into_iter()
             .map(|t| tuple_to_post_info(self, t, self.get_current_stellar_time()))
             .collect();
         all.sort_by_key(|info| OrderedFloat(-info.hotness));
-        all.truncate(100);
+        all.truncate(50);
         Ok(all)
     }
     pub fn get_post_info_by_uuid(&self, user_id_param: i32, uuid_param: Base32) -> Result<PostInfo, DieselError> {
@@ -935,7 +935,7 @@ impl MoreInterestingConn {
             .filter(self::comments::dsl::visible.eq(true))
             .filter(self::comments::dsl::created_by.eq(user_id_param))
             .order_by(self::comments::dsl::id.desc())
-            .limit(100)
+            .limit(50)
             .get_results::<(i32, String, i32, Base32, String, NaiveDateTime, i32, String)>(&self.0)?
             .into_iter()
             .map(|t| tuple_to_comment_search_results(t))
@@ -963,7 +963,7 @@ impl MoreInterestingConn {
             .filter(self::comments::dsl::created_by.eq(user_id_param))
             .filter(self::comments::dsl::id.lt(after_id_param))
             .order_by(self::comments::dsl::id.desc())
-            .limit(100)
+            .limit(50)
             .get_results::<(i32, String, i32, Base32, String, NaiveDateTime, i32, String)>(&self.0)?
             .into_iter()
             .map(|t| tuple_to_comment_search_results(t))
@@ -1014,7 +1014,7 @@ impl MoreInterestingConn {
                 self::users::dsl::username,
             ))
             .filter(self::stars::dsl::post_id.eq(post_id_param))
-            .limit(100)
+            .limit(50)
             .get_results::<(String,)>(&self.0)?
             .into_iter()
             .map(|(t,)| t)
@@ -1030,7 +1030,7 @@ impl MoreInterestingConn {
                 self::users::dsl::username,
             ))
             .filter(self::comment_stars::dsl::comment_id.eq(comment_id_param))
-            .limit(100)
+            .limit(50)
             .get_results::<(String,)>(&self.0)?
             .into_iter()
             .map(|(t,)| t)
@@ -1127,7 +1127,7 @@ impl MoreInterestingConn {
                 self::users::dsl::username,
             ))
             .order_by(id.desc())
-            .limit(200)
+            .limit(50)
             .get_results::<(i32, json::Value, NaiveDateTime, i32, String)>(&self.0)?
             .into_iter()
             .map(|t| tuple_to_moderation(t))
@@ -1147,7 +1147,7 @@ impl MoreInterestingConn {
             ))
             .filter(id.lt(starting_with_id))
             .order_by(id.desc())
-            .limit(200)
+            .limit(50)
             .get_results::<(i32, json::Value, NaiveDateTime, i32, String)>(&self.0)?
             .into_iter()
             .map(|t| tuple_to_moderation(t))
