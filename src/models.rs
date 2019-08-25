@@ -302,6 +302,7 @@ struct CreateModeration {
     pub created_by: i32,
 }
 
+#[derive(Clone, Copy)]
 pub enum PostSearchOrderBy {
     Hottest,
     Newest,
@@ -344,10 +345,11 @@ impl MoreInterestingConn {
         use self::users::dsl::*;
         use self::post_tagging::dsl::*;
         use crate::schema::post_search_index::dsl::*;
-        use diesel_full_text_search::{plainto_tsquery, TsVectorExtensions};
+        use diesel_full_text_search::{plainto_tsquery, TsVectorExtensions, ts_rank_cd};
         let query = posts.filter(visible.eq(true));
         let mut query = match search.order_by {
-            PostSearchOrderBy::Hottest => query.order_by((initial_stellar_time.desc(), self::posts::dsl::created_at.desc())).into_boxed(),
+            PostSearchOrderBy::Hottest if search.keywords == "" => query.order_by((initial_stellar_time.desc(), self::posts::dsl::created_at.desc())).into_boxed(),
+            PostSearchOrderBy::Hottest => query.into_boxed(),
             PostSearchOrderBy::Top => query.order_by((score.desc(), self::posts::dsl::created_at.desc())).into_boxed(),
             PostSearchOrderBy::Newest => query.order_by(self::posts::dsl::created_at.desc()).into_boxed(),
             PostSearchOrderBy::Latest => query.order_by(self::posts::dsl::updated_at.desc()).into_boxed(),
@@ -359,7 +361,7 @@ impl MoreInterestingConn {
             let ids = post_tagging
                 .filter(self::post_tagging::dsl::tag_id.eq_any(&search.or_tags))
                 .select(self::post_tagging::dsl::post_id);
-            query = query.filter(self::posts::dsl::id.eq_any(ids))
+            query = query.filter(self::posts::dsl::id.eq_any(ids));
         }
         if !search.and_tags.is_empty() {
             for &tag_id_ in &search.and_tags {
@@ -372,45 +374,74 @@ impl MoreInterestingConn {
         if search.after_post_id != 0 {
             query = query.filter(self::posts::dsl::id.lt(search.after_post_id));
         }
-        if search.keywords != "" {
-            let ids = post_search_index
+        let mut all: Vec<PostInfo> = if search.keywords != "" {
+            query
+                .left_outer_join(stars.on(self::stars::dsl::post_id.eq(self::posts::dsl::id).and(self::stars::dsl::user_id.eq(search.my_user_id))))
+                .left_outer_join(flags.on(self::flags::dsl::post_id.eq(self::posts::dsl::id).and(self::flags::dsl::user_id.eq(search.my_user_id))))
+                .inner_join(users)
+                .inner_join(post_search_index)
+                .select((
+                    self::posts::dsl::id,
+                    self::posts::dsl::uuid,
+                    self::posts::dsl::title,
+                    self::posts::dsl::url,
+                    self::posts::dsl::visible,
+                    self::posts::dsl::initial_stellar_time,
+                    self::posts::dsl::score,
+                    self::posts::dsl::comment_count,
+                    self::posts::dsl::authored_by_submitter,
+                    self::posts::dsl::created_at,
+                    self::posts::dsl::submitted_by,
+                    self::posts::dsl::excerpt,
+                    self::posts::dsl::excerpt_html,
+                    self::stars::dsl::post_id.nullable(),
+                    self::flags::dsl::post_id.nullable(),
+                    self::users::dsl::username,
+                    self::posts::dsl::banner_title,
+                    self::posts::dsl::banner_desc,
+                ))
                 .filter(search_index.matches(plainto_tsquery(&search.keywords)))
-                .select(crate::schema::post_search_index::dsl::post_id);
-            query = query.filter(self::posts::dsl::id.eq_any(ids));
-        }
-        let mut all: Vec<PostInfo> = query
-            .left_outer_join(stars.on(self::stars::dsl::post_id.eq(self::posts::dsl::id).and(self::stars::dsl::user_id.eq(search.my_user_id))))
-            .left_outer_join(flags.on(self::flags::dsl::post_id.eq(self::posts::dsl::id).and(self::flags::dsl::user_id.eq(search.my_user_id))))
-            .inner_join(users)
-            .select((
-                self::posts::dsl::id,
-                self::posts::dsl::uuid,
-                self::posts::dsl::title,
-                self::posts::dsl::url,
-                self::posts::dsl::visible,
-                self::posts::dsl::initial_stellar_time,
-                self::posts::dsl::score,
-                self::posts::dsl::comment_count,
-                self::posts::dsl::authored_by_submitter,
-                self::posts::dsl::created_at,
-                self::posts::dsl::submitted_by,
-                self::posts::dsl::excerpt,
-                self::posts::dsl::excerpt_html,
-                self::stars::dsl::post_id.nullable(),
-                self::flags::dsl::post_id.nullable(),
-                self::users::dsl::username,
-                self::posts::dsl::banner_title,
-                self::posts::dsl::banner_desc,
-            ))
-            .limit(75)
-            .get_results::<(i32, Base32, String, Option<String>, bool, i32, i32, i32, bool, NaiveDateTime, i32, Option<String>, Option<String>, Option<i32>, Option<i32>, String, Option<String>, Option<String>)>(&self.0)?
-            .into_iter()
-            .map(|t| tuple_to_post_info(self, t, self.get_current_stellar_time()))
-            .collect();
-        if let PostSearchOrderBy::Hottest = search.order_by {
+                .order_by(ts_rank_cd(search_index, plainto_tsquery(&search.keywords)).desc())
+                .limit(75)
+                .get_results::<(i32, Base32, String, Option<String>, bool, i32, i32, i32, bool, NaiveDateTime, i32, Option<String>, Option<String>, Option<i32>, Option<i32>, String, Option<String>, Option<String>)>(&self.0)?
+                .into_iter()
+                .map(|t| tuple_to_post_info(self, t, self.get_current_stellar_time()))
+                .collect()
+        } else {
+            query
+                .left_outer_join(stars.on(self::stars::dsl::post_id.eq(self::posts::dsl::id).and(self::stars::dsl::user_id.eq(search.my_user_id))))
+                .left_outer_join(flags.on(self::flags::dsl::post_id.eq(self::posts::dsl::id).and(self::flags::dsl::user_id.eq(search.my_user_id))))
+                .inner_join(users)
+                .select((
+                    self::posts::dsl::id,
+                    self::posts::dsl::uuid,
+                    self::posts::dsl::title,
+                    self::posts::dsl::url,
+                    self::posts::dsl::visible,
+                    self::posts::dsl::initial_stellar_time,
+                    self::posts::dsl::score,
+                    self::posts::dsl::comment_count,
+                    self::posts::dsl::authored_by_submitter,
+                    self::posts::dsl::created_at,
+                    self::posts::dsl::submitted_by,
+                    self::posts::dsl::excerpt,
+                    self::posts::dsl::excerpt_html,
+                    self::stars::dsl::post_id.nullable(),
+                    self::flags::dsl::post_id.nullable(),
+                    self::users::dsl::username,
+                    self::posts::dsl::banner_title,
+                    self::posts::dsl::banner_desc,
+                ))
+                .limit(75)
+                .get_results::<(i32, Base32, String, Option<String>, bool, i32, i32, i32, bool, NaiveDateTime, i32, Option<String>, Option<String>, Option<i32>, Option<i32>, String, Option<String>, Option<String>)>(&self.0)?
+                .into_iter()
+                .map(|t| tuple_to_post_info(self, t, self.get_current_stellar_time()))
+                .collect()
+        };
+        if let (PostSearchOrderBy::Hottest, "") = (search.order_by, &search.keywords[..]) {
             all.sort_by_key(|info| OrderedFloat(-info.hotness));
+            all.truncate(50);
         }
-        all.truncate(50);
         Ok(all)
     }
     pub fn get_post_info_recent_by_user(&self, user_id_param: i32, user_info_id_param: i32) -> Result<Vec<PostInfo>, DieselError> {

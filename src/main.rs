@@ -96,6 +96,7 @@ struct TemplateContext {
     tags: Vec<Tag>,
     tag_param: Option<String>,
     domain: Option<String>,
+    keywords_param: Option<String>,
     config: SiteConfig,
     log: Vec<ModerationInfo>,
     is_home: bool,
@@ -337,7 +338,8 @@ fn index(conn: MoreInterestingConn, login: Option<LoginSession>, flash: Option<F
     let title = Cow::Owned(config.site_title_html.clone());
     let tag_param = params.as_ref().and_then(|params| Some(params.tag.as_ref()?.to_string()));
     let domain = params.as_ref().and_then(|params| Some(params.domain.as_ref()?.to_string()));
-    let is_home = tag_param.is_none() && domain.is_none() && params.as_ref().and_then(|params| params.q.as_ref()).is_none();
+    let keywords_param = params.as_ref().and_then(|params| Some(params.q.as_ref()?.to_string()));
+    let is_home = tag_param.is_none() && domain.is_none() && keywords_param.is_none();
     let (search, tags) = parse_index_params(&conn, &user, params)?;
     let posts = conn.search_posts(&search).ok()?;
     Some(Template::render("index", &TemplateContext {
@@ -345,7 +347,7 @@ fn index(conn: MoreInterestingConn, login: Option<LoginSession>, flash: Option<F
         alert: flash.map(|f| f.msg().to_owned()),
         config: config.clone(),
         title, user, posts, is_home,
-        tags, session, tag_param, domain,
+        tags, session, tag_param, domain, keywords_param,
         ..default()
     }))
 }
@@ -384,7 +386,8 @@ fn top(conn: MoreInterestingConn, login: Option<LoginSession>, flash: Option<Fla
     let (user, session) = login.map(|l| (l.user, l.session)).unwrap_or((User::default(), UserSession::default()));
     let tag_param = params.as_ref().and_then(|params| Some(params.tag.as_ref()?.to_string()));
     let domain = params.as_ref().and_then(|params| Some(params.domain.as_ref()?.to_string()));
-    let is_home = tag_param.is_none() && domain.is_none() && params.as_ref().and_then(|params| params.q.as_ref()).is_none();
+    let keywords_param = params.as_ref().and_then(|params| Some(params.q.as_ref()?.to_string()));
+    let is_home = tag_param.is_none() && domain.is_none() && keywords_param.is_none();
     let (search, tags) = parse_index_params(&conn, &user, params)?;
     let search = PostSearch {
         order_by: PostSearchOrderBy::Top,
@@ -395,7 +398,7 @@ fn top(conn: MoreInterestingConn, login: Option<LoginSession>, flash: Option<Fla
         title: Cow::Borrowed("top"),
         parent: "layout",
         alert: flash.map(|f| f.msg().to_owned()),
-        config: config.clone(), is_home,
+        config: config.clone(), is_home, keywords_param,
         user, posts, session, tags, tag_param, domain,
         ..default()
     }))
@@ -406,7 +409,8 @@ fn new(conn: MoreInterestingConn, login: Option<LoginSession>, flash: Option<Fla
     let (user, session) = login.map(|l| (l.user, l.session)).unwrap_or((User::default(), UserSession::default()));
     let tag_param = params.as_ref().and_then(|params| Some(params.tag.as_ref()?.to_string()));
     let domain = params.as_ref().and_then(|params| Some(params.domain.as_ref()?.to_string()));
-    let is_home = tag_param.is_none() && domain.is_none() && params.as_ref().and_then(|params| params.q.as_ref()).is_none();
+    let keywords_param = params.as_ref().and_then(|params| Some(params.q.as_ref()?.to_string()));
+    let is_home = tag_param.is_none() && domain.is_none() && keywords_param.is_none();
     let (search, tags) = parse_index_params(&conn, &user, params)?;
     let search = PostSearch {
         order_by: PostSearchOrderBy::Newest,
@@ -417,7 +421,7 @@ fn new(conn: MoreInterestingConn, login: Option<LoginSession>, flash: Option<Fla
         title: Cow::Borrowed("new"),
         parent: "layout",
         alert: flash.map(|f| f.msg().to_owned()),
-        config: config.clone(), is_home,
+        config: config.clone(), is_home, keywords_param,
         user, posts, session, tags, tag_param, domain,
         ..default()
     }))
@@ -428,7 +432,8 @@ fn latest(conn: MoreInterestingConn, login: Option<LoginSession>, params: Option
     let (user, session) = login.map(|l| (l.user, l.session)).unwrap_or((User::default(), UserSession::default()));
     let tag_param = params.as_ref().and_then(|params| Some(params.tag.as_ref()?.to_string()));
     let domain = params.as_ref().and_then(|params| Some(params.domain.as_ref()?.to_string()));
-    let is_home = tag_param.is_none() && domain.is_none() && params.as_ref().and_then(|params| params.q.as_ref()).is_none();
+    let keywords_param = params.as_ref().and_then(|params| Some(params.q.as_ref()?.to_string()));
+    let is_home = tag_param.is_none() && domain.is_none() && keywords_param.is_none();
     let (search, tags) = parse_index_params(&conn, &user, params)?;
     let search = PostSearch {
         order_by: PostSearchOrderBy::Latest,
@@ -439,7 +444,7 @@ fn latest(conn: MoreInterestingConn, login: Option<LoginSession>, params: Option
         title: Cow::Borrowed("latest"),
         parent: "layout",
         alert: flash.map(|f| f.msg().to_owned()),
-        config: config.clone(), is_home,
+        config: config.clone(), is_home, keywords_param,
         user, posts, session, tags, tag_param, domain,
         ..default()
     }))
