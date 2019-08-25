@@ -52,7 +52,6 @@ struct SiteConfig {
     custom_css: String,
     site_title_html: String,
     custom_footer_html: String,
-    custom_header_html: String,
     comments_placeholder_html: String,
     front_notice_html: String,
     hide_text_post: bool,
@@ -69,7 +68,6 @@ impl Default for SiteConfig {
             public_url: Url::parse("http://localhost").unwrap(),
             site_title_html: String::new(),
             custom_footer_html: String::new(),
-            custom_header_html: String::new(),
             comments_placeholder_html: String::new(),
             front_notice_html: String::new(),
             custom_css: String::new(),
@@ -96,6 +94,8 @@ struct TemplateContext {
     invite_token: Option<Base32>,
     raw_html: String,
     tags: Vec<Tag>,
+    tag_param: Option<String>,
+    domain: Option<String>,
     config: SiteConfig,
     log: Vec<ModerationInfo>,
     is_home: bool,
@@ -335,15 +335,17 @@ fn index(conn: MoreInterestingConn, login: Option<LoginSession>, flash: Option<F
     let (user, session) = login.map(|l| (l.user, l.session)).unwrap_or((User::default(), UserSession::default()));
 
     let title = Cow::Owned(config.site_title_html.clone());
+    let tag_param = params.as_ref().and_then(|params| Some(params.tag.as_ref()?.to_string()));
+    let domain = params.as_ref().and_then(|params| Some(params.domain.as_ref()?.to_string()));
+    let is_home = tag_param.is_none() && domain.is_none() && params.as_ref().and_then(|params| params.q.as_ref()).is_none();
     let (search, tags) = parse_index_params(&conn, &user, params)?;
-    let is_home = tags.is_empty();
     let posts = conn.search_posts(&search).ok()?;
     Some(Template::render("index", &TemplateContext {
         parent: "layout",
         alert: flash.map(|f| f.msg().to_owned()),
         config: config.clone(),
         title, user, posts, is_home,
-        tags, session,
+        tags, session, tag_param, domain,
         ..default()
     }))
 }
@@ -380,6 +382,9 @@ fn search_comments(conn: MoreInterestingConn, login: Option<LoginSession>, flash
 #[get("/top?<params..>")]
 fn top(conn: MoreInterestingConn, login: Option<LoginSession>, flash: Option<FlashMessage>, config: State<SiteConfig>, params: Option<Form<IndexParams>>) -> Option<impl Responder<'static>> {
     let (user, session) = login.map(|l| (l.user, l.session)).unwrap_or((User::default(), UserSession::default()));
+    let tag_param = params.as_ref().and_then(|params| Some(params.tag.as_ref()?.to_string()));
+    let domain = params.as_ref().and_then(|params| Some(params.domain.as_ref()?.to_string()));
+    let is_home = tag_param.is_none() && domain.is_none() && params.as_ref().and_then(|params| params.q.as_ref()).is_none();
     let (search, tags) = parse_index_params(&conn, &user, params)?;
     let search = PostSearch {
         order_by: PostSearchOrderBy::Top,
@@ -390,8 +395,8 @@ fn top(conn: MoreInterestingConn, login: Option<LoginSession>, flash: Option<Fla
         title: Cow::Borrowed("top"),
         parent: "layout",
         alert: flash.map(|f| f.msg().to_owned()),
-        config: config.clone(),
-        user, posts, session, tags,
+        config: config.clone(), is_home,
+        user, posts, session, tags, tag_param, domain,
         ..default()
     }))
 }
@@ -399,6 +404,9 @@ fn top(conn: MoreInterestingConn, login: Option<LoginSession>, flash: Option<Fla
 #[get("/new?<params..>")]
 fn new(conn: MoreInterestingConn, login: Option<LoginSession>, flash: Option<FlashMessage>, config: State<SiteConfig>, params: Option<Form<IndexParams>>) -> Option<impl Responder<'static>> {
     let (user, session) = login.map(|l| (l.user, l.session)).unwrap_or((User::default(), UserSession::default()));
+    let tag_param = params.as_ref().and_then(|params| Some(params.tag.as_ref()?.to_string()));
+    let domain = params.as_ref().and_then(|params| Some(params.domain.as_ref()?.to_string()));
+    let is_home = tag_param.is_none() && domain.is_none() && params.as_ref().and_then(|params| params.q.as_ref()).is_none();
     let (search, tags) = parse_index_params(&conn, &user, params)?;
     let search = PostSearch {
         order_by: PostSearchOrderBy::Newest,
@@ -409,8 +417,8 @@ fn new(conn: MoreInterestingConn, login: Option<LoginSession>, flash: Option<Fla
         title: Cow::Borrowed("new"),
         parent: "layout",
         alert: flash.map(|f| f.msg().to_owned()),
-        config: config.clone(),
-        user, posts, session, tags,
+        config: config.clone(), is_home,
+        user, posts, session, tags, tag_param, domain,
         ..default()
     }))
 }
@@ -418,6 +426,9 @@ fn new(conn: MoreInterestingConn, login: Option<LoginSession>, flash: Option<Fla
 #[get("/latest?<params..>")]
 fn latest(conn: MoreInterestingConn, login: Option<LoginSession>, params: Option<Form<IndexParams>>, flash: Option<FlashMessage>, config: State<SiteConfig>) -> Option<impl Responder<'static>> {
     let (user, session) = login.map(|l| (l.user, l.session)).unwrap_or((User::default(), UserSession::default()));
+    let tag_param = params.as_ref().and_then(|params| Some(params.tag.as_ref()?.to_string()));
+    let domain = params.as_ref().and_then(|params| Some(params.domain.as_ref()?.to_string()));
+    let is_home = tag_param.is_none() && domain.is_none() && params.as_ref().and_then(|params| params.q.as_ref()).is_none();
     let (search, tags) = parse_index_params(&conn, &user, params)?;
     let search = PostSearch {
         order_by: PostSearchOrderBy::Latest,
@@ -428,8 +439,8 @@ fn latest(conn: MoreInterestingConn, login: Option<LoginSession>, params: Option
         title: Cow::Borrowed("latest"),
         parent: "layout",
         alert: flash.map(|f| f.msg().to_owned()),
-        config: config.clone(),
-        user, posts, session, tags,
+        config: config.clone(), is_home,
+        user, posts, session, tags, tag_param, domain,
         ..default()
     }))
 }
@@ -1496,7 +1507,6 @@ fn main() {
             let hide_text_post = rocket.config().get_bool("hide_text_post").unwrap_or(false);
             let hide_link_post = rocket.config().get_bool("hide_link_post").unwrap_or(false);
             let custom_footer_html = rocket.config().get_str("custom_footer_html").unwrap_or("").to_owned();
-            let custom_header_html = rocket.config().get_str("custom_header_html").unwrap_or("").to_owned();
             let comments_placeholder_html = rocket.config().get_str("comments_placeholder_html").unwrap_or("<p>To post a comment, you'll need to <a href=/login>Sign in</a>.</p>").to_owned();
             let front_notice_html = rocket.config().get_str("front_notice_html").unwrap_or("").to_owned();
             let body_format = match rocket.config().get_str("body_format").unwrap_or("") {
@@ -1509,7 +1519,7 @@ fn main() {
                 enable_anonymous_submissions,
                 enable_public_signup,
                 hide_text_post, hide_link_post,
-                custom_header_html, custom_footer_html,
+                custom_footer_html,
                 comments_placeholder_html, body_format,
                 front_notice_html,
             }))
