@@ -302,7 +302,7 @@ struct CreateModeration {
     pub created_by: i32,
 }
 
-#[derive(Clone, Copy)]
+#[derive(Clone, Copy, Eq, PartialEq)]
 pub enum PostSearchOrderBy {
     Hottest,
     Newest,
@@ -371,7 +371,7 @@ impl MoreInterestingConn {
                 query = query.filter(self::posts::dsl::id.eq_any(ids));
             }
         }
-        let mut all: Vec<PostInfo> = if search.keywords != "" {
+        let mut all: Vec<PostInfo> = if search.keywords != "" && search.order_by == PostSearchOrderBy::Hottest {
             let max_r = if search.after_post_id != 0 {
                 post_search_index
                     .filter(crate::schema::post_search_index::dsl::post_id.eq(search.after_post_id))
@@ -414,6 +414,12 @@ impl MoreInterestingConn {
                 .map(|t| tuple_to_post_info(self, t, self.get_current_stellar_time()))
                 .collect()
         } else {
+            if search.keywords != "" {
+                let ids = post_search_index
+                    .filter(search_index.matches(plainto_tsquery(&search.keywords)))
+                    .select(crate::schema::post_search_index::dsl::post_id);
+                query = query.filter(self::posts::dsl::id.eq_any(ids));
+            }
             if search.after_post_id != 0 {
                 query = query.filter(self::posts::dsl::id.lt(search.after_post_id));
             }
