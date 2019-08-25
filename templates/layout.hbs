@@ -51,24 +51,11 @@
             {{/if}}
         </details-menu-bar>
     </nav>
-    {{#if is_home}}
-        {{# if config.custom_header_html}}
-            <nav class=nav-second>{{{config.custom_header_html}}}</nav>
-        {{else}}
-            {{#if config.enable_anonymous_submissions}}
-                <nav class=nav-second><a class=button href=submit role=menuitem>Submit a link</a></nav>
-            {{/if}}
-        {{/if}}
-    {{/if}}
+    {{~> nav-second~}}
 </header>
 <div class=page-wrapper-outer><div class=page-wrapper>
     {{#if alert}}
         <div class=inner-banner role=alert>{{alert}}</div>
-    {{/if}}
-    {{#if is_home}}
-        {{# if config.front_notice_html}}
-            <div class=inner-banner>{{{config.front_notice_html}}}</div>
-        {{/if}}
     {{/if}}
 {{~> page}}
 </div></div>

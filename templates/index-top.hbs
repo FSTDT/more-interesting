@@ -1,10 +1,9 @@
+{{#*inline "nav-second"}}
+{{~#if is_home~}}
+    <nav class=nav-second><a class=top-header-link href=.>Home</a> &bull; <a class=top-header-link href=latest>Latest</a> &bull; <b>Top</b> &bull; <a class=top-header-link href=new>New</a></nav>
+{{~/if~}}
+{{/inline}}
 {{#*inline "page"}}
-{{~#if tags~}}
-{{~else~}}
-<header class=tight-headline>
-<h2>Top posts</h2>
-</header>
-{{~/if}}
 {{#each tags}}
 <header class=tight-headline>
 <h2>#{{this.name}}</h2>
@@ -12,6 +11,12 @@
 <nav><a href=.?tag={{this.name}}>Home</a> &bull; <a href=latest?tag={{this.name}}>Latest</a> &bull; <b>Top</b> &bull; <a href=new?tag={{this.name}}>New</a></nav>
 </header>
 {{/each}}
+{{#if domain}}
+<header class=tight-headline>
+<h2>www.{{domain}}</h2>
+<nav><a href=.?domain={{domain}}>Home</a> &bull; <a href=latest?domain={{domain}}>Latest</a> &bull; <b>Top</b> &bull; <a href=new?domain={{domain}}>New</a></nav>
+</header>
+{{/if}}
 <ajax-form>
 {{#each posts}}
     {{#if this.banner_title}}
