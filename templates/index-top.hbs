@@ -17,6 +17,13 @@
 <nav><a href=.?domain={{domain}}>Home</a> &bull; <a href=latest?domain={{domain}}>Latest</a> &bull; <b>Top</b> &bull; <a href=new?domain={{domain}}>New</a></nav>
 </header>
 {{/if}}
+{{#if keywords_param}}
+<header class=tight-headline>
+<h2>Search results</h2>
+<code>{{keywords_param}}</code>
+<nav><a href=".?q={{keywords_param}}">Relevance</a> &bull; <a href="latest?q={{keywords_param}}">Latest</a> &bull; <b>Top</b> &bull; <a href="new?q={{keywords_param}}">New</a></nav>
+</header>
+{{/if}}
 <ajax-form>
 {{#each posts}}
     {{#if this.banner_title}}
