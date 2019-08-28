@@ -107,7 +107,7 @@
             </details></aside>
         {{/each}}
     </ajax-form>
-    {{#if (gte user.trust_level 0)}}
+    {{#if user.id}}
     <form action="comment?U={{session.uuid}}" method=POST>
         <label>
             <h3 id=comment-form>Add your comment</h3>
