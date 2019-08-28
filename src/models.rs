@@ -302,7 +302,7 @@ struct CreateModeration {
     pub created_by: i32,
 }
 
-#[derive(Clone, Copy)]
+#[derive(Clone, Copy, Eq, PartialEq)]
 pub enum PostSearchOrderBy {
     Hottest,
     Newest,
@@ -351,7 +351,7 @@ impl MoreInterestingConn {
             PostSearchOrderBy::Hottest if search.keywords == "" => query.order_by((initial_stellar_time.desc(), self::posts::dsl::created_at.desc())).into_boxed(),
             PostSearchOrderBy::Hottest => query.into_boxed(),
             PostSearchOrderBy::Top => query.order_by((score.desc(), self::posts::dsl::created_at.desc())).into_boxed(),
-            PostSearchOrderBy::Newest => query.order_by(self::posts::dsl::created_at.desc()).into_boxed(),
+            PostSearchOrderBy::Newest => query.order_by(self::posts::dsl::id.desc()).into_boxed(),
             PostSearchOrderBy::Latest => query.order_by(self::posts::dsl::updated_at.desc()).into_boxed(),
         };
         if !search.or_domains.is_empty() {
@@ -371,10 +371,15 @@ impl MoreInterestingConn {
                 query = query.filter(self::posts::dsl::id.eq_any(ids));
             }
         }
-        if search.after_post_id != 0 {
-            query = query.filter(self::posts::dsl::id.lt(search.after_post_id));
-        }
-        let mut all: Vec<PostInfo> = if search.keywords != "" {
+        let mut all: Vec<PostInfo> = if search.keywords != "" && search.order_by == PostSearchOrderBy::Hottest {
+            let max_r = if search.after_post_id != 0 {
+                post_search_index
+                    .filter(crate::schema::post_search_index::dsl::post_id.eq(search.after_post_id))
+                    .select(ts_rank_cd(search_index, plainto_tsquery(&search.keywords)))
+                    .get_result(&self.0)?
+            } else {
+                1_000_000.0
+            };
             query
                 .left_outer_join(stars.on(self::stars::dsl::post_id.eq(self::posts::dsl::id).and(self::stars::dsl::user_id.eq(search.my_user_id))))
                 .left_outer_join(flags.on(self::flags::dsl::post_id.eq(self::posts::dsl::id).and(self::flags::dsl::user_id.eq(search.my_user_id))))
@@ -401,6 +406,7 @@ impl MoreInterestingConn {
                     self::posts::dsl::banner_desc,
                 ))
                 .filter(search_index.matches(plainto_tsquery(&search.keywords)))
+                .filter(ts_rank_cd(search_index, plainto_tsquery(&search.keywords)).lt(max_r))
                 .order_by(ts_rank_cd(search_index, plainto_tsquery(&search.keywords)).desc())
                 .limit(75)
                 .get_results::<(i32, Base32, String, Option<String>, bool, i32, i32, i32, bool, NaiveDateTime, i32, Option<String>, Option<String>, Option<i32>, Option<i32>, String, Option<String>, Option<String>)>(&self.0)?
@@ -408,6 +414,15 @@ impl MoreInterestingConn {
                 .map(|t| tuple_to_post_info(self, t, self.get_current_stellar_time()))
                 .collect()
         } else {
+            if search.keywords != "" {
+                let ids = post_search_index
+                    .filter(search_index.matches(plainto_tsquery(&search.keywords)))
+                    .select(crate::schema::post_search_index::dsl::post_id);
+                query = query.filter(self::posts::dsl::id.eq_any(ids));
+            }
+            if search.after_post_id != 0 {
+                query = query.filter(self::posts::dsl::id.lt(search.after_post_id));
+            }
             query
                 .left_outer_join(stars.on(self::stars::dsl::post_id.eq(self::posts::dsl::id).and(self::stars::dsl::user_id.eq(search.my_user_id))))
                 .left_outer_join(flags.on(self::flags::dsl::post_id.eq(self::posts::dsl::id).and(self::flags::dsl::user_id.eq(search.my_user_id))))
