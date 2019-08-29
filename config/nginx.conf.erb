@@ -77,6 +77,9 @@ http {
 		if ($http_user_agent ~ bingbot) {
 			set $accck "start";
 		}
+		if ($http_user_agent ~ feedly) {
+			set $accck "whitelist";
+		}
 		if ($http_accept ~ "^-?$") {
 			set $accck "${accck}bad";
 		}
