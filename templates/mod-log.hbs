@@ -10,7 +10,7 @@
         <tbody>
         {{#each log}}
             <tr>
-                <td>{{date this.created_at}}</td>
+                <td><a href="?after={{this.id}}">{{this.created_at}}</a></td>
                 <td>{{this.created_by_username}}</td>
                 <td>
                     <dl>

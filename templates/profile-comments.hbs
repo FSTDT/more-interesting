@@ -9,7 +9,7 @@
         <main>{{{this.html}}}</main>
         <footer>
             posted by {{this.created_by_username}}
-            {{date this.created_at}}
+            <local-date title="{{this.created_at}}+00:00">{{this.created_at_relative}}</local-date>
         </footer>
     </aside>
     {{#if @last}}

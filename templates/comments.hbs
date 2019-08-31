@@ -37,7 +37,7 @@
             <footer class=footer-container>
             <div class=footer-main>
             submitted by <a href="@{{posts.0.submitted_by_username}}">{{posts.0.submitted_by_username}}</a>
-            {{date posts.0.created_at}}
+            <local-date title="{{posts.0.created_at}}+00:00">{{posts.0.created_at_relative}}</local-date>
             {{#if starred_by}}
                 starred by
                 {{#each starred_by}}
@@ -68,7 +68,7 @@
                 <main>{{{this.html}}}</main>
                 <footer>
                     old comment posted by {{this.author}}
-                    {{date this.created_at}}
+                    <local-date title="{{this.created_at}}+00:00">{{this.created_at_relative}}</local-date>
                     <a href="#{{this.id}}">#{{this.id}}</a>
                 </footer>
             </details></aside>
@@ -79,7 +79,7 @@
                 <footer class=footer-container>
                     <div class=footer-main>
                     posted by <a href="@{{this.created_by_username}}">{{this.created_by_username}}</a>
-                    {{date this.created_at}}
+                    <local-date title="{{this.created_at}}+00:00">{{this.created_at_relative}}</local-date>
                     <a href="#{{this.id}}">#{{this.id}}</a>
                     {{#if this.starred_by}}
                         starred by

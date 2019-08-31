@@ -141,6 +141,7 @@ pub struct PostInfo {
     pub comment_count: i32,
     pub authored_by_submitter: bool,
     pub created_at: NaiveDateTime,
+    pub created_at_relative: String,
     pub submitted_by: i32,
     pub submitted_by_username: String,
     pub starred_by_me: bool,
@@ -209,6 +210,7 @@ pub struct CommentInfo {
     pub visible: bool,
     pub post_id: i32,
     pub created_at: NaiveDateTime,
+    pub created_at_relative: String,
     pub created_by: i32,
     pub created_by_username: String,
     pub starred_by_me: bool,
@@ -224,6 +226,7 @@ pub struct CommentSearchResult {
     pub post_uuid: Base32,
     pub post_title: String,
     pub created_at: NaiveDateTime,
+    pub created_at_relative: String,
     pub created_by: i32,
     pub created_by_username: String,
 }
@@ -1578,10 +1581,12 @@ fn tuple_to_post_info(conn: &MoreInterestingConn, (id, uuid, title, url, visible
     };
     let title_html_output = prettify_title(&title, &link_url, &mut PrettifyData::new(conn, 0));
     let title_html = title_html_output.string;
+    let created_at_relative = relative_date(&created_at);
     PostInfo {
-        id, uuid, title, url, visible, score, authored_by_submitter, created_at,
+        id, uuid, title, url, visible, score, authored_by_submitter,
         submitted_by, submitted_by_username, comment_count, title_html,
         excerpt, excerpt_html, banner_title, banner_desc,
+        created_at, created_at_relative,
         starred_by_me: starred_post_id.is_some(),
         flagged_by_me: flagged_post_id.is_some(),
         hotness: compute_hotness(initial_stellar_time, current_stellar_time, score, authored_by_submitter)
@@ -1589,8 +1594,10 @@ fn tuple_to_post_info(conn: &MoreInterestingConn, (id, uuid, title, url, visible
 }
 
 fn tuple_to_comment_info(conn: &MoreInterestingConn, (id, text, html, visible, post_id, created_at, created_by, starred_comment_id, flagged_comment_id, created_by_username): (i32, String, String, bool, i32, NaiveDateTime, i32, Option<i32>, Option<i32>, String)) -> CommentInfo {
+    let created_at_relative = relative_date(&created_at);
     CommentInfo {
-        id, text, html, visible, post_id, created_at, created_by, created_by_username,
+        id, text, html, visible, post_id, created_by, created_by_username,
+        created_at, created_at_relative,
         starred_by: conn.get_comment_starred_by(id).unwrap_or(Vec::new()),
         starred_by_me: starred_comment_id.is_some(),
         flagged_by_me: flagged_comment_id.is_some(),
@@ -1598,8 +1605,10 @@ fn tuple_to_comment_info(conn: &MoreInterestingConn, (id, text, html, visible, p
 }
 
 fn tuple_to_comment_search_results((id, html, post_id, post_uuid, post_title, created_at, created_by, created_by_username): (i32, String, i32, Base32, String, NaiveDateTime, i32, String)) -> CommentSearchResult {
+    let created_at_relative = relative_date(&created_at);
     CommentSearchResult {
-        id, html, post_id, post_uuid, post_title, created_at, created_by, created_by_username,
+        id, html, post_id, post_uuid, post_title, created_by, created_by_username,
+        created_at, created_at_relative,
     }
 }
 
@@ -1618,6 +1627,23 @@ fn compute_hotness(initial_stellar_time: i32, current_stellar_time: i32, score: 
     let boost = if authored_by_submitter { 0.33 } else { 0.0 };
     let stellar_age = max(current_stellar_time - initial_stellar_time, 0) as f64;
     (boost + (score as f64) + 1.0) / (stellar_age + 1.0).powf(gravity)
+}
+
+fn relative_date(dt: &NaiveDateTime) -> String {
+    // Design rationale:
+    //
+    // - NaiveDateTime is used for timestamps because they're always in the past,
+    //   and are conventionally UTC. They are also only really used for display,
+    //   not scheduling, so jitter is acceptable.
+    // - "Humanization" is done on the server side to avoid layout jumping after the
+    //   JS loads, and is always done in a relative way that is timezone agnostic.
+    //   Localized dates, which can't be shown until after the JS loads because
+    //   timezones can't be reliably pulled from HTTP headers, are relegated
+    //   to tooltips.
+    use chrono::Utc;
+    use chrono_humanize::{Accuracy, HumanTime, Tense};
+    let h = HumanTime::from(*dt - Utc::now().naive_utc());
+    v_htmlescape::escape(&h.to_text_en(Accuracy::Rough, Tense::Past)).to_string()
 }
 
 struct PrettifyData<'a> {
