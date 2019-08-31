@@ -14,7 +14,7 @@
         {{/if}}
         <footer>
         submitted by <a href="@{{this.submitted_by_username}}">{{this.submitted_by_username}}</a>
-        {{date this.created_at}} and got
+        <local-date title="{{this.created_at}}+00:00">{{this.created_at_relative}}</local-date>
         <a href={{this.uuid}}>{{this.comment_count}} comments</a>
         </footer>
     </details></article>
@@ -24,7 +24,7 @@
             <footer class=footer-container>
                 <div class=footer-main>
                 posted by <a href="@{{comments.0.created_by_username}}">{{comments.0.created_by_username}}</a>
-                {{date comments.0.created_at}}
+                <local-date title="{{comments.0.created_at}}+00:00">{{comments.0.created_at_relative}}</local-date>
                 {{#if comments.0.starred_by}}
                     starred by
                     {{#each comments.0.starred_by}}

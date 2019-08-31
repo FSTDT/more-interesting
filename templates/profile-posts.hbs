@@ -19,7 +19,8 @@
         <footer class=footer-container>
         <div class=footer-main>
             submitted by <a href="@{{this.submitted_by_username}}">{{this.submitted_by_username}}</a>
-            {{date this.created_at}} and got
+            <local-date title="{{this.created_at}}+00:00">{{this.created_at_relative}}</local-date>
+            and got
             <a href="{{this.uuid}}#comments">{{this.comment_count}} comments</a>
         </div>
         <form class=footer-aside action="vote?redirect=2&U={{../session.uuid}}" method=POST>
