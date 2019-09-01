@@ -374,6 +374,7 @@ impl MoreInterestingConn {
                 query = query.filter(self::posts::dsl::id.eq_any(ids));
             }
         }
+        let mut data = PrettifyData::new(self, 0);
         let mut all: Vec<PostInfo> = if search.keywords != "" && search.order_by == PostSearchOrderBy::Hottest {
             let max_r = if search.after_post_id != 0 {
                 post_search_index
@@ -414,7 +415,7 @@ impl MoreInterestingConn {
                 .limit(75)
                 .get_results::<(i32, Base32, String, Option<String>, bool, i32, i32, i32, bool, NaiveDateTime, i32, Option<String>, Option<String>, Option<i32>, Option<i32>, String, Option<String>, Option<String>)>(&self.0)?
                 .into_iter()
-                .map(|t| tuple_to_post_info(self, t, self.get_current_stellar_time()))
+                .map(|t| tuple_to_post_info(&mut data, t, self.get_current_stellar_time()))
                 .collect()
         } else {
             if search.keywords != "" {
@@ -453,7 +454,7 @@ impl MoreInterestingConn {
                 .limit(75)
                 .get_results::<(i32, Base32, String, Option<String>, bool, i32, i32, i32, bool, NaiveDateTime, i32, Option<String>, Option<String>, Option<i32>, Option<i32>, String, Option<String>, Option<String>)>(&self.0)?
                 .into_iter()
-                .map(|t| tuple_to_post_info(self, t, self.get_current_stellar_time()))
+                .map(|t| tuple_to_post_info(&mut data, t, self.get_current_stellar_time()))
                 .collect()
         };
         if let (PostSearchOrderBy::Hottest, "") = (search.order_by, &search.keywords[..]) {
@@ -467,6 +468,7 @@ impl MoreInterestingConn {
         use self::stars::dsl::*;
         use self::flags::dsl::*;
         use self::users::dsl::*;
+        let mut data = PrettifyData::new(self, 0);
         let mut all: Vec<PostInfo> = posts
             .left_outer_join(stars.on(self::stars::dsl::post_id.eq(self::posts::dsl::id).and(self::stars::dsl::user_id.eq(user_id_param))))
             .left_outer_join(flags.on(self::flags::dsl::post_id.eq(self::posts::dsl::id).and(self::flags::dsl::user_id.eq(user_id_param))))
@@ -497,7 +499,7 @@ impl MoreInterestingConn {
             .limit(75)
             .get_results::<(i32, Base32, String, Option<String>, bool, i32, i32, i32, bool, NaiveDateTime, i32, Option<String>, Option<String>, Option<i32>, Option<i32>, String, Option<String>, Option<String>)>(&self.0)?
             .into_iter()
-            .map(|t| tuple_to_post_info(self, t, self.get_current_stellar_time()))
+            .map(|t| tuple_to_post_info(&mut data, t, self.get_current_stellar_time()))
             .collect();
         all.sort_by_key(|info| OrderedFloat(-info.hotness));
         all.truncate(50);
@@ -509,7 +511,8 @@ impl MoreInterestingConn {
         use self::flags::dsl::*;
         use self::users::dsl::*;
         // This is a bunch of duplicate code.
-        Ok(tuple_to_post_info(self, posts
+        let mut data = PrettifyData::new(self, 0);
+        Ok(tuple_to_post_info(&mut data, posts
             .left_outer_join(stars.on(self::stars::dsl::post_id.eq(self::posts::dsl::id).and(self::stars::dsl::user_id.eq(user_id_param))))
             .left_outer_join(flags.on(self::flags::dsl::post_id.eq(self::posts::dsl::id).and(self::flags::dsl::user_id.eq(user_id_param))))
             .inner_join(users)
@@ -1026,7 +1029,8 @@ impl MoreInterestingConn {
         use self::users::dsl::*;
         use self::comments::dsl::*;
         // This is a bunch of duplicate code.
-        Ok(tuple_to_post_info(self, posts
+        let mut data = PrettifyData::new(self, 0);
+        Ok(tuple_to_post_info(&mut data, posts
             .left_outer_join(stars.on(self::stars::dsl::post_id.eq(self::posts::dsl::id).and(self::stars::dsl::user_id.eq(user_id_param))))
             .left_outer_join(flags.on(self::flags::dsl::post_id.eq(self::posts::dsl::id).and(self::flags::dsl::user_id.eq(user_id_param))))
             .inner_join(users)
@@ -1362,6 +1366,7 @@ impl MoreInterestingConn {
         use self::stars::dsl::*;
         use self::flags::dsl::*;
         use self::users::dsl::*;
+        let mut data = PrettifyData::new(self, 0);
         let mut all: Vec<PostInfo> = posts
             .left_outer_join(stars.on(self::stars::dsl::post_id.eq(self::posts::dsl::id).and(self::stars::dsl::user_id.eq(user_id_param))))
             .left_outer_join(flags.on(self::flags::dsl::post_id.eq(self::posts::dsl::id).and(self::flags::dsl::user_id.eq(user_id_param))))
@@ -1392,7 +1397,7 @@ impl MoreInterestingConn {
             .limit(50)
             .get_results::<(i32, Base32, String, Option<String>, bool, i32, i32, i32, bool, NaiveDateTime, i32, Option<String>, Option<String>, Option<i32>, Option<i32>, String, Option<String>, Option<String>)>(&self.0).ok()?
             .into_iter()
-            .map(|t| tuple_to_post_info(self, t, self.get_current_stellar_time()))
+            .map(|t| tuple_to_post_info(&mut data, t, self.get_current_stellar_time()))
             .collect();
         all.sort_by_key(|info| OrderedFloat(-info.hotness));
         all.pop()
@@ -1573,13 +1578,13 @@ impl MoreInterestingConn {
     }
 }
 
-fn tuple_to_post_info(conn: &MoreInterestingConn, (id, uuid, title, url, visible, initial_stellar_time, score, comment_count, authored_by_submitter, created_at, submitted_by, excerpt, excerpt_html, starred_post_id, flagged_post_id, submitted_by_username, banner_title, banner_desc): (i32, Base32, String, Option<String>, bool, i32, i32, i32, bool, NaiveDateTime, i32, Option<String>, Option<String>, Option<i32>, Option<i32>, String, Option<String>, Option<String>), current_stellar_time: i32) -> PostInfo {
+fn tuple_to_post_info(data: &mut PrettifyData, (id, uuid, title, url, visible, initial_stellar_time, score, comment_count, authored_by_submitter, created_at, submitted_by, excerpt, excerpt_html, starred_post_id, flagged_post_id, submitted_by_username, banner_title, banner_desc): (i32, Base32, String, Option<String>, bool, i32, i32, i32, bool, NaiveDateTime, i32, Option<String>, Option<String>, Option<i32>, Option<i32>, String, Option<String>, Option<String>), current_stellar_time: i32) -> PostInfo {
     let link_url = if let Some(ref url) = url {
         url.clone()
     } else {
         uuid.to_string()
     };
-    let title_html_output = prettify_title(&title, &link_url, &mut PrettifyData::new(conn, 0));
+    let title_html_output = prettify_title(&title, &link_url, data);
     let title_html = title_html_output.string;
     let created_at_relative = relative_date(&created_at);
     PostInfo {

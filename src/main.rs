@@ -89,7 +89,6 @@ struct TemplateContext {
     comment: Option<Comment>,
     user: User,
     session: UserSession,
-    parent: &'static str,
     alert: Option<String>,
     invite_token: Option<Base32>,
     raw_html: String,
@@ -343,7 +342,6 @@ fn index(conn: MoreInterestingConn, login: Option<LoginSession>, flash: Option<F
     let (search, tags) = parse_index_params(&conn, &user, params)?;
     let posts = conn.search_posts(&search).ok()?;
     Some(Template::render("index", &TemplateContext {
-        parent: "layout",
         alert: flash.map(|f| f.msg().to_owned()),
         config: config.clone(),
         title, user, posts, is_home,
@@ -370,7 +368,6 @@ fn search_comments(conn: MoreInterestingConn, login: Option<LoginSession>, flash
         };
         let title = Cow::Owned(by_user.username.clone());
         Some(Template::render("profile-comments", &TemplateContext {
-            parent: "layout",
             alert: flash.map(|f| f.msg().to_owned()),
             config: config.clone(),
             title, user, comment_search_result, session,
@@ -396,7 +393,6 @@ fn top(conn: MoreInterestingConn, login: Option<LoginSession>, flash: Option<Fla
     let posts = conn.search_posts(&search).ok()?;
     Some(Template::render("index-top", &TemplateContext {
         title: Cow::Borrowed("top"),
-        parent: "layout",
         alert: flash.map(|f| f.msg().to_owned()),
         config: config.clone(), is_home, keywords_param,
         user, posts, session, tags, tag_param, domain,
@@ -419,7 +415,6 @@ fn new(conn: MoreInterestingConn, login: Option<LoginSession>, flash: Option<Fla
     let posts = conn.search_posts(&search).ok()?;
     Some(Template::render("index-new", &TemplateContext {
         title: Cow::Borrowed("new"),
-        parent: "layout",
         alert: flash.map(|f| f.msg().to_owned()),
         config: config.clone(), is_home, keywords_param,
         user, posts, session, tags, tag_param, domain,
@@ -442,7 +437,6 @@ fn latest(conn: MoreInterestingConn, login: Option<LoginSession>, params: Option
     let posts = conn.search_posts(&search).ok()?;
     Some(Template::render("index-latest", &TemplateContext {
         title: Cow::Borrowed("latest"),
-        parent: "layout",
         alert: flash.map(|f| f.msg().to_owned()),
         config: config.clone(), is_home, keywords_param,
         user, posts, session, tags, tag_param, domain,
@@ -484,7 +478,6 @@ fn mod_log(conn: MoreInterestingConn, login: Option<LoginSession>, flash: Option
     }.unwrap_or(Vec::new());
     Template::render("mod-log", &TemplateContext {
         title: Cow::Borrowed("moderation"),
-        parent: "layout",
         alert: flash.map(|f| f.msg().to_owned()),
         config: config.clone(),
         user, log, session,
@@ -497,7 +490,6 @@ fn create_post_form(login: Option<LoginSession>, config: State<SiteConfig>) -> i
     let (user, session) = login.map(|l| (l.user, l.session)).unwrap_or((User::default(), UserSession::default()));
     Template::render("post", &TemplateContext {
         title: Cow::Borrowed("post"),
-        parent: "layout",
         config: config.clone(),
         user, session,
         ..default()
@@ -508,7 +500,6 @@ fn create_link_form(login: Option<LoginSession>, config: State<SiteConfig>) -> i
     let (user, session) = login.map(|l| (l.user, l.session)).unwrap_or((User::default(), UserSession::default()));
     Template::render("submit", &TemplateContext {
         title: Cow::Borrowed("submit"),
-        parent: "layout",
         config: config.clone(),
         user, session,
         ..default()
@@ -594,7 +585,6 @@ fn create(login: Option<LoginSession>, conn: MoreInterestingConn, post: Form<New
 fn login_form(config: State<SiteConfig>, flash: Option<FlashMessage>) -> impl Responder<'static> {
     Template::render("login", &TemplateContext {
         title: Cow::Borrowed("log in"),
-        parent: "layout",
         config: config.clone(),
         alert: flash.map(|f| f.msg().to_owned()),
         ..default()
@@ -663,7 +653,6 @@ fn get_user_info(conn: MoreInterestingConn, login: Option<LoginSession>, usernam
     };
     Ok(Template::render("profile-posts", &TemplateContext {
         title: Cow::Owned(username.0),
-        parent: "layout",
         alert: flash.map(|f| f.msg().to_owned()),
         config: config.clone(),
         posts, user, session,
@@ -687,7 +676,6 @@ fn get_comments(conn: MoreInterestingConn, login: Option<LoginSession>, uuid: Ba
         let title = Cow::Owned(post_info.title.clone());
         Ok(Template::render("comments", &TemplateContext {
             posts: vec![post_info],
-            parent: "layout",
             alert: flash.map(|f| f.msg().to_owned()),
             starred_by: conn.get_post_starred_by(post_id).unwrap_or(Vec::new()),
             config: config.clone(),
@@ -697,7 +685,6 @@ fn get_comments(conn: MoreInterestingConn, login: Option<LoginSession>, uuid: Ba
     } else if conn.check_invite_token_exists(uuid) && user.id == 0 {
         Ok(Template::render("signup", &TemplateContext {
             title: Cow::Borrowed("signup"),
-            parent: "layout",
             invite_token: Some(uuid),
             config: config.clone(),
             session,
@@ -778,7 +765,6 @@ fn get_public_signup(flash: Option<FlashMessage>, config: State<SiteConfig>) -> 
     }
     Ok(Template::render("signup", &TemplateContext {
         title: Cow::Borrowed("sign up"),
-        parent: "layout",
         alert: flash.map(|f| f.msg().to_owned()),
         config: config.clone(),
         ..default()
@@ -791,7 +777,6 @@ fn get_settings(_conn: MoreInterestingConn, login: LoginSession, flash: Option<F
     let session = login.session;
     Template::render("settings", &TemplateContext {
         title: Cow::Borrowed("settings"),
-        parent: "layout",
         alert: flash.map(|f| f.msg().to_owned()),
         config: config.clone(),
         user, session,
@@ -852,7 +837,6 @@ fn get_tags(conn: MoreInterestingConn, login: Option<LoginSession>, config: Stat
     let tags = conn.get_all_tags().unwrap_or(Vec::new());
     Template::render("tags", &TemplateContext {
         title: Cow::Borrowed("all tags"),
-        parent: "layout",
         config: config.clone(),
         tags, user, session,
         ..default()
@@ -882,7 +866,6 @@ fn invite_tree(conn: MoreInterestingConn, login: Option<LoginSession>, config: S
     raw_html.push_str("</ul>");
     Template::render("users", &TemplateContext {
         title: Cow::Borrowed("user invite tree"),
-        parent: "layout",
         config: config.clone(),
         user, raw_html, session,
         ..default()
@@ -981,7 +964,6 @@ fn get_edit_post(conn: MoreInterestingConn, login: ModeratorSession, flash: Opti
     let post_info = conn.get_post_info_by_uuid(login.user.id, post.post).ok()?;
     Some(Template::render("edit-post", &TemplateContext {
         title: Cow::Borrowed("edit post"),
-        parent: "layout",
         user: login.user,
         session: login.session,
         alert: flash.map(|f| f.msg().to_owned()),
@@ -1077,7 +1059,6 @@ fn get_edit_comment(conn: MoreInterestingConn, login: LoginSession, flash: Optio
     }
     Some(Template::render("edit-comment", &TemplateContext {
         title: Cow::Borrowed("edit comment"),
-        parent: "layout",
         alert: flash.map(|f| f.msg().to_owned()),
         config: config.clone(),
         comment: Some(comment),
@@ -1174,7 +1155,6 @@ fn get_mod_queue(conn: MoreInterestingConn, login: ModeratorSession, flash: Opti
             let post_info = conn.get_post_info_from_comment(user.id, comment_info.id).unwrap();
             return Ok(Template::render("mod-queue-comment", &TemplateContext {
                 title: Cow::Borrowed("moderate comment"),
-                parent: "layout",
                 alert: flash.map(|f| f.msg().to_owned()),
                 config: config.clone(),
                 comments: vec![comment_info],
@@ -1191,7 +1171,6 @@ fn get_mod_queue(conn: MoreInterestingConn, login: ModeratorSession, flash: Opti
         });
         return Ok(Template::render("mod-queue-post", &TemplateContext {
             title: Cow::Borrowed("moderate post"),
-            parent: "layout",
             alert: flash.map(|f| f.msg().to_owned()),
             config: config.clone(),
             posts: vec![post_info],
@@ -1203,7 +1182,6 @@ fn get_mod_queue(conn: MoreInterestingConn, login: ModeratorSession, flash: Opti
         let post_info = conn.get_post_info_from_comment(user.id, comment_info.id).unwrap();
         return Ok(Template::render("mod-queue-comment", &TemplateContext {
             title: Cow::Borrowed("moderate comment"),
-            parent: "layout",
             alert: flash.map(|f| f.msg().to_owned()),
             config: config.clone(),
             comments: vec![comment_info],
@@ -1214,7 +1192,6 @@ fn get_mod_queue(conn: MoreInterestingConn, login: ModeratorSession, flash: Opti
     }
     Ok(Template::render("mod-queue-empty", &TemplateContext {
         title: Cow::Borrowed("moderator queue is empty!"),
-        parent: "layout",
         alert: flash.map(|f| f.msg().to_owned()),
         config: config.clone(),
         user, session,

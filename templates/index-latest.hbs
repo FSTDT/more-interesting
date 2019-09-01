@@ -25,9 +25,25 @@
 </header>
 {{/if}}
 <ajax-form>
-{{#each posts}}
-{{~#if this.banner_title~}}<p class=post-banner>{{{this.banner_title}}}</p>{{~/if}}{{~#if this.banner_desc~}}<p class=post-banner-desc>{{{this.banner_desc}}}</p>{{~/if~}}<article><details open><summary title="Hide post" class=module-summary>Show post</summary><h3 class=article-header>{{{this.title_html}}}</h3>{{~#if this.excerpt_html~}}<main>{{{this.excerpt_html}}}</main>{{~/if~}}<footer class=footer-container><div class=footer-main>submitted by <a href="@{{this.submitted_by_username}}">{{this.submitted_by_username}}</a> <local-date title="{{this.created_at}}+00:00">{{this.created_at_relative}}</local-date> and got <a href="{{this.uuid}}#comments">{{this.comment_count}} comments</a></div><form class=footer-aside action="vote?redirect=2&U={{../session.uuid}}" method=POST>{{~#if (gte ../user.trust_level 3)~}}<a href="edit-post?post={{this.uuid}}" class=button>Edit</a> {{/if}}<button{{#if ../user.id}} title="{{#if this.starred_by_me}}Remove star{{else}}Add star{{/if}}"{{else}} disabled title="Log in to vote"{{/if}} name="{{#if this.starred_by_me}}rm_star{{else}}add_star{{/if}}" value={{this.uuid}}><span>{{this.score}}</span> <img width=12 height=12 class=good-img src=assets/{{#if this.starred_by_me}}star_active.svg{{else}}star.svg{{/if}} alt="{{#if this.starred_by_me}}Remove star{{else}}Add star{{/if}}"></button> {{#if (gte ../user.trust_level 1)}}<button class={{#if this.flagged_by_me}}flag-button-active{{else}}""{{/if}} name="{{#if this.flagged_by_me}}rm_flag{{else}}add_flag{{/if}}" value={{this.uuid}} title="{{#if this.flagged_by_me}}Remove flag{{else}}Add flag{{/if}}"> <img width=12 height=12 class=good-img src=assets/{{#if this.flagged_by_me}}flag_active{{else}}flag{{/if}}.svg alt="{{#if this.flagged_by_me}}Remove flag{{else}}Add flag{{/if}}"></button>{{/if}}</form></footer></details></article>
-{{/each}}
+{{~#if user.id~}}
+{{~#each posts~}}
+{{~#if this.banner_title}}<p class=post-banner>{{{this.banner_title}}}</p>{{#if this.banner_desc}}<p class=post-banner-desc>{{{this.banner_desc}}}</p>{{/if}}{{/if}}<article><details open><summary title="Hide post" class=module-summary>Show post</summary><h3 class=article-header>{{{this.title_html}}}</h3><main>{{{this.excerpt_html}}}</main><footer class=footer-container><div class=footer-main>submitted by <a href="@{{this.submitted_by_username}}">{{this.submitted_by_username}}</a> <local-date title="{{this.created_at}}+00:00">{{this.created_at_relative}}</local-date> and got <a href="{{this.uuid}}#comments">{{this.comment_count}} comments</a></div><form class=footer-aside action="vote?redirect=2&U={{../session.uuid}}" method=POST>{{#if (gte ../user.trust_level 3)}}<a href="edit-post?post={{this.uuid}}" class=button>Edit</a> {{/if}}{{#if this.starred_by_me}}<button title="Remove star" name=rm_star value={{this.uuid}}><span>{{this.score}}</span> <img width=12 height=12 class=good-img src=assets/star_active.svg alt="Remove star"></button>{{else}}<button title="Add star" name=add_star value={{this.uuid}}><span>{{this.score}}</span> <img width=12 height=12 class=good-img src=assets/star.svg alt="Add star"></button>{{/if}}{{#if (gte ../user.trust_level 1)}}{{#if this.flagged_by_me}} <button class=flag-button-active title="Remove flag" name=rm_flag value={{this.uuid}}><img width=12 height=12 class=good-img src=assets/flag_active.svg alt="Remove flag"></button>{{else}} <button title="Add flag" name=add_flag value={{this.uuid}}><img width=12 height=12 class=good-img src=assets/flag.svg alt="Add flag"></button>{{/if}}{{/if}}</form></footer></details></article>
+{{~#if @last~}}
+{{~#if ../keywords_param}}
+<p><a href=".?after={{this.uuid}}&q={{../keywords_param}}{{#if ../tag_param}}&tag={{../tag_param}}{{/if}}{{#if ../domain}}&domain={{../domain}}{{/if}}">Next page</a></p>
+{{~/if~}}
+{{~/if~}}
+{{~/each~}}
+{{~else~}}
+{{~#each posts~}}
+{{~#if this.banner_title}}<p class=post-banner>{{{this.banner_title}}}</p>{{#if this.banner_desc}}<p class=post-banner-desc>{{{this.banner_desc}}}</p>{{/if}}{{/if}}<article><details open><summary title="Hide post" class=module-summary>Show post</summary><h3 class=article-header>{{{this.title_html}}}</h3><main>{{{this.excerpt_html}}}</main><footer class=footer-container><div class=footer-main>submitted by <a href="@{{this.submitted_by_username}}">{{this.submitted_by_username}}</a> <local-date title="{{this.created_at}}+00:00">{{this.created_at_relative}}</local-date> and got <a href="{{this.uuid}}#comments">{{this.comment_count}} comments</a></div><form class=footer-aside><button disabled title="Log in to vote" name="add_star"><span>{{this.score}}</span> <img width=12 height=12 class=good-img src=assets/star.svg alt="Log in to vote"></button></form></footer></details></article>
+{{~#if @last~}}
+{{~#if ../keywords_param}}
+<p><a href=".?after={{this.uuid}}&q={{../keywords_param}}{{#if ../tag_param}}&tag={{../tag_param}}{{/if}}{{#if ../domain}}&domain={{../domain}}{{/if}}">Next page</a></p>
+{{~/if~}}
+{{~/if~}}
+{{~/each}}
+{{~/if~}}
 </ajax-form>
 {{/inline}}
-{{~> (parent)~}}
+{{~> layout~}}
