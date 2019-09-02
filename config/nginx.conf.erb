@@ -50,7 +50,7 @@ http {
 		if ($request_uri = /robots.txt) {
 			set $botck "{botck}txt";
 		}
-		if ($http_user_agent ~* (mj12bot|ahrefsbot|semrushbot|mauibot)) {
+		if ($http_user_agent ~* (mj12bot|ahrefsbot|semrushbot|mauibot|moreover)) {
 			set $botck "${botck}bad";
 		}
 		# Unconditionally block UAs that are sending no UA string, or just a '-'.
