@@ -33,7 +33,7 @@ http {
 	client_body_timeout 30;
 	client_max_body_size 50m;
 
-	limit_req_zone $remote_addr zone=app:10m rate=60r/m;
+	limit_req_zone $remote_addr zone=app:10m rate=50r/m;
 
 	upstream app_server {
 		server localhost:3001 fail_timeout=0 max_fails=3;
@@ -116,7 +116,7 @@ http {
 
 		location / {
 			proxy_pass http://app_server;
-			limit_req zone=app burst=5 nodelay;
+			limit_req zone=app burst=6 nodelay;
 			limit_req_status 429;
 		}
 
