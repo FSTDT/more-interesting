@@ -57,16 +57,6 @@ http {
 		if ($http_user_agent ~* "^-?$") {
 			set $botck "${botck}bad";
 		}
-		# Unconditionally block this one, super-persistent, broken, and overeager crawler.
-		if ($http_user_agent ~* "KHTML,like") {
-			set $botck "startbad";
-		}
-		if ($http_user_agent ~* "link Gecko") {
-			set $botck "startbad";
-		}
-		if ($http_user_agent ~* "Mozilla/5.0\(") {
-			set $botck "startbad";
-		}
 		# Block UAs that look like browsers or other known entities, but have no Accept header.
 		if ($http_user_agent ~ Gecko) {
 			set $accck "start";
@@ -91,10 +81,23 @@ http {
 			return 429;
 		}
 
-		if ($request_uri ~* "%2525") {
+		# Unconditionally block this one, super-persistent, broken, and overeager crawler.
+		if ($http_user_agent ~* "link Gecko") {
 			return 404;
 		}
-		if ($request_uri ~* "%253F") {
+		if ($http_user_agent ~* "KHTML,like") {
+			return 404;
+		}
+		if ($http_user_agent ~* "Mozilla/5.0\(") {
+			return 404;
+		}
+		# Proper browsers use "https://google.com/" with a trailing slash as a referer.
+		# They also don't send the empty string as their referer.
+		valid_referers none server_names ~.+;
+		if ($invalid_referer) {
+			return 404;
+		}
+		if ($http_referer = "https://google.com") {
 			return 404;
 		}
 
