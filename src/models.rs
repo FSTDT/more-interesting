@@ -556,6 +556,27 @@ impl MoreInterestingConn {
                 host = &host[4..];
                 is_www = true;
             }
+            // These domains are "true synonyms,"
+            // meaning we can actually strip the subdomain off and the link will always work.
+            // Regular domain synonyms, that you can add through the UI, don't work that way.
+            if host.starts_with("np.reddit.com") {
+                host = &host[3..];
+            }
+            if host.starts_with("old.reddit.com") {
+                host = &host[4..];
+            }
+            if host.starts_with("new.reddit.com") {
+                host = &host[4..];
+            }
+            if host.starts_with("i.reddit.com") {
+                host = &host[2..];
+            }
+            if host.starts_with("m.reddit.com") {
+                host = &host[2..];
+            }
+            if host.starts_with("mobile.twitter.com") {
+                host = &host[7..];
+            }
             let is_https = url.scheme() == "https";
             let domain = self.get_domain_by_hostname(host).unwrap_or_else(|_| {
                 self.create_domain(NewDomain {
