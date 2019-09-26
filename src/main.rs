@@ -1368,7 +1368,7 @@ fn random(conn: MoreInterestingConn) -> Option<impl Responder<'static>> {
 
 #[get("/id/<id>")]
 fn redirect_legacy_id(id: i64) -> impl Responder<'static> {
-    Redirect::permanent(format!("/{}", Base32::from(id)))
+    Redirect::moved(format!("/{}", Base32::from(id)))
 }
 
 #[get("/robots.txt")]
