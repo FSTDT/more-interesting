@@ -39,7 +39,7 @@ http {
 
 	map $http_user_agent $isbot_ua {
 		default 0;
-		~*(BLEXBot|GoogleBot|bingbot|YandexBot|mj12bot|PaperLiBot|DotBot|AppleBot|MBCrawler|Buck\b|curl|wget|Nutch|CCBot) 1;
+		~*(BLEXBot|GoogleBot|bingbot|YandexBot|mj12bot|PaperLiBot|DotBot|AppleBot|MBCrawler|Buck\b|curl|Apache-HttpClient|wget|Nutch|CCBot) 1;
 	}
 	map $isbot_ua $limit_bot {
 		0 "";
