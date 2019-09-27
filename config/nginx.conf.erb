@@ -33,16 +33,30 @@ http {
 	client_body_timeout 30;
 	client_max_body_size 50m;
 
-	limit_req_zone $remote_addr zone=app:10m rate=50r/m;
-
 	upstream app_server {
 		server localhost:3001 fail_timeout=0 max_fails=3;
  	}
+
+	map $http_user_agent $isbot_ua {
+		default 0;
+		~*(BLEXBot|GoogleBot|Semrush|bingbot|YandexBot|mj12bot|PaperLiBot|DotBot|AppleBot|MBCrawler|Buck\b|curl|wget) 1;
+	}
+	map $isbot_ua $limit_bot {
+		0 "";
+		1 $binary_remote_addr;
+	}
+
+	limit_req_zone $binary_remote_addr zone=app:10m rate=50r/m;
+	limit_req_zone $limit_bot zone=bots:10m rate=50r/m;
 
 	server {
 		listen <%= ENV["PORT"] %>;
 		server_name _;
 		keepalive_timeout 5;
+
+		limit_req zone=app burst=6 nodelay;
+		limit_req zone=bots burst=3;
+		limit_req_status 429;
 
 		set $botck start;
 		set $accck no;
@@ -75,10 +89,10 @@ http {
 		}
 		# If either of these rules match, serve a 404. 404 is chosen because it's most likely to be recognized.
 		if ($botck = "startbad") {
-			return 429;
+			return 404;
 		}
 		if ($accck = "startbad") {
-			return 429;
+			return 404;
 		}
 
 		# Unconditionally block this one, super-persistent, broken, and overeager crawler.
@@ -122,8 +136,6 @@ http {
 
 		location / {
 			proxy_pass http://app_server;
-			limit_req zone=app burst=6 nodelay;
-			limit_req_status 429;
 		}
 
 		location /ip {
