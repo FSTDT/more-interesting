@@ -39,7 +39,7 @@ http {
 
 	map $http_user_agent $isbot_ua {
 		default 0;
-		~*(BLEXBot|GoogleBot|bingbot|YandexBot|mj12bot|PaperLiBot|DotBot|AppleBot|MBCrawler|Buck\b|curl|Apache-HttpClient|wget|Nutch|CCBot) 1;
+		~*(BLEXBot|GoogleBot|bingbot|YandexBot|mj12bot|PaperLiBot|DotBot|AppleBot|MBCrawler|Buck\b|curl|Apache-HttpClient|wget|Nutch|CCBot|AppEngine) 1;
 	}
 	map $isbot_ua $limit_bot {
 		0 "";
@@ -53,10 +53,6 @@ http {
 		listen <%= ENV["PORT"] %>;
 		server_name _;
 		keepalive_timeout 5;
-
-		limit_req zone=app burst=6 nodelay;
-		limit_req zone=bots burst=3;
-		limit_req_status 429;
 
 		set $botck start;
 		set $accck no;
@@ -136,6 +132,9 @@ http {
 
 		location / {
 			proxy_pass http://app_server;
+			limit_req zone=app burst=6 nodelay;
+			limit_req zone=bots burst=3;
+			limit_req_status 429;
 		}
 
 		location /ip {
