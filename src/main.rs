@@ -1383,6 +1383,12 @@ Disallow: /submit
 User-agent: AhrefsBot
 Disallow: /
 
+User-agent: SemrushBot-BA
+Disallow: /
+
+User-agent: SemrushBot-SA
+Disallow: /
+
 User-agent: SemrushBot
 Disallow: /
 
