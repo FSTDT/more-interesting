@@ -39,7 +39,7 @@ http {
 
 	map $http_user_agent $isbot_ua {
 		default 0;
-		~*(BLEXBot|GoogleBot|bingbot|YandexBot|mj12bot|PaperLiBot|DotBot|AppleBot|MBCrawler|Buck\b|curl|Apache-HttpClient|wget|Nutch|CCBot|AppEngine) 1;
+		~*(BLEXBot|GoogleBot|bingbot|YandexBot|mj12bot|PaperLiBot|DotBot|AppleBot|MBCrawler|Buck\b|Java\/|curl|wget|Nutch|CCBot|AppEngine|moreover|python-requests) 1;
 	}
 	map $isbot_ua $limit_bot {
 		0 "";
@@ -47,7 +47,7 @@ http {
 	}
 
 	limit_req_zone $binary_remote_addr zone=app:10m rate=50r/m;
-	limit_req_zone $limit_bot zone=bots:10m rate=50r/m;
+	limit_req_zone $limit_bot zone=bots:10m rate=40r/m;
 
 	server {
 		listen <%= ENV["PORT"] %>;
