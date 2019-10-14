@@ -56,11 +56,11 @@ http {
 
 		set $botck start;
 		set $accck no;
-		# These bots are well-behaved, but not valuable, so we block them.
+		# These bots are too fast, badly behaved, or clearly not valuable, so we block them.
 		if ($request_uri = /robots.txt) {
 			set $botck "{botck}txt";
 		}
-		if ($http_user_agent ~* (ahrefsbot|semrushbot|mauibot|moreover)) {
+		if ($http_user_agent ~* (ahrefsbot|semrushbot|mauibot|moreover|megaindex)) {
 			set $botck "${botck}bad";
 		}
 		# Unconditionally block UAs that are sending no UA string, or just a '-'.
