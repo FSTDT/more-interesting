@@ -1394,6 +1394,9 @@ Disallow: /
 
 User-agent: MauiBot
 Disallow: /
+    
+User-agent: MegaIndex
+Disallow: /
 "
 }
 
