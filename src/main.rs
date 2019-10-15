@@ -1377,16 +1377,16 @@ fn robots_txt() -> impl Responder<'static> {
 // That way, when two different bots get different crawl-delays, they
 // won't harmonize, even if the bot operator themselves is too stupid
 // to randomize their delays (I'm looking at you, mj12bot).
-let crawl_delay = match rand::random() as u8 {
-    0..32 => 4,
-    32..64 => 5,
-    64..96 => 7,
-    96..128 => 11,
-    128..160 => 13,
-    160..192 => 17,
-    192..224 => 19,
+let crawl_delay = match rand::random() {
+    0...31u8 => 4,
+    32...63 => 5,
+    64...95 => 7,
+    96...127 => 11,
+    128...159 => 13,
+    160...191 => 17,
+    192...223 => 19,
     _ => 3,
-}
+};
 format!("User-agent: *
 Disallow: /mod-log
 Disallow: /login
