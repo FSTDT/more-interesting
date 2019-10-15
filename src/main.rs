@@ -1379,6 +1379,7 @@ Disallow: /login
 Disallow: /signup
 Disallow: /vote
 Disallow: /submit
+Crawl-delay: 4
 
 User-agent: AhrefsBot
 Disallow: /
