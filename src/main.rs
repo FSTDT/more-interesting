@@ -1373,13 +1373,27 @@ fn redirect_legacy_id(id: i64) -> impl Responder<'static> {
 
 #[get("/robots.txt")]
 fn robots_txt() -> impl Responder<'static> {
-"User-agent: *
+// The important feature is that these numbers are all mutually prime.
+// That way, when two different bots get different crawl-delays, they
+// won't harmonize, even if the bot operator themselves is too stupid
+// to randomize their delays (I'm looking at you, mj12bot).
+let crawl_delay = match rand::random() as u8 {
+    0..32 => 4,
+    32..64 => 5,
+    64..96 => 7,
+    96..128 => 11,
+    128..160 => 13,
+    160..192 => 17,
+    192..224 => 19,
+    _ => 3,
+}
+format!("User-agent: *
 Disallow: /mod-log
 Disallow: /login
 Disallow: /signup
 Disallow: /vote
 Disallow: /submit
-Crawl-delay: 4
+Crawl-delay: {}
 
 User-agent: AhrefsBot
 Disallow: /
@@ -1398,7 +1412,7 @@ Disallow: /
     
 User-agent: MegaIndex
 Disallow: /
-"
+", crawl_delay)
 }
 
 fn nop_helper(
