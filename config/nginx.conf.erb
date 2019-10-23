@@ -101,6 +101,17 @@ http {
 		if ($http_user_agent ~* "Mozilla/5.0\(") {
 			return 404;
 		}
+
+        	# Humans do not use single-digit firefoxes any more.
+	        if ($http_user_agent ~* "Firefox/[0-9]\.") {
+	                return 404;
+        	}
+
+        	# They also don't use old as heck versions of Internet Explorer.
+		if ($http_user_agent ~* "MSIE [0-6].0") {
+                	return 404;
+        	}
+
 		# Proper browsers use "https://google.com/" with a trailing slash as a referer.
 		# They also don't send the empty string as their referer.
 		valid_referers none server_names ~.+;
