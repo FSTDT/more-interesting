@@ -1,7 +1,7 @@
 {{#*inline "page"}}
 <header class=tight-headline>
-<h2>@{{title}}</h2>
-<nav><b>Posts</b> &bull; <a href=comments?user={{title}}>Comments</a>{{#if is_me}} &bull; <a href=subscriptions>Subscriptions</a>{{/if}}</nav>
+<h2>@{{user.username}}</h2>
+<nav><a href=@{{user.username}}>Posts</a> &bull; <a href=comments?user={{user.username}}>Comments</a> &bull; <b>Subscriptions</b></nav>
 </header>
 <ajax-form>
 {{#each posts}}
@@ -12,7 +12,7 @@
         <p class=post-banner-desc>{{{this.banner_desc}}}</p>
     {{/if}}
     <article><details open><summary title="Hide post" class=module-summary>Show post</summary>
-        <h3 class=article-header>{{{this.title_html}}}</h3>
+        <h3 class=article-header>{{#if this.private}}🔒 {{/if}}{{{this.title_html}}}</h3>
         {{#if this.excerpt_html}}
             <main>{{{this.excerpt_html}}}</main>
         {{/if}}

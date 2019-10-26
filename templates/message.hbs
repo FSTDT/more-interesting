@@ -1,0 +1,13 @@
+{{#*inline "page"}}
+    <form action="message?U={{session.uuid}}" method=POST>
+        <label>Title <input name=title autofocus required is="smart-punct-input"></label>
+        <label>Users <input name=users required></label>
+        <label>Write your message
+            <smart-textarea><textarea name=excerpt is=smart-punct-textarea required></textarea></smart-textarea>
+        </label>
+        <div class=form-footer>
+            <button>Send message</button>
+        </div>
+    </form>
+{{/inline}}
+{{~> layout~}}

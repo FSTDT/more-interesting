@@ -19,9 +19,9 @@ mod pid_file_fairing;
 mod extract_excerpt;
 mod sql_types;
 
-use rocket::request::{Form, FlashMessage, FromParam, LenientForm};
+use rocket::request::{Form, FlashMessage, LenientForm};
 use rocket::response::{Responder, Redirect, Flash, Content};
-use rocket::http::{Cookies, Cookie, RawStr, ContentType};
+use rocket::http::{Cookies, Cookie, ContentType};
 pub use models::MoreInterestingConn;
 use models::User;
 use models::UserAuth;
@@ -30,7 +30,7 @@ use rocket_contrib::serve::StaticFiles;
 use rocket_contrib::templates::{Template, handlebars};
 use serde::{Serialize, Serializer};
 use std::borrow::Cow;
-use crate::models::{PostSearch, PostSearchOrderBy, UserSession, PostInfo, NewStar, NewUser, CommentInfo, NewPost, NewComment, NewStarComment, NewTag, Tag, Comment, ModerationInfo, NewFlag, NewFlagComment, LegacyComment, CommentSearchResult, DomainSynonym, DomainSynonymInfo, NewDomain};
+use crate::models::{NotificationInfo, NewNotification, NewSubscription, PostSearch, PostSearchOrderBy, UserSession, PostInfo, NewStar, NewUser, CommentInfo, NewPost, NewComment, NewStarComment, NewTag, Tag, Comment, ModerationInfo, NewFlag, NewFlagComment, LegacyComment, CommentSearchResult, DomainSynonym, DomainSynonymInfo, NewDomain};
 use base32::Base32;
 use url::Url;
 use std::collections::HashMap;
@@ -99,6 +99,9 @@ struct TemplateContext {
     config: SiteConfig,
     log: Vec<ModerationInfo>,
     is_home: bool,
+    is_me: bool,
+    is_private: bool,
+    notifications: Vec<NotificationInfo>,
 }
 
 #[derive(Clone, Copy, Eq, PartialEq)]
@@ -165,7 +168,7 @@ impl MaybeRedirect {
     pub fn maybe_redirect(self) -> Result<impl Responder<'static>, Status> {
         match self.redirect {
             Some(b) if b == Base32::zero() => Ok(Redirect::to(".")),
-            Some(b) => Ok(Redirect::to(uri!(get_comments: b))),
+            Some(b) => Ok(Redirect::to(b.to_string())),
             None => Err(Status::Created)
         }
     }
@@ -285,6 +288,7 @@ struct IndexParams {
     domain: Option<String>,
     q: Option<String>,
     after: Option<Base32>,
+    subscriptions: bool,
 }
 
 fn parse_index_params(conn: &MoreInterestingConn, user: &User, params: Option<Form<IndexParams>>) -> Option<(PostSearch, Vec<Tag>)> {
@@ -327,6 +331,9 @@ fn parse_index_params(conn: &MoreInterestingConn, user: &User, params: Option<Fo
             }
         }
     }
+    if params.map(|p| p.subscriptions).unwrap_or(false) {
+        search.subscriptions = true;
+    }
     Some((search, tags))
 }
 
@@ -341,11 +348,13 @@ fn index(conn: MoreInterestingConn, login: Option<LoginSession>, flash: Option<F
     let is_home = tag_param.is_none() && domain.is_none() && keywords_param.is_none();
     let (search, tags) = parse_index_params(&conn, &user, params)?;
     let posts = conn.search_posts(&search).ok()?;
+    let notifications = conn.list_notifications(user.id).unwrap_or(Vec::new());
     Some(Template::render("index", &TemplateContext {
         alert: flash.map(|f| f.msg().to_owned()),
         config: config.clone(),
         title, user, posts, is_home,
         tags, session, tag_param, domain, keywords_param,
+        notifications,
         ..default()
     }))
 }
@@ -367,10 +376,13 @@ fn search_comments(conn: MoreInterestingConn, login: Option<LoginSession>, flash
             conn.search_comments_by_user(by_user.id).into_option()?
         };
         let title = Cow::Owned(by_user.username.clone());
+        let notifications = conn.list_notifications(user.id).unwrap_or(Vec::new());
         Some(Template::render("profile-comments", &TemplateContext {
             alert: flash.map(|f| f.msg().to_owned()),
             config: config.clone(),
+            is_me: by_user.id == user.id,
             title, user, comment_search_result, session,
+            notifications,
             ..default()
         }))
     } else {
@@ -391,11 +403,38 @@ fn top(conn: MoreInterestingConn, login: Option<LoginSession>, flash: Option<Fla
         .. search
     };
     let posts = conn.search_posts(&search).ok()?;
+    let notifications = conn.list_notifications(user.id).unwrap_or(Vec::new());
     Some(Template::render("index-top", &TemplateContext {
         title: Cow::Borrowed("top"),
         alert: flash.map(|f| f.msg().to_owned()),
         config: config.clone(), is_home, keywords_param,
         user, posts, session, tags, tag_param, domain,
+        notifications,
+        ..default()
+    }))
+}
+
+#[get("/subscriptions?<params..>")]
+fn subscriptions(conn: MoreInterestingConn, login: Option<LoginSession>, flash: Option<FlashMessage>, config: State<SiteConfig>, params: Option<Form<IndexParams>>) -> Option<impl Responder<'static>> {
+    let (user, session) = login.map(|l| (l.user, l.session)).unwrap_or((User::default(), UserSession::default()));
+    let tag_param = params.as_ref().and_then(|params| Some(params.tag.as_ref()?.to_string()));
+    let domain = params.as_ref().and_then(|params| Some(params.domain.as_ref()?.to_string()));
+    let keywords_param = params.as_ref().and_then(|params| Some(params.q.as_ref()?.to_string()));
+    let is_home = tag_param.is_none() && domain.is_none() && keywords_param.is_none();
+    let (search, tags) = parse_index_params(&conn, &user, params)?;
+    let search = PostSearch {
+        order_by: PostSearchOrderBy::Latest,
+        subscriptions: true,
+        .. search
+    };
+    let posts = conn.search_posts(&search).ok()?;
+    let notifications = conn.list_notifications(user.id).unwrap_or(Vec::new());
+    Some(Template::render("subscriptions", &TemplateContext {
+        title: Cow::Borrowed("top"),
+        alert: flash.map(|f| f.msg().to_owned()),
+        config: config.clone(), is_home, keywords_param,
+        user, posts, session, tags, tag_param, domain,
+        notifications,
         ..default()
     }))
 }
@@ -413,11 +452,13 @@ fn new(conn: MoreInterestingConn, login: Option<LoginSession>, flash: Option<Fla
         .. search
     };
     let posts = conn.search_posts(&search).ok()?;
+    let notifications = conn.list_notifications(user.id).unwrap_or(Vec::new());
     Some(Template::render("index-new", &TemplateContext {
         title: Cow::Borrowed("new"),
         alert: flash.map(|f| f.msg().to_owned()),
         config: config.clone(), is_home, keywords_param,
         user, posts, session, tags, tag_param, domain,
+        notifications,
         ..default()
     }))
 }
@@ -435,11 +476,13 @@ fn latest(conn: MoreInterestingConn, login: Option<LoginSession>, params: Option
         .. search
     };
     let posts = conn.search_posts(&search).ok()?;
+    let notifications = conn.list_notifications(user.id).unwrap_or(Vec::new());
     Some(Template::render("index-latest", &TemplateContext {
         title: Cow::Borrowed("latest"),
         alert: flash.map(|f| f.msg().to_owned()),
         config: config.clone(), is_home, keywords_param,
         user, posts, session, tags, tag_param, domain,
+        notifications,
         ..default()
     }))
 }
@@ -476,11 +519,13 @@ fn mod_log(conn: MoreInterestingConn, login: Option<LoginSession>, flash: Option
     } else {
         conn.get_mod_log_recent()
     }.unwrap_or(Vec::new());
+    let notifications = conn.list_notifications(user.id).unwrap_or(Vec::new());
     Template::render("mod-log", &TemplateContext {
         title: Cow::Borrowed("moderation"),
         alert: flash.map(|f| f.msg().to_owned()),
         config: config.clone(),
         user, log, session,
+        notifications,
         ..default()
     })
 }
@@ -495,6 +540,7 @@ fn create_post_form(login: Option<LoginSession>, config: State<SiteConfig>) -> i
         ..default()
     })
 }
+
 #[get("/submit")]
 fn create_link_form(login: Option<LoginSession>, config: State<SiteConfig>) -> impl Responder<'static> {
     let (user, session) = login.map(|l| (l.user, l.session)).unwrap_or((User::default(), UserSession::default()));
@@ -571,9 +617,82 @@ fn create(login: Option<LoginSession>, conn: MoreInterestingConn, post: Form<New
         url: url.as_ref().map(|s| &s[..]),
         submitted_by: user.id,
         visible: user.trust_level > 0,
+        private: false,
         title, excerpt
     }, config.body_format) {
         Ok(post) => Ok(Redirect::to(post.uuid.to_string())),
+        Err(e) => {
+            warn!("{:?}", e);
+            Err(Status::InternalServerError)
+        },
+    }
+}
+
+#[get("/message")]
+fn create_message_form(login: LoginSession, config: State<SiteConfig>) -> Option<impl Responder<'static>> {
+    let (user, session) = (login.user, login.session);
+    if user.trust_level < 2 {
+        return None;
+    }
+    Some(Template::render("message", &TemplateContext {
+        title: Cow::Borrowed("message"),
+        config: config.clone(),
+        user, session,
+        ..default()
+    }))
+}
+
+#[derive(FromForm)]
+struct NewMessageForm {
+    title: String,
+    users: String,
+    excerpt: String,
+}
+
+#[post("/message", data = "<post>")]
+fn create_message(login: LoginSession, conn: MoreInterestingConn, post: Form<NewMessageForm>, config: State<SiteConfig>) -> Result<impl Responder<'static>, Status> {
+    let user = login.user;
+    if user.trust_level < 2 {
+        return Err(Status::NotFound);
+    }
+    if user.banned {
+        return Err(Status::InternalServerError);
+    }
+    let title = &post.title;
+    let excerpt = Some(&post.excerpt[..]);
+    let users = &post.users;
+    match conn.create_post(&NewPost {
+        url: None,
+        submitted_by: user.id,
+        visible: true,
+        private: true,
+        title, excerpt
+    }, config.body_format) {
+        Ok(post) => {
+            conn.create_subscription(NewSubscription {
+                user_id: user.id,
+                created_by: user.id,
+                post_id: post.id,
+            }).unwrap_or_else(|e| warn!("Cannot subscribe self {}: {:?}", user.username, e));
+            for notify in users.split(",") {
+                for notify in notify.split(" ") {
+                    if notify == "" { continue };
+                    if let Ok(notify) = conn.get_user_by_username(notify) {
+                        conn.create_notification(NewNotification {
+                            user_id: notify.id,
+                            created_by: user.id,
+                            post_id: post.id,
+                        }).unwrap_or_else(|e| warn!("Cannot notify {}: {:?}", notify.username, e));
+                        conn.create_subscription(NewSubscription {
+                            user_id: notify.id,
+                            created_by: user.id,
+                            post_id: post.id,
+                        }).unwrap_or_else(|e| warn!("Cannot subscribe {}: {:?}", notify.username, e));
+                    }
+                }
+            }
+            Ok(Redirect::to(post.uuid.to_string()))
+        },
         Err(e) => {
             warn!("{:?}", e);
             Err(Status::InternalServerError)
@@ -625,44 +744,37 @@ fn logout(mut cookies: Cookies) -> impl Responder<'static> {
     Redirect::to(".")
 }
 
-struct UserInfoName(String);
-
-impl<'a> FromParam<'a> for UserInfoName {
-    type Error = &'a RawStr;
-
-    fn from_param(param: &'a RawStr) -> Result<UserInfoName, &'a RawStr> {
-        match param.starts_with("@") {
-            true => Ok(UserInfoName(param[1..].to_string())),
-            false => Err(param)
-        }
-    }
-}
-
-#[get("/<username>")]
-fn get_user_info(conn: MoreInterestingConn, login: Option<LoginSession>, username: UserInfoName, config: State<SiteConfig>, flash: Option<FlashMessage>) -> Result<impl Responder<'static>, Status> {
+#[get("/<uuid>", rank = 1)]
+fn get_comments(conn: MoreInterestingConn, login: Option<LoginSession>, uuid: String, config: State<SiteConfig>, flash: Option<FlashMessage>) -> Result<impl Responder<'static>, Status> {
     let (user, session) = login.map(|l| (l.user, l.session)).unwrap_or((User::default(), UserSession::default()));
-    let user_info = if let Ok(user_info) = conn.get_user_by_username(&username.0) {
-        user_info
+    if uuid.len() > 0 && &uuid[..1] == "@" {
+        let username = &uuid[1..];
+        let user_info = if let Ok(user_info) = conn.get_user_by_username(username) {
+            user_info
+        } else {
+            return Err(Status::NotFound);
+        };
+        let posts = if let Ok(posts) = conn.get_post_info_recent_by_user(user.id, user_info.id) {
+            posts
+        } else {
+            return Err(Status::InternalServerError);
+        };
+        let notifications = conn.list_notifications(user.id).unwrap_or(Vec::new());
+        return Ok(Template::render("profile-posts", &TemplateContext {
+            title: Cow::Owned(username.to_owned()),
+            alert: flash.map(|f| f.msg().to_owned()),
+            config: config.clone(),
+            is_me: user_info.id == user.id,
+            posts, user, session,
+            notifications,
+            ..default()
+        }));
+    }
+    let uuid = if let Ok(uuid) = Base32::from_str(&uuid[..]) {
+        uuid
     } else {
         return Err(Status::NotFound);
     };
-    let posts = if let Ok(posts) = conn.get_post_info_recent_by_user(user.id, user_info.id) {
-        posts
-    } else {
-        return Err(Status::InternalServerError);
-    };
-    Ok(Template::render("profile-posts", &TemplateContext {
-        title: Cow::Owned(username.0),
-        alert: flash.map(|f| f.msg().to_owned()),
-        config: config.clone(),
-        posts, user, session,
-        ..default()
-    }))
-}
-
-#[get("/<uuid>", rank = 1)]
-fn get_comments(conn: MoreInterestingConn, login: Option<LoginSession>, uuid: Base32, config: State<SiteConfig>, flash: Option<FlashMessage>) -> Result<impl Responder<'static>, Status> {
-    let (user, session) = login.map(|l| (l.user, l.session)).unwrap_or((User::default(), UserSession::default()));
     if let Ok(post_info) = conn.get_post_info_by_uuid(user.id, uuid) {
         let comments = conn.get_comments_from_post(post_info.id, user.id).unwrap_or_else(|e| {
             warn!("Failed to get comments: {:?}", e);
@@ -674,12 +786,20 @@ fn get_comments(conn: MoreInterestingConn, login: Option<LoginSession>, uuid: Ba
         });
         let post_id = post_info.id;
         let title = Cow::Owned(post_info.title.clone());
+        if user.id != 0 {
+            conn.use_notification(post_id, user.id).unwrap_or_else(|e| {
+                warn!("Failed to consume notification: {:?}", e);
+            });
+        }
+        let notifications = conn.list_notifications(user.id).unwrap_or(Vec::new());
+        let is_private = post_info.private;
         Ok(Template::render("comments", &TemplateContext {
             posts: vec![post_info],
             alert: flash.map(|f| f.msg().to_owned()),
             starred_by: conn.get_post_starred_by(post_id).unwrap_or(Vec::new()),
             config: config.clone(),
             comments, user, title, legacy_comments, session,
+            notifications, is_private,
             ..default()
         }))
     } else if conn.check_invite_token_exists(uuid) && user.id == 0 {
@@ -704,15 +824,27 @@ struct CommentForm {
 #[post("/comment", data = "<comment>")]
 fn post_comment(conn: MoreInterestingConn, login: LoginSession, comment: Form<CommentForm>, config: State<SiteConfig>) -> Option<impl Responder<'static>> {
     let post_info = conn.get_post_info_by_uuid(login.user.id, comment.post).into_option()?;
-    let visible = login.user.trust_level > 0;
+    let visible = login.user.trust_level > 0 || post_info.private;
     conn.comment_on_post(NewComment {
         post_id: post_info.id,
         text: &comment.text,
         created_by: login.user.id,
         visible,
     }, config.body_format).into_option()?;
+    let subscribed_users = conn.list_subscribed_users(post_info.id).unwrap_or_else(|e| {
+        warn!("Failed to get subscribed users list for post uuid {}: {:?}", post_info.uuid, e);
+        Vec::new()
+    });
+    for subscribed_user_id in subscribed_users {
+        if subscribed_user_id == login.user.id { continue };
+        conn.create_notification(NewNotification {
+            user_id: subscribed_user_id,
+            post_id: post_info.id,
+            created_by: login.user.id,
+        }).unwrap_or_else(|e| warn!("Cannot notify {} on comment: {:?}", subscribed_user_id, e));
+    }
     Some(Flash::success(
-        Redirect::to(uri!(get_comments: comment.post)),
+        Redirect::to(comment.post.to_string()),
         if visible { "Your comment has been posted" } else { "Your comment will be posted after a mod gets a chance to look at it" }
     ))
 }
@@ -990,6 +1122,11 @@ fn edit_post(conn: MoreInterestingConn, login: ModeratorSession, form: Form<Edit
         return Err(Status::NotFound);
     };
     let post_id = post_info.id;
+    let post = if let Ok(post) = conn.get_post_by_id(post_id) {
+        post
+    } else {
+        return Err(Status::NotFound);
+    };
     let url = if let Some(url) = &form.url {
         if url == "" { None } else { Some(url.clone()) }
     } else {
@@ -1008,7 +1145,7 @@ fn edit_post(conn: MoreInterestingConn, login: ModeratorSession, form: Form<Edit
                     post_info.uuid,
                     &post_info.title,
                     post_info.url.as_ref().map(|x| &x[..]).unwrap_or(""),
-                    post_info.excerpt.as_ref().map(|x| &x[..]).unwrap_or(""),
+                    post.excerpt.as_ref().map(|x| &x[..]).unwrap_or(""),
                 ).expect("if updating the post worked, then so should logging");
                 return Ok(Flash::success(Redirect::to(uri!(get_mod_queue)), "Deleted post"))
             },
@@ -1024,6 +1161,7 @@ fn edit_post(conn: MoreInterestingConn, login: ModeratorSession, form: Form<Edit
             submitted_by: login.user.id,
             excerpt: excerpt.as_ref().map(|s| &s[..]),
             visible: login.user.trust_level >= 3,
+            private: post_info.private,
         }, config.body_format) {
             Ok(_) => {
                 conn.mod_log_edit_post(
@@ -1033,7 +1171,7 @@ fn edit_post(conn: MoreInterestingConn, login: ModeratorSession, form: Form<Edit
                     &form.title,
                     post_info.url.as_ref().map(|x| &x[..]).unwrap_or(""),
                     url.as_ref().map(|x| &x[..]).unwrap_or(""),
-                    post_info.excerpt.as_ref().map(|x| &x[..]).unwrap_or(""),
+                    post.excerpt.as_ref().map(|x| &x[..]).unwrap_or(""),
                     form.excerpt.as_ref().map(|x| &x[..]).unwrap_or(""),
                 ).expect("if updating the post worked, then so should logging");
                 Ok(Flash::success(Redirect::to(form.post.to_string()), "Updated post"))
@@ -1214,6 +1352,11 @@ fn moderate_post(conn: MoreInterestingConn, login: ModeratorSession, form: Form<
         return Err(Status::NotFound);
     };
     let post_id = post_info.id;
+    let post = if let Ok(post) = conn.get_post_by_id(post_id) {
+        post
+    } else {
+        return Err(Status::NotFound);
+    };
     if form.action == "approve" {
         match conn.approve_post(post_id) {
             Ok(_) => {
@@ -1222,7 +1365,7 @@ fn moderate_post(conn: MoreInterestingConn, login: ModeratorSession, form: Form<
                     post_info.uuid,
                     &post_info.title,
                     post_info.url.as_ref().map(|x| &x[..]).unwrap_or(""),
-                    post_info.excerpt.as_ref().map(|x| &x[..]).unwrap_or(""),
+                    post.excerpt.as_ref().map(|x| &x[..]).unwrap_or(""),
                 ).expect("if updating the post worked, then so should logging");
                 Ok(Flash::success(Redirect::to(uri!(get_mod_queue)), "Approved post"))
             },
@@ -1239,7 +1382,7 @@ fn moderate_post(conn: MoreInterestingConn, login: ModeratorSession, form: Form<
                     post_info.uuid,
                     &post_info.title,
                     post_info.url.as_ref().map(|x| &x[..]).unwrap_or(""),
-                    post_info.excerpt.as_ref().map(|x| &x[..]).unwrap_or(""),
+                    post.excerpt.as_ref().map(|x| &x[..]).unwrap_or(""),
                 ).expect("if updating the post worked, then so should logging");
                 Ok(Flash::success(Redirect::to(uri!(get_mod_queue)), "Deleted post"))
             },
@@ -1295,12 +1438,13 @@ struct ModerateCommentForm {
 fn rebake(conn: MoreInterestingConn, _login: ModeratorSession, from: i32, to: i32, config: State<SiteConfig>) -> &'static str {
     for i in from ..= to {
         if let Ok(post) = conn.get_post_by_id(i) {
-            let _ = conn.update_post(i, false, &NewPost{
+            let _ = conn.update_post(i, false, &NewPost {
                 title: &post.title[..],
                 url: post.url.as_ref().map(|t| &t[..]),
                 excerpt: post.excerpt.as_ref().map(|t| &t[..]),
                 submitted_by: post.submitted_by,
-                visible: post.visible
+                visible: post.visible,
+                private: post.private,
             }, config.body_format);
         }
         if let Ok(comment) = conn.get_comment_by_id(i) {
@@ -1507,7 +1651,7 @@ fn main() {
             }
             Ok(rocket)
         }))
-        .mount("/", routes![index, login_form, login, logout, create_link_form, create_post_form, create, get_comments, vote, signup, get_settings, create_invite, invite_tree, change_password, post_comment, vote_comment, get_admin_tags, admin_tags, get_tags, edit_post, get_edit_post, edit_comment, get_edit_comment, set_dark_mode, set_big_mode, mod_log, get_user_info, get_mod_queue, moderate_post, moderate_comment, get_public_signup, rebake, random, redirect_legacy_id, latest, rss, top, banner_post, robots_txt, search_comments, new, get_admin_domains, admin_domains])
+        .mount("/", routes![index, login_form, login, logout, create_link_form, create_post_form, create, get_comments, vote, signup, get_settings, create_invite, invite_tree, change_password, post_comment, vote_comment, get_admin_tags, admin_tags, get_tags, edit_post, get_edit_post, edit_comment, get_edit_comment, set_dark_mode, set_big_mode, mod_log, get_mod_queue, moderate_post, moderate_comment, get_public_signup, rebake, random, redirect_legacy_id, latest, rss, top, banner_post, robots_txt, search_comments, new, get_admin_domains, admin_domains, create_message_form, create_message, subscriptions])
         .mount("/assets", StaticFiles::from("assets"))
         .attach(Template::custom(|engines| {
             engines.handlebars.register_helper("count", Box::new(count_helper));

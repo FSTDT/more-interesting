@@ -5,6 +5,9 @@
 <link rel=alternate type=application/rss+xml href=rss>
 <style>{{{config.custom_css}}}</style>
 <title>{{title}}</title>
+{{#if is_private}}
+<meta name="ROBOTS" content="NOINDEX, NOFOLLOW">
+{{/if}}
 <header class=top-header>
     <nav>
         <a class=top-header-link href="/">{{{config.site_title_html}}}</a>
@@ -19,6 +22,9 @@
                         {{/if}}
                         {{#if (not config.hide_text_post)}}
                         <a class=details-menu-item href="post" role=menuitem>Make a blog post</a>
+                        {{/if}}
+                        {{#if (gte user.trust_level 2)}}
+                        <a class=details-menu-item href="message" role=menuitem>Send a message</a>
                         {{/if}}
                         {{#if (gte user.trust_level 3)}}
                         <a class=details-menu-item href="admin/tags" role=menuitem>Admin</a>
@@ -48,6 +54,16 @@
                 {{else}}
                     <a class=button href=login role=menuitem>Sign in</a>
                 {{/if}}
+            {{/if}}
+            {{#if notifications}}
+                <details class="details-menu-outer backwards" role=menuitem>
+                    <summary class="details-menu-summary backwards" aria-haspopup=menu>{{count notifications}} Notification{{#if notifications.1}}s{{/if}}</summary>
+                    <div class="details-menu-inner backwards" role=menu>
+                        {{#each notifications}}
+                            <a class=details-menu-item href={{post_uuid}}><h4 style=margin:0>{{post_title}}</h4>{{comment_count}} comments</a>
+                        {{/each}}
+                    </div>
+                </details>
             {{/if}}
         </details-menu-bar>
     </nav>
