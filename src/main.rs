@@ -100,6 +100,7 @@ struct TemplateContext {
     log: Vec<ModerationInfo>,
     is_home: bool,
     is_me: bool,
+    is_private: bool,
     notifications: Vec<NotificationInfo>,
 }
 
@@ -796,6 +797,7 @@ fn get_comments(conn: MoreInterestingConn, login: Option<LoginSession>, uuid: St
             alert: flash.map(|f| f.msg().to_owned()),
             starred_by: conn.get_post_starred_by(post_id).unwrap_or(Vec::new()),
             config: config.clone(),
+            is_private: post_info.is_private,
             comments, user, title, legacy_comments, session,
             notifications,
             ..default()

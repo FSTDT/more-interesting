@@ -5,6 +5,9 @@
 <link rel=alternate type=application/rss+xml href=rss>
 <style>{{{config.custom_css}}}</style>
 <title>{{title}}</title>
+{{#if is_private}}
+<meta name="ROBOTS" content="NOINDEX, NOFOLLOW">
+{{/if}}
 <header class=top-header>
     <nav>
         <a class=top-header-link href="/">{{{config.site_title_html}}}</a>
