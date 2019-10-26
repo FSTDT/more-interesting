@@ -102,6 +102,7 @@ struct TemplateContext {
     is_me: bool,
     is_private: bool,
     notifications: Vec<NotificationInfo>,
+    excerpt: Option<String>,
 }
 
 #[derive(Clone, Copy, Eq, PartialEq)]
@@ -1094,12 +1095,14 @@ struct GetEditPost {
 #[get("/edit-post?<post..>")]
 fn get_edit_post(conn: MoreInterestingConn, login: ModeratorSession, flash: Option<FlashMessage>, post: Form<GetEditPost>, config: State<SiteConfig>) -> Option<impl Responder<'static>> {
     let post_info = conn.get_post_info_by_uuid(login.user.id, post.post).ok()?;
+    let post = conn.get_post_by_id(post_info.id).ok()?;
     Some(Template::render("edit-post", &TemplateContext {
         title: Cow::Borrowed("edit post"),
         user: login.user,
         session: login.session,
         alert: flash.map(|f| f.msg().to_owned()),
         config: config.clone(),
+        excerpt: post.excerpt,
         posts: vec![post_info],
         ..default()
     }))
