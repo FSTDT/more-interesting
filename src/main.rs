@@ -792,14 +792,14 @@ fn get_comments(conn: MoreInterestingConn, login: Option<LoginSession>, uuid: St
             });
         }
         let notifications = conn.list_notifications(user.id).unwrap_or(Vec::new());
+        let is_private = post_info.private;
         Ok(Template::render("comments", &TemplateContext {
             posts: vec![post_info],
             alert: flash.map(|f| f.msg().to_owned()),
             starred_by: conn.get_post_starred_by(post_id).unwrap_or(Vec::new()),
             config: config.clone(),
-            is_private: post_info.is_private,
             comments, user, title, legacy_comments, session,
-            notifications,
+            notifications, is_private,
             ..default()
         }))
     } else if conn.check_invite_token_exists(uuid) && user.id == 0 {
@@ -1122,6 +1122,11 @@ fn edit_post(conn: MoreInterestingConn, login: ModeratorSession, form: Form<Edit
         return Err(Status::NotFound);
     };
     let post_id = post_info.id;
+    let post = if let Ok(post) = conn.get_post_by_id(post_id) {
+        post
+    } else {
+        return Err(Status::NotFound);
+    };
     let url = if let Some(url) = &form.url {
         if url == "" { None } else { Some(url.clone()) }
     } else {
@@ -1140,7 +1145,7 @@ fn edit_post(conn: MoreInterestingConn, login: ModeratorSession, form: Form<Edit
                     post_info.uuid,
                     &post_info.title,
                     post_info.url.as_ref().map(|x| &x[..]).unwrap_or(""),
-                    post_info.excerpt.as_ref().map(|x| &x[..]).unwrap_or(""),
+                    post.excerpt.as_ref().map(|x| &x[..]).unwrap_or(""),
                 ).expect("if updating the post worked, then so should logging");
                 return Ok(Flash::success(Redirect::to(uri!(get_mod_queue)), "Deleted post"))
             },
@@ -1166,7 +1171,7 @@ fn edit_post(conn: MoreInterestingConn, login: ModeratorSession, form: Form<Edit
                     &form.title,
                     post_info.url.as_ref().map(|x| &x[..]).unwrap_or(""),
                     url.as_ref().map(|x| &x[..]).unwrap_or(""),
-                    post_info.excerpt.as_ref().map(|x| &x[..]).unwrap_or(""),
+                    post.excerpt.as_ref().map(|x| &x[..]).unwrap_or(""),
                     form.excerpt.as_ref().map(|x| &x[..]).unwrap_or(""),
                 ).expect("if updating the post worked, then so should logging");
                 Ok(Flash::success(Redirect::to(form.post.to_string()), "Updated post"))
@@ -1347,6 +1352,11 @@ fn moderate_post(conn: MoreInterestingConn, login: ModeratorSession, form: Form<
         return Err(Status::NotFound);
     };
     let post_id = post_info.id;
+    let post = if let Ok(post) = conn.get_post_by_id(post_id) {
+        post
+    } else {
+        return Err(Status::NotFound);
+    };
     if form.action == "approve" {
         match conn.approve_post(post_id) {
             Ok(_) => {
@@ -1355,7 +1365,7 @@ fn moderate_post(conn: MoreInterestingConn, login: ModeratorSession, form: Form<
                     post_info.uuid,
                     &post_info.title,
                     post_info.url.as_ref().map(|x| &x[..]).unwrap_or(""),
-                    post_info.excerpt.as_ref().map(|x| &x[..]).unwrap_or(""),
+                    post.excerpt.as_ref().map(|x| &x[..]).unwrap_or(""),
                 ).expect("if updating the post worked, then so should logging");
                 Ok(Flash::success(Redirect::to(uri!(get_mod_queue)), "Approved post"))
             },
@@ -1372,7 +1382,7 @@ fn moderate_post(conn: MoreInterestingConn, login: ModeratorSession, form: Form<
                     post_info.uuid,
                     &post_info.title,
                     post_info.url.as_ref().map(|x| &x[..]).unwrap_or(""),
-                    post_info.excerpt.as_ref().map(|x| &x[..]).unwrap_or(""),
+                    post.excerpt.as_ref().map(|x| &x[..]).unwrap_or(""),
                 ).expect("if updating the post worked, then so should logging");
                 Ok(Flash::success(Redirect::to(uri!(get_mod_queue)), "Deleted post"))
             },

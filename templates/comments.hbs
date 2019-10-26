@@ -31,6 +31,7 @@
         {{/if}}
         <article>
             <h2 class=article-header>{{{posts.0.title_html}}}</h2>
+            {{#if is_private}}🔒{{/if}}
             {{#if posts.0.excerpt_html}}
                 <main>{{{posts.0.excerpt_html}}}</main>
             {{/if}}
