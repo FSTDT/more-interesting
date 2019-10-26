@@ -103,6 +103,18 @@ table! {
 table! {
     use crate::sql_types::*;
 
+    notifications (id) {
+        id -> Int4,
+        user_id -> Int4,
+        post_id -> Int4,
+        created_at -> Timestamp,
+        created_by -> Int4,
+    }
+}
+
+table! {
+    use crate::sql_types::*;
+
     post_search_index (post_id) {
         post_id -> Int4,
         search_index -> Tsvector,
@@ -140,6 +152,7 @@ table! {
         domain_id -> Nullable<Int4>,
         banner_title -> Nullable<Varchar>,
         banner_desc -> Nullable<Varchar>,
+        private -> Bool,
     }
 }
 
@@ -150,6 +163,18 @@ table! {
         user_id -> Int4,
         post_id -> Int4,
         created_at -> Timestamp,
+    }
+}
+
+table! {
+    use crate::sql_types::*;
+
+    subscriptions (id) {
+        id -> Int4,
+        user_id -> Int4,
+        post_id -> Int4,
+        created_at -> Timestamp,
+        created_by -> Int4,
     }
 }
 
@@ -204,6 +229,7 @@ joinable!(flags -> users (user_id));
 joinable!(invite_tokens -> users (invited_by));
 joinable!(legacy_comments -> posts (post_id));
 joinable!(moderation -> users (created_by));
+joinable!(notifications -> posts (post_id));
 joinable!(post_search_index -> posts (post_id));
 joinable!(post_tagging -> posts (post_id));
 joinable!(post_tagging -> tags (tag_id));
@@ -211,6 +237,7 @@ joinable!(posts -> domains (domain_id));
 joinable!(posts -> users (submitted_by));
 joinable!(stars -> posts (post_id));
 joinable!(stars -> users (user_id));
+joinable!(subscriptions -> posts (post_id));
 joinable!(user_sessions -> users (user_id));
 
 allow_tables_to_appear_in_same_query!(
@@ -223,10 +250,12 @@ allow_tables_to_appear_in_same_query!(
     invite_tokens,
     legacy_comments,
     moderation,
+    notifications,
     post_search_index,
     post_tagging,
     posts,
     stars,
+    subscriptions,
     tags,
     user_sessions,
     users,

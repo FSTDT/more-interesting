@@ -1,7 +1,7 @@
 {{#*inline "page"}}
 <header class=tight-headline>
-<h2>@{{title}}</h2>
-<nav><b>Posts</b> &bull; <a href=comments?user={{title}}>Comments</a>{{#if is_me}} &bull; <a href=subscriptions>Subscriptions</a>{{/if}}</nav>
+<h2>@{{user.username}}</h2>
+<nav><a href=@{{user.username}}>Posts</a> &bull; <a href=comments?user={{user.username}}>Comments</a> &bull; <b>Subscriptions</b></nav>
 </header>
 <ajax-form>
 {{#each posts}}

@@ -223,7 +223,7 @@ export class DetailsMenuBarElement extends HTMLElement {
         // this is what WAI does
         // it is not what GitHub does, but GitHub's behavior permits a focus indicator
         // and a mouse indicator that are separate but look exactly the same
-        if (e.target instanceof HTMLElement && e.target.className === "details-menu-item") {
+        if (e.target instanceof HTMLElement && (e.target.className === "details-menu-item" || e.target.parentNode.className === "details-menu-item")) {
             e.target.focus();
         }
     }

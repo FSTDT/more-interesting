@@ -2,7 +2,7 @@ use rocket_contrib::databases::diesel::PgConnection;
 use diesel::prelude::*;
 use diesel::result::Error as DieselError;
 use chrono::NaiveDateTime;
-use crate::schema::{users, user_sessions, posts, stars, invite_tokens, comments, comment_stars, tags, post_tagging, moderation, flags, comment_flags, domains, legacy_comments, domain_synonyms};
+use crate::schema::{users, user_sessions, posts, stars, invite_tokens, comments, comment_stars, tags, post_tagging, moderation, flags, comment_flags, domains, legacy_comments, domain_synonyms, notifications, subscriptions};
 use crate::password::{password_hash, password_verify, PasswordResult};
 use serde::Serialize;
 use crate::base32::Base32;
@@ -59,6 +59,7 @@ pub struct Post {
     pub domain_id: Option<i32>,
     pub banner_title: Option<String>,
     pub banner_desc: Option<String>,
+    pub private: bool,
 }
 
 #[derive(Clone, Queryable, Serialize)]
@@ -126,6 +127,7 @@ pub struct NewPost<'a> {
     pub excerpt: Option<&'a str>,
     pub submitted_by: i32,
     pub visible: bool,
+    pub private: bool,
 }
 
 #[derive(Serialize)]
@@ -136,6 +138,7 @@ pub struct PostInfo {
     pub title_html: String,
     pub url: Option<String>,
     pub visible: bool,
+    pub private: bool,
     pub hotness: f64,
     pub score: i32,
     pub comment_count: i32,
@@ -150,6 +153,14 @@ pub struct PostInfo {
     pub excerpt_html: Option<String>,
     pub banner_title: Option<String>,
     pub banner_desc: Option<String>,
+}
+
+#[derive(Serialize)]
+pub struct NotificationInfo {
+    pub post_uuid: Base32,
+    pub post_title: String,
+    pub comment_count: i32,
+    pub from_username: String,
 }
 
 #[derive(Queryable, Serialize)]
@@ -313,6 +324,42 @@ pub enum PostSearchOrderBy {
     Top,
 }
 
+#[derive(Queryable, QueryableByName, Serialize)]
+#[table_name="notifications"]
+pub struct Notification {
+    pub id: i32,
+    pub user_id: i32,
+    pub post_id: i32,
+    pub created_at: NaiveDateTime,
+    pub created_by: i32,
+}
+
+#[derive(Insertable)]
+#[table_name="notifications"]
+pub struct NewNotification {
+    pub user_id: i32,
+    pub post_id: i32,
+    pub created_by: i32,
+}
+
+#[derive(Queryable, QueryableByName, Serialize)]
+#[table_name="subscriptions"]
+pub struct Subscription {
+    pub id: i32,
+    pub user_id: i32,
+    pub post_id: i32,
+    pub created_at: NaiveDateTime,
+    pub created_by: i32,
+}
+
+#[derive(Insertable)]
+#[table_name="subscriptions"]
+pub struct NewSubscription {
+    pub user_id: i32,
+    pub post_id: i32,
+    pub created_by: i32,
+}
+
 pub struct PostSearch {
     pub my_user_id: i32,
     pub order_by: PostSearchOrderBy,
@@ -321,6 +368,7 @@ pub struct PostSearch {
     pub and_tags: Vec<i32>,
     pub or_domains: Vec<i32>,
     pub after_post_id: i32,
+    pub subscriptions: bool,
 }
 
 impl PostSearch {
@@ -333,6 +381,7 @@ impl PostSearch {
             and_tags: Vec::new(),
             or_domains: Vec::new(),
             after_post_id: 0,
+            subscriptions: false,
         }
     }
 }
@@ -341,11 +390,66 @@ impl PostSearch {
 pub struct MoreInterestingConn(PgConnection);
 
 impl MoreInterestingConn {
+    pub fn create_notification(&self, new: NewNotification) -> Result<(), DieselError> {
+        diesel::insert_into(notifications::table)
+            .values(new)
+            .execute(&self.0)?;
+        Ok(())
+    }
+    pub fn use_notification(&self, post_id_value: i32, user_id_value: i32) -> Result<(), DieselError> {
+        use self::notifications::dsl::*;
+        diesel::delete(notifications.filter(user_id.eq(user_id_value)).filter(post_id.eq(post_id_value)))
+            .execute(&self.0)?;
+        Ok(())
+    }
+    pub fn list_notifications(&self, user_id_value: i32) -> Result<Vec<NotificationInfo>, DieselError> {
+        use self::posts::dsl::*;
+        use self::users::dsl::*;
+        use self::notifications::dsl::*;
+        let all: Vec<NotificationInfo> = notifications
+            .inner_join(users.on(self::users::dsl::id.eq(self::notifications::dsl::created_by)))
+            .inner_join(posts)
+            .select((
+                self::posts::dsl::uuid,
+                self::posts::dsl::title,
+                self::posts::dsl::comment_count,
+                self::users::dsl::username,
+            ))
+            .filter(visible.eq(true))
+            .filter(self::notifications::dsl::user_id.eq(user_id_value))
+            .order_by(self::notifications::dsl::created_at.asc())
+            .limit(50)
+            .get_results::<(Base32, String, i32, String)>(&self.0)?
+            .into_iter()
+            .map(|t| tuple_to_notification_info(t))
+            .collect();
+        Ok(all)
+    }
+    pub fn create_subscription(&self, new: NewSubscription) -> Result<(), DieselError> {
+        diesel::insert_into(subscriptions::table)
+            .values(new)
+            .execute(&self.0)?;
+        Ok(())
+    }
+    pub fn drop_subscription(&self, new: NewSubscription) -> Result<(), DieselError> {
+        use self::subscriptions::dsl::*;
+        diesel::delete(subscriptions.filter(user_id.eq(new.user_id)).filter(post_id.eq(new.post_id)))
+            .execute(&self.0)?;
+        Ok(())
+    }
+    pub fn list_subscribed_users(&self, post_id_value: i32) -> Result<Vec<i32>, DieselError> {
+        use self::subscriptions::dsl::*;
+        Ok(subscriptions
+            .select(user_id)
+            .filter(post_id.eq(post_id_value))
+            .get_results::<i32>(&self.0)?)
+    }
     pub fn search_posts(&self, search: &PostSearch) -> Result<Vec<PostInfo>, DieselError> {
         use self::posts::dsl::*;
         use self::stars::dsl::*;
         use self::flags::dsl::*;
         use self::users::dsl::*;
+        use self::subscriptions::dsl::*;
         use self::post_tagging::dsl::*;
         use crate::schema::post_search_index::dsl::*;
         use diesel_full_text_search::{plainto_tsquery, TsVectorExtensions, ts_rank_cd};
@@ -374,6 +478,14 @@ impl MoreInterestingConn {
                 query = query.filter(self::posts::dsl::id.eq_any(ids));
             }
         }
+        if search.subscriptions {
+            let ids = subscriptions
+                .filter(self::subscriptions::dsl::user_id.eq(search.my_user_id))
+                .select(self::subscriptions::dsl::post_id);
+            query = query.filter(self::posts::dsl::id.eq_any(ids));
+        } else {
+            query = query.filter(private.eq(false));
+        }
         let mut data = PrettifyData::new(self, 0);
         let mut all: Vec<PostInfo> = if search.keywords != "" && search.order_by == PostSearchOrderBy::Hottest {
             let max_r = if search.after_post_id != 0 {
@@ -395,6 +507,7 @@ impl MoreInterestingConn {
                     self::posts::dsl::title,
                     self::posts::dsl::url,
                     self::posts::dsl::visible,
+                    self::posts::dsl::private,
                     self::posts::dsl::initial_stellar_time,
                     self::posts::dsl::score,
                     self::posts::dsl::comment_count,
@@ -413,7 +526,7 @@ impl MoreInterestingConn {
                 .filter(ts_rank_cd(search_index, plainto_tsquery(&search.keywords)).lt(max_r))
                 .order_by(ts_rank_cd(search_index, plainto_tsquery(&search.keywords)).desc())
                 .limit(75)
-                .get_results::<(i32, Base32, String, Option<String>, bool, i32, i32, i32, bool, NaiveDateTime, i32, Option<String>, Option<String>, Option<i32>, Option<i32>, String, Option<String>, Option<String>)>(&self.0)?
+                .get_results::<(i32, Base32, String, Option<String>, bool, bool, i32, i32, i32, bool, NaiveDateTime, i32, Option<String>, Option<String>, Option<i32>, Option<i32>, String, Option<String>, Option<String>)>(&self.0)?
                 .into_iter()
                 .map(|t| tuple_to_post_info(&mut data, t, self.get_current_stellar_time()))
                 .collect()
@@ -437,6 +550,7 @@ impl MoreInterestingConn {
                     self::posts::dsl::title,
                     self::posts::dsl::url,
                     self::posts::dsl::visible,
+                    self::posts::dsl::private,
                     self::posts::dsl::initial_stellar_time,
                     self::posts::dsl::score,
                     self::posts::dsl::comment_count,
@@ -452,7 +566,7 @@ impl MoreInterestingConn {
                     self::posts::dsl::banner_desc,
                 ))
                 .limit(75)
-                .get_results::<(i32, Base32, String, Option<String>, bool, i32, i32, i32, bool, NaiveDateTime, i32, Option<String>, Option<String>, Option<i32>, Option<i32>, String, Option<String>, Option<String>)>(&self.0)?
+                .get_results::<(i32, Base32, String, Option<String>, bool, bool, i32, i32, i32, bool, NaiveDateTime, i32, Option<String>, Option<String>, Option<i32>, Option<i32>, String, Option<String>, Option<String>)>(&self.0)?
                 .into_iter()
                 .map(|t| tuple_to_post_info(&mut data, t, self.get_current_stellar_time()))
                 .collect()
@@ -479,6 +593,7 @@ impl MoreInterestingConn {
                 self::posts::dsl::title,
                 self::posts::dsl::url,
                 self::posts::dsl::visible,
+                self::posts::dsl::private,
                 self::posts::dsl::initial_stellar_time,
                 self::posts::dsl::score,
                 self::posts::dsl::comment_count,
@@ -494,10 +609,11 @@ impl MoreInterestingConn {
                 self::posts::dsl::banner_desc,
             ))
             .filter(visible.eq(true))
+            .filter(private.eq(false))
             .filter(self::posts::dsl::submitted_by.eq(user_info_id_param))
             .order_by((initial_stellar_time.desc(), self::posts::dsl::created_at.desc()))
             .limit(75)
-            .get_results::<(i32, Base32, String, Option<String>, bool, i32, i32, i32, bool, NaiveDateTime, i32, Option<String>, Option<String>, Option<i32>, Option<i32>, String, Option<String>, Option<String>)>(&self.0)?
+            .get_results::<(i32, Base32, String, Option<String>, bool, bool, i32, i32, i32, bool, NaiveDateTime, i32, Option<String>, Option<String>, Option<i32>, Option<i32>, String, Option<String>, Option<String>)>(&self.0)?
             .into_iter()
             .map(|t| tuple_to_post_info(&mut data, t, self.get_current_stellar_time()))
             .collect();
@@ -522,6 +638,7 @@ impl MoreInterestingConn {
                 self::posts::dsl::title,
                 self::posts::dsl::url,
                 self::posts::dsl::visible,
+                self::posts::dsl::private,
                 self::posts::dsl::initial_stellar_time,
                 self::posts::dsl::score,
                 self::posts::dsl::comment_count,
@@ -538,7 +655,7 @@ impl MoreInterestingConn {
             ))
             .filter(rejected.eq(false))
             .filter(uuid.eq(uuid_param.into_i64()))
-            .first::<(i32, Base32, String, Option<String>, bool, i32, i32, i32, bool, NaiveDateTime, i32, Option<String>, Option<String>, Option<i32>, Option<i32>, String, Option<String>, Option<String>)>(&self.0)?, self.get_current_stellar_time()))
+            .first::<(i32, Base32, String, Option<String>, bool, bool, i32, i32, i32, bool, NaiveDateTime, i32, Option<String>, Option<String>, Option<i32>, Option<i32>, String, Option<String>, Option<String>)>(&self.0)?, self.get_current_stellar_time()))
     }
     pub fn get_current_stellar_time(&self) -> i32 {
         use self::stars::dsl::*;
@@ -609,6 +726,7 @@ impl MoreInterestingConn {
             excerpt: Option<&'a str>,
             excerpt_html: Option<&'a str>,
             visible: bool,
+            private: bool,
             domain_id: Option<i32>,
         }
         let title_html_and_stuff = crate::prettify::prettify_title(new_post.title, "", &mut PrettifyData::new(self, 0));
@@ -631,6 +749,7 @@ impl MoreInterestingConn {
                 excerpt: new_post.excerpt,
                 excerpt_html: excerpt_html_and_stuff.as_ref().map(|e| &e.string[..]),
                 visible: new_post.visible,
+                private: new_post.private,
                 domain_id: domain.map(|d| d.id),
                 url
             })
@@ -670,6 +789,7 @@ impl MoreInterestingConn {
                 url.eq(url_value),
                 excerpt_html.eq(excerpt_html_and_stuff.as_ref().map(|x| &x.string[..])),
                 visible.eq(new_post.visible),
+                private.eq(new_post.private),
                 domain_id.eq(domain.map(|d| d.id))
             ))
             .execute(&self.0)?;
@@ -678,6 +798,7 @@ impl MoreInterestingConn {
                 .set((
                     initial_stellar_time.eq(self.get_current_stellar_time()),
                     visible.eq(new_post.visible),
+                    private.eq(new_post.private),
                 ))
                 .execute(&self.0)?;
         }
@@ -1006,6 +1127,7 @@ impl MoreInterestingConn {
                 self::users::dsl::username,
             ))
             .filter(self::comments::dsl::visible.eq(true))
+            .filter(self::posts::dsl::private.eq(false))
             .filter(self::comments::dsl::created_by.eq(user_id_param))
             .order_by(self::comments::dsl::id.desc())
             .limit(50)
@@ -1033,6 +1155,7 @@ impl MoreInterestingConn {
                 self::users::dsl::username,
             ))
             .filter(self::comments::dsl::visible.eq(true))
+            .filter(self::posts::dsl::private.eq(false))
             .filter(self::comments::dsl::created_by.eq(user_id_param))
             .filter(self::comments::dsl::id.lt(after_id_param))
             .order_by(self::comments::dsl::id.desc())
@@ -1062,6 +1185,7 @@ impl MoreInterestingConn {
                 self::posts::dsl::title,
                 self::posts::dsl::url,
                 self::posts::dsl::visible,
+                self::posts::dsl::private,
                 self::posts::dsl::initial_stellar_time,
                 self::posts::dsl::score,
                 self::posts::dsl::comment_count,
@@ -1077,7 +1201,7 @@ impl MoreInterestingConn {
                 self::posts::dsl::banner_desc,
             ))
             .filter(self::comments::dsl::id.eq(comment_id_param))
-            .first::<(i32, Base32, String, Option<String>, bool, i32, i32, i32, bool, NaiveDateTime, i32, Option<String>, Option<String>, Option<i32>, Option<i32>, String, Option<String>, Option<String>)>(&self.0)?, self.get_current_stellar_time()))
+            .first::<(i32, Base32, String, Option<String>, bool, bool, i32, i32, i32, bool, NaiveDateTime, i32, Option<String>, Option<String>, Option<i32>, Option<i32>, String, Option<String>, Option<String>)>(&self.0)?, self.get_current_stellar_time()))
     }
     pub fn get_post_starred_by(&self, post_id_param: i32) -> Result<Vec<String>, DieselError> {
         use self::stars::dsl::*;
@@ -1398,6 +1522,7 @@ impl MoreInterestingConn {
                 self::posts::dsl::title,
                 self::posts::dsl::url,
                 self::posts::dsl::visible,
+                self::posts::dsl::private,
                 self::posts::dsl::initial_stellar_time,
                 self::posts::dsl::score,
                 self::posts::dsl::comment_count,
@@ -1416,7 +1541,7 @@ impl MoreInterestingConn {
             .filter(rejected.eq(false))
             .order_by(self::posts::dsl::created_at.asc())
             .limit(50)
-            .get_results::<(i32, Base32, String, Option<String>, bool, i32, i32, i32, bool, NaiveDateTime, i32, Option<String>, Option<String>, Option<i32>, Option<i32>, String, Option<String>, Option<String>)>(&self.0).ok()?
+            .get_results::<(i32, Base32, String, Option<String>, bool, bool, i32, i32, i32, bool, NaiveDateTime, i32, Option<String>, Option<String>, Option<i32>, Option<i32>, String, Option<String>, Option<String>)>(&self.0).ok()?
             .into_iter()
             .map(|t| tuple_to_post_info(&mut data, t, self.get_current_stellar_time()))
             .collect();
@@ -1599,7 +1724,13 @@ impl MoreInterestingConn {
     }
 }
 
-fn tuple_to_post_info(data: &mut PrettifyData, (id, uuid, title, url, visible, initial_stellar_time, score, comment_count, authored_by_submitter, created_at, submitted_by, excerpt, excerpt_html, starred_post_id, flagged_post_id, submitted_by_username, banner_title, banner_desc): (i32, Base32, String, Option<String>, bool, i32, i32, i32, bool, NaiveDateTime, i32, Option<String>, Option<String>, Option<i32>, Option<i32>, String, Option<String>, Option<String>), current_stellar_time: i32) -> PostInfo {
+fn tuple_to_notification_info((post_uuid, post_title, comment_count, from_username): (Base32, String, i32, String)) -> NotificationInfo {
+    NotificationInfo {
+        post_uuid, post_title, comment_count, from_username,
+    }
+}
+
+fn tuple_to_post_info(data: &mut PrettifyData, (id, uuid, title, url, visible, private, initial_stellar_time, score, comment_count, authored_by_submitter, created_at, submitted_by, excerpt, excerpt_html, starred_post_id, flagged_post_id, submitted_by_username, banner_title, banner_desc): (i32, Base32, String, Option<String>, bool, bool, i32, i32, i32, bool, NaiveDateTime, i32, Option<String>, Option<String>, Option<i32>, Option<i32>, String, Option<String>, Option<String>), current_stellar_time: i32) -> PostInfo {
     let link_url = if let Some(ref url) = url {
         url.clone()
     } else {
@@ -1609,7 +1740,7 @@ fn tuple_to_post_info(data: &mut PrettifyData, (id, uuid, title, url, visible, i
     let title_html = title_html_output.string;
     let created_at_relative = relative_date(&created_at);
     PostInfo {
-        id, uuid, title, url, visible, score, authored_by_submitter,
+        id, uuid, title, url, visible, private, score, authored_by_submitter,
         submitted_by, submitted_by_username, comment_count, title_html,
         excerpt, excerpt_html, banner_title, banner_desc,
         created_at, created_at_relative,
