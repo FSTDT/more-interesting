@@ -47,7 +47,7 @@ http {
 	}
 
 	limit_req_zone $binary_remote_addr zone=app:10m rate=50r/m;
-	limit_req_zone $limit_bot zone=botua:10m rate=40r/m;
+	limit_req_zone $limit_bot zone=botua:10m rate=25r/m;
 
 	server {
 		listen <%= ENV["PORT"] %>;
