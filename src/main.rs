@@ -350,12 +350,13 @@ fn index(conn: MoreInterestingConn, login: Option<LoginSession>, flash: Option<F
     let (search, tags) = parse_index_params(&conn, &user, params)?;
     let posts = conn.search_posts(&search).ok()?;
     let notifications = conn.list_notifications(user.id).unwrap_or(Vec::new());
+    let is_private = keywords_param.is_some() && search.after_post_id != 0;
     Some(Template::render("index", &TemplateContext {
         alert: flash.map(|f| f.msg().to_owned()),
         config: config.clone(),
         title, user, posts, is_home,
         tags, session, tag_param, domain, keywords_param,
-        notifications,
+        notifications, is_private,
         ..default()
     }))
 }
@@ -405,12 +406,13 @@ fn top(conn: MoreInterestingConn, login: Option<LoginSession>, flash: Option<Fla
     };
     let posts = conn.search_posts(&search).ok()?;
     let notifications = conn.list_notifications(user.id).unwrap_or(Vec::new());
+    let is_private = keywords_param.is_some() && search.after_post_id != 0;
     Some(Template::render("index-top", &TemplateContext {
         title: Cow::Borrowed("top"),
         alert: flash.map(|f| f.msg().to_owned()),
         config: config.clone(), is_home, keywords_param,
         user, posts, session, tags, tag_param, domain,
-        notifications,
+        notifications, is_private,
         ..default()
     }))
 }
@@ -454,12 +456,13 @@ fn new(conn: MoreInterestingConn, login: Option<LoginSession>, flash: Option<Fla
     };
     let posts = conn.search_posts(&search).ok()?;
     let notifications = conn.list_notifications(user.id).unwrap_or(Vec::new());
+    let is_private = keywords_param.is_some() && search.after_post_id != 0;
     Some(Template::render("index-new", &TemplateContext {
         title: Cow::Borrowed("new"),
         alert: flash.map(|f| f.msg().to_owned()),
         config: config.clone(), is_home, keywords_param,
         user, posts, session, tags, tag_param, domain,
-        notifications,
+        notifications, is_private,
         ..default()
     }))
 }
@@ -478,12 +481,13 @@ fn latest(conn: MoreInterestingConn, login: Option<LoginSession>, params: Option
     };
     let posts = conn.search_posts(&search).ok()?;
     let notifications = conn.list_notifications(user.id).unwrap_or(Vec::new());
+    let is_private = keywords_param.is_some() && search.after_post_id != 0;
     Some(Template::render("index-latest", &TemplateContext {
         title: Cow::Borrowed("latest"),
         alert: flash.map(|f| f.msg().to_owned()),
         config: config.clone(), is_home, keywords_param,
         user, posts, session, tags, tag_param, domain,
-        notifications,
+        notifications, is_private,
         ..default()
     }))
 }
