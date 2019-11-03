@@ -424,6 +424,14 @@ impl MoreInterestingConn {
             .collect();
         Ok(all)
     }
+    pub fn is_subscribed(&self, post_id_value: i32, user_id_value: i32) -> Result<bool, DieselError> {
+        use self::subscriptions::dsl::*;
+        use diesel::{select, dsl::exists};
+        Ok(select(exists(subscriptions
+            .filter(post_id.eq(post_id_value))
+            .filter(user_id.eq(user_id_value))))
+            .get_result::<bool>(&self.0)?)
+    }
     pub fn create_subscription(&self, new: NewSubscription) -> Result<(), DieselError> {
         diesel::insert_into(subscriptions::table)
             .values(new)

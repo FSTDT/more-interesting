@@ -21,6 +21,24 @@ html {
     overflow-y: scroll;
 }
 
+
+button:focus,
+input:focus,
+select:focus,
+:link.button:focus,
+:visited.button:focus,
+:link:focus,
+:visited:focus,
+.details-dialog-summary:focus,
+.details-menu-summary:focus,
+textarea:focus,
+.smart-textarea:focus {
+    box-shadow: 0 0 0 2px #0a84ff, 0 0 0 6px #b1d6fc;
+    box-shadow: 0 0 0 2px #0a84ff, 0 0 0 6px rgba(10, 132, 255, 0.3);
+    z-index: 10;
+    position: relative;
+}
+
 :link, :visited {
     background-image: -webkit-gradient(linear,left top,left bottom,color-stop(50%,transparent),color-stop(50%,#b1b1b3));
     background-image: -webkit-linear-gradient(top,transparent 50%,#b1b1b3 50%);
@@ -29,6 +47,10 @@ html {
     -webkit-background-size: 2px 2px;
     background-size: 2px 2px;
     background-position: 0 95%;
+}
+
+:link:focus, :visited:focus {
+    outline: none;
 }
 
 html.dark :link, html.dark :visited {
@@ -188,11 +210,6 @@ a {
     -webkit-text-decoration-skip: objects; /* 2 */
 }
 
-a:active,
-a:hover {
-    outline-width: 0;
-}
-
 abbr[title] {
     /* this is the opposite of how normalize.css does it */
     /* it's done this way to get consistent appearance with IE11 */
@@ -313,24 +330,10 @@ select,
     border-right-color: #0c0c0d;
     border-image: url("data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAgAAAAICAYAAADED76LAAAABHNCSVQICAgIfAhkiAAAAAlwSFlzAAAOxAAADsQBlSsOGwAAABl0RVh0U29mdHdhcmUAd3d3Lmlua3NjYXBlLm9yZ5vuPBoAAABBSURBVBhXY/hPADCAiLdvP+DEcAUMaKC4uPi4sLDIW0IK3lNBQWlp6X8QBgr8QcP/pKSkPzDw8fH/x4V5eHj/AwAIl4WCOETMYgAAAABJRU5ErkJggg==") 2;
     width: auto;
-    outline-offset: -0.25em;
-    outline-offset: calc(-0.25em + -2px);
-    outline-color: currentColor;
+    outline: none;
     padding: 0.25em 0.5em;
     -webkit-user-select: none;
     user-select: none;
-}
-
-html.uses-tab button:focus,
-html.uses-tab input:focus,
-html.uses-tab select:focus,
-html.uses-tab :link.button:focus,
-html.uses-tab :visited.button:focus,
-html.uses-tab .details-dialog-summary:focus,
-html.uses-tab .details-menu-summary:focus,
-html.uses-tab textarea:focus,
-html.uses-tab .smart-textarea:focus {
-    box-shadow:  0 0 0 1px #45a1ff, 0 0 0 2px #0a84ff;
 }
 
 html.dark button,
@@ -452,7 +455,7 @@ button:-moz-focusring,
 input[type="button"]:-moz-focusring,
 input[type="reset"]:-moz-focusring,
 input[type="submit"]:-moz-focusring {
-    outline: 1px dotted ButtonText;
+    outline: none;
 }
 
 .flag-button-active {
@@ -496,7 +499,7 @@ textarea,
 textarea.smart-textarea {
     overflow: hidden;
     z-index: 2;
-    position: absolute;
+    position: absolute !important;
     top: 0;
     left: 0;
     right: 0;
@@ -523,7 +526,7 @@ input[type="number"]::-webkit-outer-spin-button {
 }
 input[type="search"] {
     -webkit-appearance: textfield;
-    outline-offset: -2px;
+    outline: none;
 }
 
 input[type="search"]::-webkit-search-cancel-button,
@@ -643,9 +646,7 @@ html.dark article, html.dark aside {
 .article-header-inner {
     padding: 0.5em;
     padding: calc(0.5em - 1px);
-    outline-offset: -0.5em;
-    outline-offset: calc(-0.5em - -1px);
-    padding-bottom: 0;
+    outline: none;
     display: inline-block;
     overflow: hidden;
     margin: 0 -0.25em;
@@ -699,8 +700,7 @@ details[open] .module-summary:before {
 }
 
 .module-summary:focus:before {
-    outline: 1px dotted ButtonText;
-    outline-offset: -0.25em;
+    outline: none;
 }
 
 .module-summary:hover:before {
@@ -917,8 +917,7 @@ main, .main {
     line-height: 1.62;
     display: block;
     overflow: hidden;
-    padding: 0.5em;
-    padding-bottom: 0;
+    padding: 0 0.5em;
 }
 .main-mini {
     font-size: inherit;
@@ -1006,6 +1005,6 @@ details[open] > .img-lightbox:before {
     display: flex;
     flex-direction: row;
     align-items: flex-end;
-    margin-top: -0.5em;
-    padding-top: 0.25em;
+    margin-top: -0.75em;
+    padding-top: 0.5em;
 }
