@@ -926,6 +926,10 @@ main, .main {
     padding-top: 0;
 }
 
+.main-aside {
+    padding-top: 0.25em;
+}
+
 .form-footer {
     margin-top: 0.75em;
     padding-top: 0.25em;
