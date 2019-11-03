@@ -1,4 +1,5 @@
 #![feature(proc_macro_hygiene, decl_macro)]
+#![allow(ellipsis_inclusive_range_patterns)]
 
 #[macro_use]
 extern crate rocket;
@@ -101,6 +102,7 @@ struct TemplateContext {
     is_home: bool,
     is_me: bool,
     is_private: bool,
+    is_subscribed: bool,
     notifications: Vec<NotificationInfo>,
     excerpt: Option<String>,
 }
@@ -350,12 +352,13 @@ fn index(conn: MoreInterestingConn, login: Option<LoginSession>, flash: Option<F
     let (search, tags) = parse_index_params(&conn, &user, params)?;
     let posts = conn.search_posts(&search).ok()?;
     let notifications = conn.list_notifications(user.id).unwrap_or(Vec::new());
+    let is_private = keywords_param.is_some() && search.after_post_id != 0;
     Some(Template::render("index", &TemplateContext {
         alert: flash.map(|f| f.msg().to_owned()),
         config: config.clone(),
         title, user, posts, is_home,
         tags, session, tag_param, domain, keywords_param,
-        notifications,
+        notifications, is_private,
         ..default()
     }))
 }
@@ -405,12 +408,13 @@ fn top(conn: MoreInterestingConn, login: Option<LoginSession>, flash: Option<Fla
     };
     let posts = conn.search_posts(&search).ok()?;
     let notifications = conn.list_notifications(user.id).unwrap_or(Vec::new());
+    let is_private = keywords_param.is_some() && search.after_post_id != 0;
     Some(Template::render("index-top", &TemplateContext {
         title: Cow::Borrowed("top"),
         alert: flash.map(|f| f.msg().to_owned()),
         config: config.clone(), is_home, keywords_param,
         user, posts, session, tags, tag_param, domain,
-        notifications,
+        notifications, is_private,
         ..default()
     }))
 }
@@ -440,6 +444,36 @@ fn subscriptions(conn: MoreInterestingConn, login: Option<LoginSession>, flash: 
     }))
 }
 
+#[derive(FromForm)]
+struct SubscriptionForm {
+    post: Base32,
+    subscribed: bool,
+}
+
+#[post("/subscriptions?<redirect..>", data = "<form>")]
+fn post_subscriptions(conn: MoreInterestingConn, login: LoginSession, form: Form<SubscriptionForm>, redirect: LenientForm<MaybeRedirect>) -> Result<impl Responder<'static>, Status> {
+    let user = login.user;
+    let post = conn.get_post_info_by_uuid(user.id, form.post).map_err(|_| Status::NotFound)?;
+    if form.subscribed {
+        let _ = conn.create_subscription(NewSubscription {
+            user_id: user.id,
+            created_by: user.id,
+            post_id: post.id,
+        });
+    } else {
+        let _ = conn.drop_subscription(NewSubscription {
+            user_id: user.id,
+            created_by: user.id,
+            post_id: post.id,
+        });
+    }
+    if conn.is_subscribed(post.id, user.id).unwrap_or(false) != form.subscribed {
+        warn!("(un)subscription failed!");
+        return Err(Status::InternalServerError);
+    }
+    redirect.maybe_redirect()
+}
+
 #[get("/new?<params..>")]
 fn new(conn: MoreInterestingConn, login: Option<LoginSession>, flash: Option<FlashMessage>, config: State<SiteConfig>, params: Option<Form<IndexParams>>) -> Option<impl Responder<'static>> {
     let (user, session) = login.map(|l| (l.user, l.session)).unwrap_or((User::default(), UserSession::default()));
@@ -454,12 +488,13 @@ fn new(conn: MoreInterestingConn, login: Option<LoginSession>, flash: Option<Fla
     };
     let posts = conn.search_posts(&search).ok()?;
     let notifications = conn.list_notifications(user.id).unwrap_or(Vec::new());
+    let is_private = keywords_param.is_some() && search.after_post_id != 0;
     Some(Template::render("index-new", &TemplateContext {
         title: Cow::Borrowed("new"),
         alert: flash.map(|f| f.msg().to_owned()),
         config: config.clone(), is_home, keywords_param,
         user, posts, session, tags, tag_param, domain,
-        notifications,
+        notifications, is_private,
         ..default()
     }))
 }
@@ -478,12 +513,13 @@ fn latest(conn: MoreInterestingConn, login: Option<LoginSession>, params: Option
     };
     let posts = conn.search_posts(&search).ok()?;
     let notifications = conn.list_notifications(user.id).unwrap_or(Vec::new());
+    let is_private = keywords_param.is_some() && search.after_post_id != 0;
     Some(Template::render("index-latest", &TemplateContext {
         title: Cow::Borrowed("latest"),
         alert: flash.map(|f| f.msg().to_owned()),
         config: config.clone(), is_home, keywords_param,
         user, posts, session, tags, tag_param, domain,
-        notifications,
+        notifications, is_private,
         ..default()
     }))
 }
@@ -794,13 +830,14 @@ fn get_comments(conn: MoreInterestingConn, login: Option<LoginSession>, uuid: St
         }
         let notifications = conn.list_notifications(user.id).unwrap_or(Vec::new());
         let is_private = post_info.private;
+        let is_subscribed = conn.is_subscribed(post_info.id, user.id).unwrap_or(false);
         Ok(Template::render("comments", &TemplateContext {
             posts: vec![post_info],
             alert: flash.map(|f| f.msg().to_owned()),
             starred_by: conn.get_post_starred_by(post_id).unwrap_or(Vec::new()),
             config: config.clone(),
             comments, user, title, legacy_comments, session,
-            notifications, is_private,
+            notifications, is_private, is_subscribed,
             ..default()
         }))
     } else if conn.check_invite_token_exists(uuid) && user.id == 0 {
@@ -1654,7 +1691,7 @@ fn main() {
             }
             Ok(rocket)
         }))
-        .mount("/", routes![index, login_form, login, logout, create_link_form, create_post_form, create, get_comments, vote, signup, get_settings, create_invite, invite_tree, change_password, post_comment, vote_comment, get_admin_tags, admin_tags, get_tags, edit_post, get_edit_post, edit_comment, get_edit_comment, set_dark_mode, set_big_mode, mod_log, get_mod_queue, moderate_post, moderate_comment, get_public_signup, rebake, random, redirect_legacy_id, latest, rss, top, banner_post, robots_txt, search_comments, new, get_admin_domains, admin_domains, create_message_form, create_message, subscriptions])
+        .mount("/", routes![index, login_form, login, logout, create_link_form, create_post_form, create, get_comments, vote, signup, get_settings, create_invite, invite_tree, change_password, post_comment, vote_comment, get_admin_tags, admin_tags, get_tags, edit_post, get_edit_post, edit_comment, get_edit_comment, set_dark_mode, set_big_mode, mod_log, get_mod_queue, moderate_post, moderate_comment, get_public_signup, rebake, random, redirect_legacy_id, latest, rss, top, banner_post, robots_txt, search_comments, new, get_admin_domains, admin_domains, create_message_form, create_message, subscriptions, post_subscriptions])
         .mount("/assets", StaticFiles::from("assets"))
         .attach(Template::custom(|engines| {
             engines.handlebars.register_helper("count", Box::new(count_helper));

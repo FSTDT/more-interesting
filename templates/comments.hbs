@@ -108,16 +108,25 @@
         {{/each}}
     </ajax-form>
     {{#if user.id}}
-    <form action="comment?U={{session.uuid}}" method=POST>
+    <form action="comment?U={{session.uuid}}" method=POST id=comment-form>
         <label>
             <h3 id=comment-form>Add your comment</h3>
             <smart-textarea><textarea name=text required is=smart-punct-textarea></textarea></smart-textarea>
         </label>
         <input type=hidden name=post value="{{posts.0.uuid}}">
-        <div class=form-footer>
-            <button>Add comment</button>
-        </div>
+        <span style="float:left;margin-top:1em;position:relative;top:2px"><button>Add comment</button>&nbsp;</span>
     </form>
+    <details-menu-bar class=form-footer>
+        <details class=details-menu-outer>
+            <summary class=details-menu-summary aria-haspopup=menu>{{#if is_subscribed}}Subscribed{{else}}Not subscribed{{/if}}</summary>
+            <form class=details-menu-inner role=menu action="subscriptions?redirect={{posts.0.uuid}}&U={{session.uuid}}" method=POST is=subscriptions-menu>
+                <input type=hidden name=post value="{{posts.0.uuid}}">
+                <button class=details-menu-item role=menuitem name=subscribed value=true>Subscribe</button>
+                <button class=details-menu-item role=menuitem name=subscribed value=false>Unsubscribed</button>
+            </form>
+        </details>
+    </details-menu-bar>
+    <p>When you subscribe, you get a notification whenever someone comments on this post.</p>
     {{else}}
     <div class=inner-banner>
         {{{config.comments_placeholder_html}}}
