@@ -1223,7 +1223,7 @@ mod test {
     #[test]
     fn test_double_space_title() {
         let comment = "test   #words   #words";
-        let html = "<span class=article-header-inner><a href=\"url\">test </a></span><span class=article-header-inner><a class=inner-link href=\"./?tag=words\">#words </a></span><span class=article-header-inner><a class=inner-link href=\"./?tag=words\">#words</a></span>";
+        let html = "<span class=article-header-inner><a href=\"url\">test </a></span><span class=article-header-inner><a class=inner-link href=\"./?tag=words\">#words</a></span><span class=article-header-inner><a class=inner-link href=\"./?tag=words\">#words</a></span>";
         struct MyData;
         impl Data for MyData {
             fn check_comment_ref(&mut self, id: i32) -> bool {
