@@ -63,6 +63,9 @@ lazy_static!{
     static ref SPOILER_TAG_OPEN_PARAM: Regex = Regex::new(r"(?i)^\[spoiler=").unwrap();
     static ref SPOILER_TAG_CLOSE: Regex = Regex::new(r"(?i)^\[/spoiler\]").unwrap();
 }
+lazy_static!{
+    static ref SPACES: Regex = Regex::new(r"\s+").unwrap();
+}
 
 
 /// Prettify: transform plain text, as described in the readme, into HTML with links.
@@ -719,7 +722,9 @@ pub fn prettify_body_bbcode<D: Data>(text: &str, data: &mut D) -> Output {
 }
 
 /// Prettify a title line: similar to `prettify_body`, but without paragraph breaks
-pub fn prettify_title<D: Data>(mut text: &str, url: &str, data: &mut D) -> Output {
+pub fn prettify_title<D: Data>(text: &str, url: &str, data: &mut D) -> Output {
+    let text = SPACES.replace(text, " ");
+    let mut text = &text[..];
     let mut ret_val = Output::with_capacity(text.len());
     let link = format!("</span><span class=article-header-inner><a href=\"{}\">", url);
     ret_val.push_str(&link);
@@ -1198,6 +1203,27 @@ mod test {
     fn test_unicode_title() {
         let comment = "finger— inciting the two officers to fire";
         let html = "<span class=article-header-inner><a href=\"url\">finger— inciting the two officers to fire</a></span>";
+        struct MyData;
+        impl Data for MyData {
+            fn check_comment_ref(&mut self, id: i32) -> bool {
+                id == 12345
+            }
+            fn check_hash_tag(&mut self, tag: &str) -> bool {
+                tag == "words"
+            }
+            fn check_username(&mut self, username: &str) -> bool {
+                username == "mentioning"
+            }
+            fn get_domain_canonical(&mut self, hostname: &str) -> String {
+                hostname.to_owned()
+            }
+        }
+        assert_eq!(prettify_title(comment, "url", &mut MyData).string, CLEANER.clean(html).to_string());
+    }
+    #[test]
+    fn test_double_space_title() {
+        let comment = "test   #words   #words";
+        let html = "<span class=article-header-inner><a href=\"url\">test </a></span><span class=article-header-inner><a class=inner-link href=\"./?tag=words\">#words </a></span><span class=article-header-inner><a class=inner-link href=\"./?tag=words\">#words</a></span>";
         struct MyData;
         impl Data for MyData {
             fn check_comment_ref(&mut self, id: i32) -> bool {
