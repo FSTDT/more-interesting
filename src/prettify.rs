@@ -723,7 +723,7 @@ pub fn prettify_body_bbcode<D: Data>(text: &str, data: &mut D) -> Output {
 
 /// Prettify a title line: similar to `prettify_body`, but without paragraph breaks
 pub fn prettify_title<D: Data>(text: &str, url: &str, data: &mut D) -> Output {
-    let text = SPACES.replace(text, " ");
+    let text = SPACES.replace_all(text, " ");
     let mut text = &text[..];
     let mut ret_val = Output::with_capacity(text.len());
     let link = format!("</span><span class=article-header-inner><a href=\"{}\">", url);
