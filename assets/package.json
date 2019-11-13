@@ -10,7 +10,7 @@
     "webpack-cli": "^3.3.9"
   },
   "dependencies": {
-    "@webcomponents/webcomponentsjs": "^2.3.0",
+    "@webcomponents/webcomponentsjs": "^2.4.0",
     "details-dialog-element": "^3.0.3",
     "details-element-polyfill": "^2.4.0"
   }
