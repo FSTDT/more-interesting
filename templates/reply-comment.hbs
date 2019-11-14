@@ -1,4 +1,8 @@
 {{#*inline "page"}}
+    <div class=tab-bar>
+        <label for=comment-form class=active-tab>Edit</label><button name=preview value=preview class=tab form=comment-form formaction="preview-comment?U={{session.uuid}}#comment-form" onclick="if(!this.form||!this.formAction){var f=document.forms['comment-form'];f.action=this.getAttribute('formaction');var inp=document.createElement('input');inp.name='preview';inp.value='preview';inp.type='hidden';f.appendChild(inp);f.submit();return false}">Preview</button>
+    </div>
+    <div class=tab-box>
     <form action="comment?U={{session.uuid}}" method=POST id=comment-form>
         <label>
             <h3 id=comment-form>Add your comment</h3>
@@ -19,6 +23,7 @@
             </form>
         </details>
     </details-menu-bar>
+    </div>
 
     <aside id="{{comments.0.id}}">
         <header class=aside-header>

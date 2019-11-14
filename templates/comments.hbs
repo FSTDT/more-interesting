@@ -110,10 +110,38 @@
         {{/each}}
     </ajax-form>
     {{#if user.id}}
+    <h3>Add your comment</h3>
+    {{#if comment_preview_html}}
+    <div class=tab-bar>
+        <button name=preview value=edit class=tab form=comment-form formaction="preview-comment?U={{session.uuid}}#comment-form" onclick="if(!this.form||!this.formAction){var f=document.forms['comment-form'];f.action=this.getAttribute('formaction');var inp=document.createElement('input');inp.name='preview';inp.value='edit';inp.type='hidden';f.appendChild(inp);f.submit();return false}">Edit</button><label name=preview for=comment-form class=active-tab>Preview</label>
+    </div>
+    <div class=tab-box>
     <form action="comment?U={{session.uuid}}" method=POST id=comment-form>
-        <label>
-            <h3 id=comment-form>Add your comment</h3>
-            <smart-textarea><textarea name=text required is=smart-punct-textarea></textarea></smart-textarea>
+        <aside><header class=aside-header>@{{user.username}}</header><main>{{{comment_preview_html}}}</main></aside>
+        <input type=hidden name=text value="{{comment_preview_text}}">
+        <input type=hidden name=post value="{{posts.0.uuid}}">
+        <span style="float:left;margin-top:1em;position:relative;top:2px"><button>Add comment</button>&nbsp;</span>
+    </form>
+    <details-menu-bar class=form-footer>
+        <details class=details-menu-outer>
+            <summary class=details-menu-summary aria-haspopup=menu>{{#if is_subscribed}}Subscribed{{else}}Not subscribed{{/if}}</summary>
+            <form class=details-menu-inner role=menu action="subscriptions?redirect={{posts.0.uuid}}&U={{session.uuid}}" method=POST is=subscriptions-menu>
+                <input type=hidden name=post value="{{posts.0.uuid}}">
+                <button class=details-menu-item role=menuitem name=subscribed value=true>Subscribe</button>
+                <button class=details-menu-item role=menuitem name=subscribed value=false>Unsubscribed</button>
+            </form>
+        </details>
+    </details-menu-bar>
+    <p>When you subscribe, you get a notification whenever someone comments on this post.</p>
+    </div>
+    {{else}}
+    <div class=tab-bar>
+        <label for=comment-form class=active-tab>Edit</label><button name=preview value=preview class=tab form=comment-form formaction="preview-comment?U={{session.uuid}}#comment-form" onclick="if(!this.form||!this.formAction){var f=document.forms['comment-form'];f.action=this.getAttribute('formaction');var inp=document.createElement('input');inp.name='preview';inp.value='preview';inp.type='hidden';f.appendChild(inp);f.submit();return false}">Preview</button>
+    </div>
+    <div class=tab-box>
+    <form action="comment?U={{session.uuid}}" method=POST id=comment-form>
+        <label>@{{user.username}}
+        <smart-textarea><textarea name=text required is=smart-punct-textarea>{{comment_preview_text}}</textarea></smart-textarea>
         </label>
         <input type=hidden name=post value="{{posts.0.uuid}}">
         <span style="float:left;margin-top:1em;position:relative;top:2px"><button>Add comment</button>&nbsp;</span>
@@ -129,6 +157,8 @@
         </details>
     </details-menu-bar>
     <p>When you subscribe, you get a notification whenever someone comments on this post.</p>
+    </div>
+    {{/if}}
     {{else}}
     <div class=inner-banner>
         {{{config.comments_placeholder_html}}}

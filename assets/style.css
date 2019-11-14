@@ -80,7 +80,10 @@ article,
 aside,
 details-dialog,
 .details-menu-inner,
-.inner-banner
+.inner-banner,
+.tab-box,
+.tab,
+.active-tab
 {
     background: #f9f9fa;
     color:  #0c0c0d;
@@ -112,7 +115,10 @@ html.dark :link:active.button,
 html.dark :visited.button,
 html.dark :visited:active.button,
 html.dark .details-dialog-summary,
-html.dark .details-menu-summary {
+html.dark .details-menu-summary,
+html.dark .tab-box,
+html.dark .tab,
+html.dark .active-tab {
     background: #363959;
     color: #f9f9fa;
 }
@@ -296,7 +302,10 @@ textarea,
 :link.button,
 :visited.button,
 .details-dialog-summary,
-.details-menu-summary {
+.details-menu-summary,
+.tab-box,
+.tab,
+.active-tab {
     font-family: -apple-system,BlinkMacSystemFont,Segoe UI,Helvetica,Arial,sans-serif,Apple Color Emoji,Segoe UI Emoji,Segoe UI Symbol;
     font-size: 100%;
     line-height: 1.3;
@@ -329,7 +338,10 @@ select,
 :link.button,
 :visited.button,
 .details-dialog-summary,
-.details-menu-summary {
+.details-menu-summary,
+.tab-box,
+.tab,
+.active-tab {
     border: solid 2px #eee;
     border-bottom-color: #0c0c0d;
     border-right-color: #0c0c0d;
@@ -348,7 +360,10 @@ html.dark select,
 html.dark :link.button,
 html.dark :visited.button,
 html.dark .details-dialog-summary,
-html.dark .details-menu-summary {
+html.dark .details-menu-summary,
+html.dark .tab,
+html.dark .tab-box,
+html.dark .active-tab {
     border: solid 2px #575765;
     border-bottom-color: #0f1126;
     border-right-color: #0f1126;
@@ -412,7 +427,9 @@ button,
 :link.button,
 :visited.button,
 .details-menu-outer,
-.details-dialog-outer {
+.details-dialog-outer,
+.tab,
+.active-tab {
     display: inline-block;
 }
 
@@ -438,6 +455,28 @@ input[type="submit"],
     -webkit-border-radius: 0;
     border-radius: 0;
     opacity: 1;
+}
+
+.tab,
+.active-tab {
+    border-bottom: none;
+    z-index: 2;
+    position: relative;
+    top: 1px;
+}
+
+.tab {
+    border-width: 1px;
+}
+
+.active-tab {
+    top: 2px;
+    padding-top: 0.125em;
+    border-width: 2px;
+}
+
+.tab-box {
+    overflow: hidden;
 }
 
 button[disabled],

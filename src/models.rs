@@ -1830,7 +1830,7 @@ fn relative_date(dt: &NaiveDateTime) -> String {
     v_htmlescape::escape(&h.to_text_en(Accuracy::Rough, Tense::Past)).to_string()
 }
 
-struct PrettifyData<'a> {
+pub struct PrettifyData<'a> {
     conn: &'a MoreInterestingConn,
     post_id: i32,
     has_tag_cache: HashSet<String>,
@@ -1838,7 +1838,7 @@ struct PrettifyData<'a> {
     domain_map_cache: HashMap<String, String>,
 }
 impl<'a> PrettifyData<'a> {
-    fn new(conn: &'a MoreInterestingConn, post_id: i32) -> PrettifyData<'a> {
+    pub fn new(conn: &'a MoreInterestingConn, post_id: i32) -> PrettifyData<'a> {
         PrettifyData {
             conn, post_id,
             has_tag_cache: HashSet::new(),
