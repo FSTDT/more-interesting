@@ -30,14 +30,15 @@
             <p class=post-banner-desc>{{{posts.0.banner_desc}}}</p>
         {{/if}}
         <article>
-            <h2 class=article-header>{{#if is_private}}🔒 {{/if}}{{{posts.0.title_html}}}</h2>
+            <h2 class=article-header>{{#if is_private}}<span class=article-header-inner>🔒 </span>{{/if}}{{{posts.0.title_html}}}</h2>
             {{#if posts.0.excerpt_html}}
                 <main>{{{posts.0.excerpt_html}}}</main>
             {{/if}}
             <footer class=footer-container>
             <div class=footer-main>
-            submitted by <a href="@{{posts.0.submitted_by_username}}">{{posts.0.submitted_by_username}}</a>
-            <local-date title="{{posts.0.created_at}}+00:00">{{posts.0.created_at_relative}}</local-date>
+            <a href="@{{posts.0.submitted_by_username}}">@{{posts.0.submitted_by_username}}</a>
+            submitted
+            <a is=local-date href="" title="{{posts.0.created_at}}+00:00">{{posts.0.created_at_relative}}</local-date>
             {{#if starred_by}}
                 starred by
                 {{#each starred_by}}
@@ -64,23 +65,23 @@
         </article>
         <h3 id=comments>{{posts.0.comment_count}} comments</h3>
         {{#each legacy_comments}}
-            <aside id="{{this.id}}"><details open><summary title="Hide comment" class=module-summary>Show comment</summary>
-                <main class=main-aside>{{{this.html}}}</main>
-                <footer>
+            <aside id="{{this.id}}"><details open><summary title="Hide comment" class=module-summary>old comment posted by {{this.author}}</summary>
+                <header class=aside-header>
                     old comment posted by {{this.author}}
-                    <local-date title="{{this.created_at}}+00:00">{{this.created_at_relative}}</local-date>
-                    <a href="#{{this.id}}">#{{this.id}}</a>
-                </footer>
+                    <a is=local-date href="#{{this.id}}" class="top-header-link footer-aside" title="{{this.created_at}}+00:00">{{this.created_at_relative}} #{{this.id}}</local-date>
+                </header>
+                <main>{{{this.html}}}</main>
             </details></aside>
         {{/each}}
         {{#each comments}}
-            <aside id="{{this.id}}"><details open><summary title="Hide comment" class=module-summary>Show comment</summary>
-                <main class=main-aside>{{{this.html}}}</main>
+            <aside id="{{this.id}}"><details open><summary title="Hide comment" class=module-summary>@{{this.created_by_username}}</summary>
+                <header class=aside-header>
+                    <a href="@{{this.created_by_username}}" class=top-header-link>@{{this.created_by_username}}</a>
+                    <a is=local-date href="#{{this.id}}" class="top-header-link footer-aside" title="{{this.created_at}}+00:00">{{this.created_at_relative}} #{{this.id}}</a>
+                </header>
+                <main>{{{this.html}}}</main>
                 <footer class=footer-container>
                     <div class=footer-main>
-                    posted by <a href="@{{this.created_by_username}}">{{this.created_by_username}}</a>
-                    <local-date title="{{this.created_at}}+00:00">{{this.created_at_relative}}</local-date>
-                    <a href="#{{this.id}}">#{{this.id}}</a>
                     {{#if this.starred_by}}
                         starred by
                         {{#each this.starred_by}}
@@ -89,7 +90,8 @@
                         {{/each}}
                     {{/if}}
                     </div>
-                    <form class=footer-aside action="vote-comment?redirect={{posts.0.uuid}}&U={{../session.uuid}}" method=POST>
+                    <form class=footer-aside action="vote-comment?redirect={{../posts.0.uuid}}&U={{../session.uuid}}" method=POST>
+                        <a href="reply-comment?comment={{this.id}}&post={{../posts.0.uuid}}" class=button>↩️ Reply</a>
                     {{#if (or (gte ../user.trust_level 3) (eq this.created_by ../user.id))}}
                         <a href="edit-comment?comment={{this.id}}" class=button>Edit</a>
                     {{/if}}
@@ -98,7 +100,7 @@
                         <img width=12 height=12 class=good-img src=assets/{{#if this.starred_by_me}}star_active.svg{{else}}star.svg{{/if}} alt="{{#if this.starred_by_me}}Remove star{{else}}Add star{{/if}}">
                     </button>
                     {{#if (gte ../user.trust_level 1)}}
-                        <button class={{#if this.flagged_by_me}}flag-button-active{{else}}""{{/if}} name="{{#if this.flagged_by_me}}rm_flag_comment{{else}}add_flag_comment{{/if}}" value={{this.uuid}} title="{{#if this.flagged_by_me}}Remove flag{{else}}Add flag{{/if}}">
+                        <button class={{#if this.flagged_by_me}}flag-button-active{{else}}""{{/if}} name="{{#if this.flagged_by_me}}rm_flag_comment{{else}}add_flag_comment{{/if}}" value={{this.id}} title="{{#if this.flagged_by_me}}Remove flag{{else}}Add flag{{/if}}">
                             <img width=12 height=12 class=good-img src=assets/{{#if this.flagged_by_me}}flag_active{{else}}flag{{/if}}.svg alt="{{#if this.flagged_by_me}}Remove flag{{else}}Add flag{{/if}}">
                         </button>
                     {{/if}}

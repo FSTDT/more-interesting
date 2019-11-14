@@ -17,6 +17,10 @@ export class SmartTextAreaElement extends HTMLElement {
         this.textarea.addEventListener("cut", this._change.bind(this));
         this.textarea.addEventListener("paste", this._change.bind(this));
         this.textarea.addEventListener("drop", this._change.bind(this));
+        if (this.textarea.autofocus) {
+            this.textarea.focus();
+            this.textarea.setSelectionRange(this.textarea.value.length, this.textarea.value.length);
+        }
     }
     _change() {
         this.pre.innerHTML = "";

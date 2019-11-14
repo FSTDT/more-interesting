@@ -22,7 +22,7 @@
             <label>Search <input {{#if keywords_param}}value="{{keywords_param}}"{{/if}} name=q autofocus type=search required></label>
             <div class=form-footer>
                 <button class=button-default>Search</button>
-                <details-dialog-close><a href="." class=button>Cancel</a></details-dialog-close>
+                <a href="" onclick="return !window.DetailsDialogElement" class=button data-close-dialog>Cancel</a>
             </div>
         </form>
     </details-dialog>

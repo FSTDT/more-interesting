@@ -1,4 +1,4 @@
-export class LocalDateElement extends HTMLElement {
+export class LocalDateElement extends HTMLAnchorElement {
     constructor() {
         super();
         if (this.hasAttribute("title")) {
@@ -16,12 +16,9 @@ export class LocalDateElement extends HTMLElement {
             this.addEventListener("click", this._clickEvent);
         }
     }
-    _clickEvent(e) {
-        alert(e.target.getAttribute("title"));
-    }
 }
 
 if (!window.customElements.get('local-date')) {
     window.LocalDateElement = LocalDateElement;
-    window.customElements.define('local-date', LocalDateElement);
+    window.customElements.define('local-date', LocalDateElement, { extends: "a" });
 }

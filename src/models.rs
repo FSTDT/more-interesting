@@ -1021,6 +1021,32 @@ impl MoreInterestingConn {
         use self::comments::dsl::*;
         comments.find(comment_id_value).get_result::<Comment>(&self.0)
     }
+    pub fn get_comment_info_by_id(&self, comment_id_value: i32, user_id_param: i32) -> Result<CommentInfo, DieselError> {
+        use self::comments::dsl::*;
+        use self::comment_stars::dsl::*;
+        use self::comment_flags::dsl::*;
+        use self::users::dsl::*;
+        comments
+            .left_outer_join(comment_stars.on(self::comment_stars::dsl::comment_id.eq(self::comments::dsl::id).and(self::comment_stars::dsl::user_id.eq(user_id_param))))
+            .left_outer_join(comment_flags.on(self::comment_flags::dsl::comment_id.eq(self::comments::dsl::id).and(self::comment_flags::dsl::user_id.eq(user_id_param))))
+            .inner_join(users)
+            .select((
+                self::comments::dsl::id,
+                self::comments::dsl::text,
+                self::comments::dsl::html,
+                self::comments::dsl::visible,
+                self::comments::dsl::post_id,
+                self::comments::dsl::created_at,
+                self::comments::dsl::created_by,
+                self::comment_stars::dsl::comment_id.nullable(),
+                self::comment_flags::dsl::comment_id.nullable(),
+                self::users::dsl::username,
+            ))
+            .filter(visible.eq(true))
+            .filter(self::comments::dsl::id.eq(comment_id_value))
+            .get_result::<(i32, String, String, bool, i32, NaiveDateTime, i32, Option<i32>, Option<i32>, String)>(&self.0)
+            .map(|t| tuple_to_comment_info(self, t))
+    }
     pub fn create_domain(&self, new_domain: NewDomain) -> Result<Domain, DieselError> {
         use self::domains::dsl::*;
         diesel::insert_into(domains)
@@ -1089,7 +1115,7 @@ impl MoreInterestingConn {
         use self::users::dsl::*;
         let all: Vec<CommentInfo> = comments
             .left_outer_join(comment_stars.on(self::comment_stars::dsl::comment_id.eq(self::comments::dsl::id).and(self::comment_stars::dsl::user_id.eq(user_id_param))))
-            .left_outer_join(comment_flags.on(self::comment_stars::dsl::comment_id.eq(self::comments::dsl::id).and(self::comment_flags::dsl::user_id.eq(user_id_param))))
+            .left_outer_join(comment_flags.on(self::comment_flags::dsl::comment_id.eq(self::comments::dsl::id).and(self::comment_flags::dsl::user_id.eq(user_id_param))))
             .inner_join(users)
             .select((
                 self::comments::dsl::id,

@@ -37,7 +37,8 @@ textarea:focus,
     z-index: 10;
     position: relative;
 }
-.details-menu-summary:focus {
+.details-menu-summary:focus,
+aside:target {
     box-shadow: 0 0 0 2px #0a84ff, 0 0 0 6px #b1d6fc;
     box-shadow: 0 0 0 2px #0a84ff, 0 0 0 6px rgba(10, 132, 255, 0.3);
     position: relative;
@@ -599,8 +600,15 @@ html.dark .inner-link:link {
 
 article, aside {
     display: block;
-    border: solid 1px #0c0c0d;
+    border: solid 1px #aaa;
     position: relative;
+}
+
+.aside-header {
+    padding: 0.25em 0.5em;
+    margin-bottom: 0.5em;
+    background: #363959;
+    color: #fff;
 }
 
 article {
@@ -688,6 +696,7 @@ details[open] .module-summary {
     overflow: hidden;
     margin-left: 0;
     list-style-type: none;
+    padding-right: 0;
 }
 
 details[open] .module-summary:before {
@@ -725,6 +734,7 @@ details[open] .module-summary:before {
     margin-left: -1.5em;
     list-style-type: none;
     cursor: default;
+    padding-right: 0.5em;
 }
 
 article .module-summary {
@@ -886,14 +896,6 @@ details-dialog {
 
 .inline-form {
     display: inline;
-}
-
-p {
-    margin-top: 0;
-}
-
-local-date {
-    border-bottom: dotted 1px currentColor;
 }
 
 .good-img {
