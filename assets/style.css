@@ -30,12 +30,16 @@ select:focus,
 :link:focus,
 :visited:focus,
 .details-dialog-summary:focus,
-.details-menu-summary:focus,
 textarea:focus,
 .smart-textarea:focus {
     box-shadow: 0 0 0 2px #0a84ff, 0 0 0 6px #b1d6fc;
     box-shadow: 0 0 0 2px #0a84ff, 0 0 0 6px rgba(10, 132, 255, 0.3);
     z-index: 10;
+    position: relative;
+}
+.details-menu-summary:focus {
+    box-shadow: 0 0 0 2px #0a84ff, 0 0 0 6px #b1d6fc;
+    box-shadow: 0 0 0 2px #0a84ff, 0 0 0 6px rgba(10, 132, 255, 0.3);
     position: relative;
 }
 
@@ -123,7 +127,7 @@ html.big {
 nav, .page-wrapper {
     max-width: 90em;
     margin: 0 auto;
-    padding: 1em;
+    padding: 1em 5em;
 }
 
 html.big nav, html.big .page-wrapper {
@@ -600,7 +604,7 @@ article, aside {
 }
 
 article {
-    margin-top: 1.5em;
+    margin-top: 2.5em;
     margin-bottom: 3em;
     padding: 0 0 0 0.25em;
 }
@@ -609,7 +613,28 @@ aside {
     margin: 0.5em 0.5em 0 0;
 }
 
+.top-header {
+    background: #363959;
+    border-bottom: solid 1px #0f1126;
+    box-shadow: 0 1px 0 #0c0c0d;
+    color: #fff;
+    padding: 0 5em;
+    overflow: visible;
+}
+.top-header-link, html.dark .top-header-link {
+    color: #fff;
+}
+.top-header-aside {
+    float: right;
+}
+
 @media (max-width:90em) {
+    .top-header {
+        padding: 0 1em;
+    }
+    .page-wrapper {
+        padding: 1em;
+    }
     article {
         margin-left: 0.25em;
     }
@@ -636,7 +661,7 @@ html.dark article, html.dark aside {
     margin-top: -1.5em;
     margin-bottom: -0.5px;
     margin-right: 5em;
-    padding: 0 0.5em;
+    padding: 0.5em;
     display: block;
     font-weight: inherit;
     font-size: inherit;
@@ -649,23 +674,8 @@ html.dark article, html.dark aside {
     outline: none;
     display: inline-block;
     overflow: hidden;
-    margin: 0 -0.25em;
-    margin: 0 calc(-0.25em + 1px);
-}
-
-.top-header {
-    background: #363959;
-    border-bottom: solid 1px #0f1126;
-    box-shadow: 0 1px 0 #0c0c0d;
-    color: #fff;
-    padding: 0;
-    overflow: visible;
-}
-.top-header-link, html.dark .top-header-link {
-    color: #fff;
-}
-.top-header-aside {
-    float: right;
+    margin: -0.5em -0.25em;
+    margin: -0.5em calc(-0.25em + 1px);
 }
 
 details[open] .module-summary {
@@ -917,17 +927,13 @@ main, .main {
     line-height: 1.62;
     display: block;
     overflow: hidden;
-    padding: 0 0.5em;
+    padding: 0.25em 0.5em;
+    margin-top: -0.5em;
 }
 .main-mini {
     font-size: inherit;
     font-family: inherit;
     padding: 0.5em;
-    padding-top: 0;
-}
-
-.main-aside {
-    padding-top: 0.25em;
 }
 
 .form-footer {

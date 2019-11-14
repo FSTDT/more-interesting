@@ -13,6 +13,7 @@
         <a class=top-header-link href="/">{{{config.site_title_html}}}</a>
         <details-menu-bar class=top-header-aside role=menubar>
             {{~> view-search-box ~}}
+            <span>
             {{#if user.username}}
                 <details class="details-menu-outer backwards" role=menuitem>
                     <summary class="details-menu-summary backwards" aria-haspopup=menu>+</summary>
@@ -65,6 +66,7 @@
                     </div>
                 </details>
             {{/if}}
+            </span>
         </details-menu-bar>
     </nav>
     {{~> nav-second~}}
