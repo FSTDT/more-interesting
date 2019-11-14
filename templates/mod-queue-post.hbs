@@ -6,8 +6,8 @@
             {{/if}}
             <footer class=footer-container>
                 <div class=footer-main>
-                submitted by <a href="@{{posts.0.submitted_by_username}}">{{posts.0.submitted_by_username}}</a>
-                <local-date title="{{posts.0.created_at}}+00:00">{{posts.0.created_at_relative}}</local-date>
+                <a href="@{{posts.0.submitted_by_username}}">@{{posts.0.submitted_by_username}}</a> submitted
+                <a is=local-date href="{{posts.0.uuid}}" title="{{posts.0.created_at}}+00:00">{{posts.0.created_at_relative}}</local-date>
                 {{#if starred_by}}
                     starred by
                     {{#each starred_by}}
@@ -26,12 +26,14 @@
             </footer>
         </article>
         {{#each comments}}
-            <aside id="{{this.id}}"><details><summary title="Hide comment" class=module-summary>Show comment</summary>
+            <aside id="{{this.id}}"><details open><summary title="Hide comment" class=module-summary>@{{this.created_by_username}}</summary>
+                <header class=aside-header>
+                    <a href="@{{this.created_by_username}}" class=top-header-link>@{{this.created_by_username}}</a>
+                    <a is=local-date href="#{{this.id}}" class="top-header-link footer-aside" title="{{this.created_at}}+00:00">{{this.created_at_relative}} #{{this.id}}</a>
+                </header>
                 <main>{{{this.html}}}</main>
-                <footer>
-                    posted by <a href="@{{this.created_by_username}}">{{this.created_by_username}}</a>
-                    <local-date title="{{this.created_at}}+00:00">{{this.created_at_relative}}</local-date>
-                    <a href="#{{this.id}}">#{{this.id}}</a>
+                <footer class=footer-container>
+                    <div class=footer-main>
                     {{#if this.starred_by}}
                         starred by
                         {{#each this.starred_by}}
@@ -39,6 +41,8 @@
                             {{#unless @last}},{{/unless}}
                         {{/each}}
                     {{/if}}
+                    </div>
+                    </form>
                 </footer>
             </details></aside>
         {{/each}}

@@ -30,12 +30,17 @@ select:focus,
 :link:focus,
 :visited:focus,
 .details-dialog-summary:focus,
-.details-menu-summary:focus,
 textarea:focus,
 .smart-textarea:focus {
     box-shadow: 0 0 0 2px #0a84ff, 0 0 0 6px #b1d6fc;
     box-shadow: 0 0 0 2px #0a84ff, 0 0 0 6px rgba(10, 132, 255, 0.3);
     z-index: 10;
+    position: relative;
+}
+.details-menu-summary:focus,
+aside:target {
+    box-shadow: 0 0 0 2px #0a84ff, 0 0 0 6px #b1d6fc;
+    box-shadow: 0 0 0 2px #0a84ff, 0 0 0 6px rgba(10, 132, 255, 0.3);
     position: relative;
 }
 
@@ -75,7 +80,10 @@ article,
 aside,
 details-dialog,
 .details-menu-inner,
-.inner-banner
+.inner-banner,
+.tab-box,
+.tab,
+.active-tab
 {
     background: #f9f9fa;
     color:  #0c0c0d;
@@ -107,7 +115,10 @@ html.dark :link:active.button,
 html.dark :visited.button,
 html.dark :visited:active.button,
 html.dark .details-dialog-summary,
-html.dark .details-menu-summary {
+html.dark .details-menu-summary,
+html.dark .tab-box,
+html.dark .tab,
+html.dark .active-tab {
     background: #363959;
     color: #f9f9fa;
 }
@@ -123,7 +134,7 @@ html.big {
 nav, .page-wrapper {
     max-width: 90em;
     margin: 0 auto;
-    padding: 1em;
+    padding: 1em 5em;
 }
 
 html.big nav, html.big .page-wrapper {
@@ -291,7 +302,10 @@ textarea,
 :link.button,
 :visited.button,
 .details-dialog-summary,
-.details-menu-summary {
+.details-menu-summary,
+.tab-box,
+.tab,
+.active-tab {
     font-family: -apple-system,BlinkMacSystemFont,Segoe UI,Helvetica,Arial,sans-serif,Apple Color Emoji,Segoe UI Emoji,Segoe UI Symbol;
     font-size: 100%;
     line-height: 1.3;
@@ -324,7 +338,10 @@ select,
 :link.button,
 :visited.button,
 .details-dialog-summary,
-.details-menu-summary {
+.details-menu-summary,
+.tab-box,
+.tab,
+.active-tab {
     border: solid 2px #eee;
     border-bottom-color: #0c0c0d;
     border-right-color: #0c0c0d;
@@ -343,7 +360,10 @@ html.dark select,
 html.dark :link.button,
 html.dark :visited.button,
 html.dark .details-dialog-summary,
-html.dark .details-menu-summary {
+html.dark .details-menu-summary,
+html.dark .tab,
+html.dark .tab-box,
+html.dark .active-tab {
     border: solid 2px #575765;
     border-bottom-color: #0f1126;
     border-right-color: #0f1126;
@@ -407,7 +427,9 @@ button,
 :link.button,
 :visited.button,
 .details-menu-outer,
-.details-dialog-outer {
+.details-dialog-outer,
+.tab,
+.active-tab {
     display: inline-block;
 }
 
@@ -433,6 +455,28 @@ input[type="submit"],
     -webkit-border-radius: 0;
     border-radius: 0;
     opacity: 1;
+}
+
+.tab,
+.active-tab {
+    border-bottom: none;
+    z-index: 2;
+    position: relative;
+    top: 1px;
+}
+
+.tab {
+    border-width: 1px;
+}
+
+.active-tab {
+    top: 2px;
+    padding-top: 0.125em;
+    border-width: 2px;
+}
+
+.tab-box {
+    overflow: hidden;
 }
 
 button[disabled],
@@ -595,12 +639,19 @@ html.dark .inner-link:link {
 
 article, aside {
     display: block;
-    border: solid 1px #0c0c0d;
+    border: solid 1px #aaa;
     position: relative;
 }
 
+.aside-header {
+    padding: 0.25em 0.5em;
+    margin-bottom: 0.5em;
+    background: #363959;
+    color: #fff;
+}
+
 article {
-    margin-top: 1.5em;
+    margin-top: 2.5em;
     margin-bottom: 3em;
     padding: 0 0 0 0.25em;
 }
@@ -609,7 +660,28 @@ aside {
     margin: 0.5em 0.5em 0 0;
 }
 
+.top-header {
+    background: #363959;
+    border-bottom: solid 1px #0f1126;
+    box-shadow: 0 1px 0 #0c0c0d;
+    color: #fff;
+    padding: 0 5em;
+    overflow: visible;
+}
+.top-header-link, html.dark .top-header-link {
+    color: #fff;
+}
+.top-header-aside {
+    float: right;
+}
+
 @media (max-width:90em) {
+    .top-header {
+        padding: 0 1em;
+    }
+    .page-wrapper {
+        padding: 1em;
+    }
     article {
         margin-left: 0.25em;
     }
@@ -636,7 +708,7 @@ html.dark article, html.dark aside {
     margin-top: -1.5em;
     margin-bottom: -0.5px;
     margin-right: 5em;
-    padding: 0 0.5em;
+    padding: 0.5em;
     display: block;
     font-weight: inherit;
     font-size: inherit;
@@ -649,23 +721,8 @@ html.dark article, html.dark aside {
     outline: none;
     display: inline-block;
     overflow: hidden;
-    margin: 0 -0.25em;
-    margin: 0 calc(-0.25em + 1px);
-}
-
-.top-header {
-    background: #363959;
-    border-bottom: solid 1px #0f1126;
-    box-shadow: 0 1px 0 #0c0c0d;
-    color: #fff;
-    padding: 0;
-    overflow: visible;
-}
-.top-header-link, html.dark .top-header-link {
-    color: #fff;
-}
-.top-header-aside {
-    float: right;
+    margin: -0.5em -0.25em;
+    margin: -0.5em calc(-0.25em + 1px);
 }
 
 details[open] .module-summary {
@@ -678,6 +735,7 @@ details[open] .module-summary {
     overflow: hidden;
     margin-left: 0;
     list-style-type: none;
+    padding-right: 0;
 }
 
 details[open] .module-summary:before {
@@ -715,6 +773,7 @@ details[open] .module-summary:before {
     margin-left: -1.5em;
     list-style-type: none;
     cursor: default;
+    padding-right: 0.5em;
 }
 
 article .module-summary {
@@ -878,14 +937,6 @@ details-dialog {
     display: inline;
 }
 
-p {
-    margin-top: 0;
-}
-
-local-date {
-    border-bottom: dotted 1px currentColor;
-}
-
 .good-img {
     width: 0.75em;
     height: 0.75em;
@@ -917,17 +968,13 @@ main, .main {
     line-height: 1.62;
     display: block;
     overflow: hidden;
-    padding: 0 0.5em;
+    padding: 0.25em 0.5em;
+    margin-top: -0.5em;
 }
 .main-mini {
     font-size: inherit;
     font-family: inherit;
     padding: 0.5em;
-    padding-top: 0;
-}
-
-.main-aside {
-    padding-top: 0.25em;
 }
 
 .form-footer {

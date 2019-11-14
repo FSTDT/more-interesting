@@ -105,6 +105,8 @@ struct TemplateContext {
     is_subscribed: bool,
     notifications: Vec<NotificationInfo>,
     excerpt: Option<String>,
+    comment_preview_text: String,
+    comment_preview_html: String,
 }
 
 #[derive(Clone, Copy, Eq, PartialEq)]
@@ -857,6 +859,7 @@ fn get_comments(conn: MoreInterestingConn, login: Option<LoginSession>, uuid: St
 struct CommentForm {
     text: String,
     post: Base32,
+    preview: Option<String>,
 }
 
 #[post("/comment", data = "<comment>")]
@@ -885,6 +888,46 @@ fn post_comment(conn: MoreInterestingConn, login: LoginSession, comment: Form<Co
         Redirect::to(comment.post.to_string()),
         if visible { "Your comment has been posted" } else { "Your comment will be posted after a mod gets a chance to look at it" }
     ))
+}
+
+#[post("/preview-comment", data = "<comment>")]
+fn preview_comment(conn: MoreInterestingConn, login: LoginSession, comment: Form<CommentForm>, config: State<SiteConfig>) -> Option<impl Responder<'static>> {
+    use models::{BodyFormat, PrettifyData};
+    let (user, session) = (login.user, login.session);
+    let post_info = conn.get_post_info_by_uuid(user.id, comment.post).into_option()?;
+    let comments = conn.get_comments_from_post(post_info.id, user.id).unwrap_or_else(|e| {
+        warn!("Failed to get comments: {:?}", e);
+        Vec::new()
+    });
+    let legacy_comments = conn.get_legacy_comments_from_post(post_info.id, user.id).unwrap_or_else(|e| {
+        warn!("Failed to get comments: {:?}", e);
+        Vec::new()
+    });
+    let post_id = post_info.id;
+    let title = Cow::Owned(post_info.title.clone());
+    let notifications = conn.list_notifications(user.id).unwrap_or(Vec::new());
+    let is_private = post_info.private;
+    let is_subscribed = conn.is_subscribed(post_info.id, user.id).unwrap_or(false);
+    let comment_preview_text = comment.text.clone();
+    let comment_preview_html = if comment.preview == Some(String::from("edit")) {
+        String::new()
+    } else {
+        let mut data = PrettifyData::new(&conn, post_id);
+        let html_and_stuff = match config.body_format {
+            BodyFormat::Plain => crate::prettify::prettify_body(&comment_preview_text, &mut data),
+            BodyFormat::BBCode => crate::prettify::prettify_body_bbcode(&comment_preview_text, &mut data),
+        };
+        html_and_stuff.string
+    };
+    Some(Template::render("comments", &TemplateContext {
+        posts: vec![post_info],
+        starred_by: conn.get_post_starred_by(post_id).unwrap_or(Vec::new()),
+        config: config.clone(),
+        comments, user, title, legacy_comments, session,
+        notifications, is_private, is_subscribed,
+        comment_preview_text, comment_preview_html,
+        ..default()
+    }))
 }
 
 #[derive(FromForm)]
@@ -1300,6 +1343,29 @@ fn edit_comment(conn: MoreInterestingConn, login: LoginSession, form: Form<EditC
 }
 
 #[derive(FromForm)]
+struct GetReplyComment {
+    comment: i32,
+    post: Base32,
+}
+
+#[get("/reply-comment?<comment..>")]
+fn get_reply_comment(conn: MoreInterestingConn, login: LoginSession, flash: Option<FlashMessage>, comment: Form<GetReplyComment>, config: State<SiteConfig>) -> Option<impl Responder<'static>> {
+    let post = conn.get_post_info_by_uuid(login.user.id, comment.post).ok()?;
+    let comment = conn.get_comment_info_by_id(comment.comment, login.user.id).ok()?;
+    if comment.post_id != post.id { return None; }
+    Some(Template::render("reply-comment", &TemplateContext {
+        title: Cow::Borrowed("reply to comment"),
+        alert: flash.map(|f| f.msg().to_owned()),
+        config: config.clone(),
+        comments: vec![comment],
+        posts: vec![post],
+        user: login.user,
+        session: login.session,
+        ..default()
+    }))
+}
+
+#[derive(FromForm)]
 struct ChangePasswordForm {
     old_password: String,
     new_password: String,
@@ -1691,7 +1757,7 @@ fn main() {
             }
             Ok(rocket)
         }))
-        .mount("/", routes![index, login_form, login, logout, create_link_form, create_post_form, create, get_comments, vote, signup, get_settings, create_invite, invite_tree, change_password, post_comment, vote_comment, get_admin_tags, admin_tags, get_tags, edit_post, get_edit_post, edit_comment, get_edit_comment, set_dark_mode, set_big_mode, mod_log, get_mod_queue, moderate_post, moderate_comment, get_public_signup, rebake, random, redirect_legacy_id, latest, rss, top, banner_post, robots_txt, search_comments, new, get_admin_domains, admin_domains, create_message_form, create_message, subscriptions, post_subscriptions])
+        .mount("/", routes![index, login_form, login, logout, create_link_form, create_post_form, create, get_comments, vote, signup, get_settings, create_invite, invite_tree, change_password, post_comment, vote_comment, get_admin_tags, admin_tags, get_tags, edit_post, get_edit_post, edit_comment, get_edit_comment, set_dark_mode, set_big_mode, mod_log, get_mod_queue, moderate_post, moderate_comment, get_public_signup, rebake, random, redirect_legacy_id, latest, rss, top, banner_post, robots_txt, search_comments, new, get_admin_domains, admin_domains, create_message_form, create_message, subscriptions, post_subscriptions, get_reply_comment, preview_comment])
         .mount("/assets", StaticFiles::from("assets"))
         .attach(Template::custom(|engines| {
             engines.handlebars.register_helper("count", Box::new(count_helper));

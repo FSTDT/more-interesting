@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <html class="{{#if user.dark_mode}}dark{{/if}} {{#if user.big_mode}}big{{/if}}">
 <meta name=viewport content="width=device-width">
-<link rel=stylesheet href="assets/style.css?30">
+<link rel=stylesheet href="assets/style.css?31">
 <link rel=alternate type=application/rss+xml href=rss>
 <style>{{{config.custom_css}}}</style>
 <title>{{title}}</title>
@@ -13,6 +13,7 @@
         <a class=top-header-link href="/">{{{config.site_title_html}}}</a>
         <details-menu-bar class=top-header-aside role=menubar>
             {{~> view-search-box ~}}
+            <span>
             {{#if user.username}}
                 <details class="details-menu-outer backwards" role=menuitem>
                     <summary class="details-menu-summary backwards" aria-haspopup=menu>+</summary>
@@ -65,6 +66,7 @@
                     </div>
                 </details>
             {{/if}}
+            </span>
         </details-menu-bar>
     </nav>
     {{~> nav-second~}}
@@ -101,9 +103,9 @@
 <script>
     var s = document.createElement("script");
     if (window.HTMLDetailsElement && window.URLSearchParams && window.customElements && window.moreInterestingIsAsyncAvailable && window.fetch) {
-        s.src = "assets/dist/modern.min.js?30";
+        s.src = "assets/dist/modern.min.js?31";
     } else {
-        s.src = "assets/dist/legacy.min.js?30";
+        s.src = "assets/dist/legacy.min.js?31";
     }
     s.defer = true;
     s.async = true;
