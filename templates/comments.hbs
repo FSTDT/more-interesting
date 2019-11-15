@@ -68,15 +68,15 @@
             <aside id="{{this.id}}"><details open><summary title="Hide comment" class=module-summary>old comment posted by {{this.author}}</summary>
                 <header class=aside-header>
                     old comment posted by {{this.author}}
-                    <a is=local-date href="#{{this.id}}" class="top-header-link footer-aside" title="{{this.created_at}}+00:00">{{this.created_at_relative}} #{{this.id}}</local-date>
+                    <a is=local-date href="#{{this.id}}" class="top-header-link footer-aside" title="{{this.created_at}}+00:00">{{this.created_at_relative}} #{{this.id}}</a>
                 </header>
                 <main>{{{this.html}}}</main>
             </details></aside>
         {{/each}}
         {{#each comments}}
-            <aside id="{{this.id}}"><details open><summary title="Hide comment" class=module-summary>@{{this.created_by_username}}</summary>
+            <aside id="{{this.id}}"><details open><summary title="Hide comment" class=module-summary>posted by {{this.created_by_username}}</summary>
                 <header class=aside-header>
-                    <a href="@{{this.created_by_username}}" class=top-header-link>@{{this.created_by_username}}</a>
+                    <a href="@{{this.created_by_username}}" class=top-header-link>posted by {{this.created_by_username}}</a>
                     <a is=local-date href="#{{this.id}}" class="top-header-link footer-aside" title="{{this.created_at}}+00:00">{{this.created_at_relative}} #{{this.id}}</a>
                 </header>
                 <main>{{{this.html}}}</main>
