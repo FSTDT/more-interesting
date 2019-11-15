@@ -458,19 +458,21 @@ input[type="submit"],
 }
 
 .tab,
-.active-tab {
+.active-tab,
+html.dark .tab,
+html.dark .active-tab {
     border-bottom: none;
     z-index: 2;
     position: relative;
     top: 1px;
 }
 
-.tab {
+.tab, html.dark .tab {
     border-width: 1px;
     background: transparent none;
 }
 
-.active-tab {
+.active-tab, html.dark .active-tab {
     top: 0.26em;
     padding-top: 0.125em;
     padding-bottom: 0.125em;
