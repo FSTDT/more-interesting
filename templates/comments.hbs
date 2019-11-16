@@ -91,7 +91,7 @@
                     {{/if}}
                     </div>
                     <form class=footer-aside action="vote-comment?redirect={{../posts.0.uuid}}&U={{../session.uuid}}" method=POST>
-                        <a href="reply-comment?comment={{this.id}}&post={{../posts.0.uuid}}" class=button>↩️ Reply</a>
+                        {{#if ../user.id}}<a href="reply-comment?comment={{this.id}}&post={{../posts.0.uuid}}" class=button>↩️ Reply</a>{{/if}}
                     {{#if (or (gte ../user.trust_level 3) (eq this.created_by ../user.id))}}
                         <a href="edit-comment?comment={{this.id}}" class=button>Edit</a>
                     {{/if}}
