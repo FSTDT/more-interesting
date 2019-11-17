@@ -2,7 +2,7 @@ use rocket_contrib::databases::diesel::PgConnection;
 use diesel::prelude::*;
 use diesel::result::Error as DieselError;
 use chrono::NaiveDateTime;
-use crate::schema::{users, user_sessions, posts, stars, invite_tokens, comments, comment_stars, tags, post_tagging, moderation, flags, comment_flags, domains, legacy_comments, domain_synonyms, notifications, subscriptions};
+use crate::schema::{site_customization, users, user_sessions, posts, stars, invite_tokens, comments, comment_stars, tags, post_tagging, moderation, flags, comment_flags, domains, legacy_comments, domain_synonyms, notifications, subscriptions};
 use crate::password::{password_hash, password_verify, PasswordResult};
 use serde::Serialize;
 use crate::base32::Base32;
@@ -119,6 +119,13 @@ impl Default for UserSession {
             created_at: NaiveDateTime::from_timestamp(0, 0),
         }
     }
+}
+
+#[derive(Insertable, Queryable, QueryableByName, Serialize)]
+#[table_name="site_customization"]
+pub struct SiteCustomization {
+    pub name: String,
+    pub value: String,
 }
 
 pub struct NewPost<'a> {
@@ -389,6 +396,32 @@ impl PostSearch {
 pub struct MoreInterestingConn(PgConnection);
 
 impl MoreInterestingConn {
+    pub fn set_customization(&self, new: SiteCustomization) -> Result<(), DieselError> {
+        use self::site_customization::dsl::*;
+        let affected_rows = if self.get_customization_value(&new.name).is_some() {
+            diesel::update(site_customization.find(&new.name))
+                .set(value.eq(&new.value))
+                .execute(&self.0)?
+        } else {
+            diesel::insert_into(site_customization)
+                .values(new)
+                .execute(&self.0)?
+        };
+        assert_eq!(affected_rows, 1);
+        Ok(())
+    }
+    pub fn get_customizations(&self) -> Result<Vec<SiteCustomization>, DieselError> {
+        use self::site_customization::dsl::*;
+        site_customization.get_results::<SiteCustomization>(&self.0)
+    }
+    pub fn get_customization_value(&self, name_param: &str) -> Option<String> {
+        use self::site_customization::dsl::*;
+        site_customization
+            .select(value)
+            .filter(name.eq(name_param))
+            .get_result::<String>(&self.0)
+            .ok()
+    }
     pub fn create_notification(&self, new: NewNotification) -> Result<(), DieselError> {
         diesel::insert_into(notifications::table)
             .values(new)

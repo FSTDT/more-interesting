@@ -1,4 +1,7 @@
 {{#*inline "page"}}
+{{#if customization.link_submit_notice_html}}
+<div class=inner-banner>{{customization.link_submit_notice_html}}</div>
+{{/if}}
   <form action="{{#if user.id}}?U={{session.uuid}}{{/if}}" method=POST>
       <label>URL <input name=url required></label>
       <label>Title and #hashtags <input name=title autofocus is="smart-punct-input"></label>

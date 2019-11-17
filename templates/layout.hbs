@@ -3,14 +3,14 @@
 <meta name=viewport content="width=device-width">
 <link rel=stylesheet href="assets/style.css?31">
 <link rel=alternate type=application/rss+xml href=rss>
-<style>{{{config.custom_css}}}</style>
+<style>{{{customization.css}}}</style>
 <title>{{title}}</title>
 {{#if is_private}}
 <meta name="ROBOTS" content="NOINDEX, NOFOLLOW">
 {{/if}}
 <header class=top-header>
     <nav>
-        <a class=top-header-link href="/">{{{config.site_title_html}}}</a>
+        <a class=top-header-link href="/">{{{customization.title}}}</a>
         <details-menu-bar class=top-header-aside role=menubar>
             {{~> view-search-box ~}}
             <span>
@@ -89,9 +89,9 @@
         <a href=new class=top-header-link>New</a> &bull;
         <a href=assets/{{docs config.body_format}} class=top-header-link>Documentation</a>
     </nav>
-    {{# if config.custom_footer_html}}
+    {{# if customization.custom_footer_html}}
         <nav class=nav-second>
-            {{{config.custom_footer_html}}}
+            {{{customization.custom_footer_html}}}
         </div>
     {{/if}}
 </footer>
