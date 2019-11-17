@@ -117,7 +117,7 @@
     </div>
     <div class=tab-box>
     <form action="comment?U={{session.uuid}}" method=POST id=comment-form>
-        <aside><header class=aside-header>@{{user.username}}</header><main>{{{comment_preview_html}}}</main></aside>
+        <aside><header class=aside-header>{{user.username}} commented</header><main>{{{comment_preview_html}}}</main></aside>
         <input type=hidden name=text value="{{comment_preview_text}}">
         <input type=hidden name=post value="{{posts.0.uuid}}">
         <span style="float:left;margin-top:1em;position:relative;top:2px"><button>Add comment</button>&nbsp;</span>
