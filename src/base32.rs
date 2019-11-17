@@ -101,7 +101,7 @@ impl Base32 {
 impl<DB> FromSql<BigInt, DB> for Base32
     where DB: diesel::backend::Backend,
           i64: FromSql<BigInt, DB> {
-    fn from_sql(bytes: Option<&DB::RawValue>) -> Result<Self, Box<dyn Error + Send + Sync>> {
+    fn from_sql(bytes: Option<diesel::backend::RawValue<DB>>) -> Result<Self, Box<dyn Error + Send + Sync>> {
         i64::from_sql(bytes).map(Into::into)
     }
 }
