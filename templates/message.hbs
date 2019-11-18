@@ -1,6 +1,6 @@
 {{#*inline "page"}}
 {{#if customization.message_send_notice_html}}
-<div class=inner-banner>{{customization.message_send_notice_html}}</div>
+<div class=inner-banner>{{{customization.message_send_notice_html}}}</div>
 {{/if}}
     <form action="message?U={{session.uuid}}" method=POST>
         <label>Title <input name=title autofocus required is="smart-punct-input"></label>
