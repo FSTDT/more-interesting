@@ -4,7 +4,7 @@ CREATE TABLE site_customization (
 );
 
 INSERT INTO site_customization (name, value) VALUES
-    ('title', 'more-interesting instance'),
+    ('title', 'More Interesting'),
     ('css', ''),
     ('custom_footer_html', ''),
     ('front_notice_html', 'Welcome to our site!'),
