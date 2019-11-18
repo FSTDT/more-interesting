@@ -1,6 +1,6 @@
 {{#*inline "page"}}
 {{#if customization.blog_post_notice_html}}
-<div class=inner-banner>{{customization.blog_post_notice_html}}</div>
+<div class=inner-banner>{{{customization.blog_post_notice_html}}}</div>
 {{/if}}
     <form action="submit{{#if user.id}}?U={{session.uuid}}{{/if}}" method=POST>
         <label>Title and #hashtags <input name=title autofocus required is="smart-punct-input"></label>
