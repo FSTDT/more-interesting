@@ -10,6 +10,7 @@ extern crate rocket_contrib;
 #[macro_use]
 extern crate log;
 
+mod customization;
 mod schema;
 mod models;
 mod password;
@@ -24,6 +25,7 @@ use rocket::request::{Form, FlashMessage, LenientForm};
 use rocket::response::{Responder, Redirect, Flash, Content};
 use rocket::http::{Cookies, Cookie, ContentType};
 pub use models::MoreInterestingConn;
+use crate::customization::Customization;
 use models::User;
 use models::UserAuth;
 use rocket::http::{SameSite, Status};
@@ -31,7 +33,7 @@ use rocket_contrib::serve::StaticFiles;
 use rocket_contrib::templates::{Template, handlebars};
 use serde::{Serialize, Serializer};
 use std::borrow::Cow;
-use crate::models::{NotificationInfo, NewNotification, NewSubscription, PostSearch, PostSearchOrderBy, UserSession, PostInfo, NewStar, NewUser, CommentInfo, NewPost, NewComment, NewStarComment, NewTag, Tag, Comment, ModerationInfo, NewFlag, NewFlagComment, LegacyComment, CommentSearchResult, DomainSynonym, DomainSynonymInfo, NewDomain};
+use crate::models::{SiteCustomization, NotificationInfo, NewNotification, NewSubscription, PostSearch, PostSearchOrderBy, UserSession, PostInfo, NewStar, NewUser, CommentInfo, NewPost, NewComment, NewStarComment, NewTag, Tag, Comment, ModerationInfo, NewFlag, NewFlagComment, LegacyComment, CommentSearchResult, DomainSynonym, DomainSynonymInfo, NewDomain};
 use base32::Base32;
 use url::Url;
 use std::collections::HashMap;
@@ -50,11 +52,6 @@ struct SiteConfig {
     enable_public_signup: bool,
     #[serde(with = "url_serde")]
     public_url: Url,
-    custom_css: String,
-    site_title_html: String,
-    custom_footer_html: String,
-    comments_placeholder_html: String,
-    front_notice_html: String,
     hide_text_post: bool,
     hide_link_post: bool,
     body_format: models::BodyFormat,
@@ -67,11 +64,6 @@ impl Default for SiteConfig {
             enable_anonymous_submissions: false,
             enable_public_signup: false,
             public_url: Url::parse("http://localhost").unwrap(),
-            site_title_html: String::new(),
-            custom_footer_html: String::new(),
-            comments_placeholder_html: String::new(),
-            front_notice_html: String::new(),
-            custom_css: String::new(),
             hide_text_post: false,
             hide_link_post: false,
             body_format: models::BodyFormat::Plain,
@@ -98,6 +90,7 @@ struct TemplateContext {
     domain: Option<String>,
     keywords_param: Option<String>,
     config: SiteConfig,
+    customization: Customization,
     log: Vec<ModerationInfo>,
     is_home: bool,
     is_me: bool,
@@ -113,6 +106,7 @@ struct TemplateContext {
 enum AdminPage {
     Tags = 0,
     Domains = 1,
+    Customization = 2,
 }
 
 impl Serialize for AdminPage {
@@ -140,6 +134,7 @@ struct AdminTemplateContext {
     domain_synonyms: Vec<DomainSynonymInfo>,
     config: SiteConfig,
     page: AdminPage,
+    site_customization: Vec<SiteCustomization>,
 }
 
 fn default<T: Default>() -> T { T::default() }
@@ -343,10 +338,9 @@ fn parse_index_params(conn: &MoreInterestingConn, user: &User, params: Option<Fo
 }
 
 #[get("/?<params..>")]
-fn index(conn: MoreInterestingConn, login: Option<LoginSession>, flash: Option<FlashMessage>, params: Option<Form<IndexParams>>, config: State<SiteConfig>) -> Option<impl Responder<'static>> {
+fn index(conn: MoreInterestingConn, login: Option<LoginSession>, flash: Option<FlashMessage>, params: Option<Form<IndexParams>>, config: State<SiteConfig>, customization: Customization) -> Option<impl Responder<'static>> {
     let (user, session) = login.map(|l| (l.user, l.session)).unwrap_or((User::default(), UserSession::default()));
 
-    let title = Cow::Owned(config.site_title_html.clone());
     let tag_param = params.as_ref().and_then(|params| Some(params.tag.as_ref()?.to_string()));
     let domain = params.as_ref().and_then(|params| Some(params.domain.as_ref()?.to_string()));
     let keywords_param = params.as_ref().and_then(|params| Some(params.q.as_ref()?.to_string()));
@@ -355,9 +349,11 @@ fn index(conn: MoreInterestingConn, login: Option<LoginSession>, flash: Option<F
     let posts = conn.search_posts(&search).ok()?;
     let notifications = conn.list_notifications(user.id).unwrap_or(Vec::new());
     let is_private = keywords_param.is_some() && search.after_post_id != 0;
+    let title = Cow::Owned(customization.title.clone());
     Some(Template::render("index", &TemplateContext {
         alert: flash.map(|f| f.msg().to_owned()),
         config: config.clone(),
+        customization,
         title, user, posts, is_home,
         tags, session, tag_param, domain, keywords_param,
         notifications, is_private,
@@ -372,7 +368,7 @@ struct SearchCommentsParams {
 }
 
 #[get("/comments?<params..>")]
-fn search_comments(conn: MoreInterestingConn, login: Option<LoginSession>, flash: Option<FlashMessage>, params: Option<Form<SearchCommentsParams>>, config: State<SiteConfig>) -> Option<impl Responder<'static>> {
+fn search_comments(conn: MoreInterestingConn, login: Option<LoginSession>, flash: Option<FlashMessage>, params: Option<Form<SearchCommentsParams>>, config: State<SiteConfig>, customization: Customization) -> Option<impl Responder<'static>> {
     let (user, session) = login.map(|l| (l.user, l.session)).unwrap_or((User::default(), UserSession::default()));
     if let Some(username) = params.as_ref().and_then(|params| params.user.as_ref()) {
         let by_user = conn.get_user_by_username(&username[..]).into_option()?;
@@ -386,6 +382,7 @@ fn search_comments(conn: MoreInterestingConn, login: Option<LoginSession>, flash
         Some(Template::render("profile-comments", &TemplateContext {
             alert: flash.map(|f| f.msg().to_owned()),
             config: config.clone(),
+            customization,
             is_me: by_user.id == user.id,
             title, user, comment_search_result, session,
             notifications,
@@ -397,7 +394,7 @@ fn search_comments(conn: MoreInterestingConn, login: Option<LoginSession>, flash
 }
 
 #[get("/top?<params..>")]
-fn top(conn: MoreInterestingConn, login: Option<LoginSession>, flash: Option<FlashMessage>, config: State<SiteConfig>, params: Option<Form<IndexParams>>) -> Option<impl Responder<'static>> {
+fn top(conn: MoreInterestingConn, login: Option<LoginSession>, flash: Option<FlashMessage>, config: State<SiteConfig>, params: Option<Form<IndexParams>>, customization: Customization) -> Option<impl Responder<'static>> {
     let (user, session) = login.map(|l| (l.user, l.session)).unwrap_or((User::default(), UserSession::default()));
     let tag_param = params.as_ref().and_then(|params| Some(params.tag.as_ref()?.to_string()));
     let domain = params.as_ref().and_then(|params| Some(params.domain.as_ref()?.to_string()));
@@ -414,7 +411,9 @@ fn top(conn: MoreInterestingConn, login: Option<LoginSession>, flash: Option<Fla
     Some(Template::render("index-top", &TemplateContext {
         title: Cow::Borrowed("top"),
         alert: flash.map(|f| f.msg().to_owned()),
-        config: config.clone(), is_home, keywords_param,
+        config: config.clone(),
+        customization,
+        is_home, keywords_param,
         user, posts, session, tags, tag_param, domain,
         notifications, is_private,
         ..default()
@@ -422,7 +421,7 @@ fn top(conn: MoreInterestingConn, login: Option<LoginSession>, flash: Option<Fla
 }
 
 #[get("/subscriptions?<params..>")]
-fn subscriptions(conn: MoreInterestingConn, login: Option<LoginSession>, flash: Option<FlashMessage>, config: State<SiteConfig>, params: Option<Form<IndexParams>>) -> Option<impl Responder<'static>> {
+fn subscriptions(conn: MoreInterestingConn, login: Option<LoginSession>, flash: Option<FlashMessage>, config: State<SiteConfig>, params: Option<Form<IndexParams>>, customization: Customization) -> Option<impl Responder<'static>> {
     let (user, session) = login.map(|l| (l.user, l.session)).unwrap_or((User::default(), UserSession::default()));
     let tag_param = params.as_ref().and_then(|params| Some(params.tag.as_ref()?.to_string()));
     let domain = params.as_ref().and_then(|params| Some(params.domain.as_ref()?.to_string()));
@@ -439,7 +438,9 @@ fn subscriptions(conn: MoreInterestingConn, login: Option<LoginSession>, flash: 
     Some(Template::render("subscriptions", &TemplateContext {
         title: Cow::Borrowed("top"),
         alert: flash.map(|f| f.msg().to_owned()),
-        config: config.clone(), is_home, keywords_param,
+        config: config.clone(),
+        customization,
+        is_home, keywords_param,
         user, posts, session, tags, tag_param, domain,
         notifications,
         ..default()
@@ -477,7 +478,7 @@ fn post_subscriptions(conn: MoreInterestingConn, login: LoginSession, form: Form
 }
 
 #[get("/new?<params..>")]
-fn new(conn: MoreInterestingConn, login: Option<LoginSession>, flash: Option<FlashMessage>, config: State<SiteConfig>, params: Option<Form<IndexParams>>) -> Option<impl Responder<'static>> {
+fn new(conn: MoreInterestingConn, login: Option<LoginSession>, flash: Option<FlashMessage>, config: State<SiteConfig>, params: Option<Form<IndexParams>>, customization: Customization) -> Option<impl Responder<'static>> {
     let (user, session) = login.map(|l| (l.user, l.session)).unwrap_or((User::default(), UserSession::default()));
     let tag_param = params.as_ref().and_then(|params| Some(params.tag.as_ref()?.to_string()));
     let domain = params.as_ref().and_then(|params| Some(params.domain.as_ref()?.to_string()));
@@ -494,7 +495,9 @@ fn new(conn: MoreInterestingConn, login: Option<LoginSession>, flash: Option<Fla
     Some(Template::render("index-new", &TemplateContext {
         title: Cow::Borrowed("new"),
         alert: flash.map(|f| f.msg().to_owned()),
-        config: config.clone(), is_home, keywords_param,
+        config: config.clone(),
+        customization,
+        is_home, keywords_param,
         user, posts, session, tags, tag_param, domain,
         notifications, is_private,
         ..default()
@@ -502,7 +505,7 @@ fn new(conn: MoreInterestingConn, login: Option<LoginSession>, flash: Option<Fla
 }
 
 #[get("/latest?<params..>")]
-fn latest(conn: MoreInterestingConn, login: Option<LoginSession>, params: Option<Form<IndexParams>>, flash: Option<FlashMessage>, config: State<SiteConfig>) -> Option<impl Responder<'static>> {
+fn latest(conn: MoreInterestingConn, login: Option<LoginSession>, params: Option<Form<IndexParams>>, flash: Option<FlashMessage>, config: State<SiteConfig>, customization: Customization) -> Option<impl Responder<'static>> {
     let (user, session) = login.map(|l| (l.user, l.session)).unwrap_or((User::default(), UserSession::default()));
     let tag_param = params.as_ref().and_then(|params| Some(params.tag.as_ref()?.to_string()));
     let domain = params.as_ref().and_then(|params| Some(params.domain.as_ref()?.to_string()));
@@ -519,7 +522,9 @@ fn latest(conn: MoreInterestingConn, login: Option<LoginSession>, params: Option
     Some(Template::render("index-latest", &TemplateContext {
         title: Cow::Borrowed("latest"),
         alert: flash.map(|f| f.msg().to_owned()),
-        config: config.clone(), is_home, keywords_param,
+        config: config.clone(),
+        customization,
+        is_home, keywords_param,
         user, posts, session, tags, tag_param, domain,
         notifications, is_private,
         ..default()
@@ -527,7 +532,7 @@ fn latest(conn: MoreInterestingConn, login: Option<LoginSession>, params: Option
 }
 
 #[get("/rss")]
-fn rss(conn: MoreInterestingConn, config: State<SiteConfig>) -> Option<impl Responder<'static>> {
+fn rss(conn: MoreInterestingConn, config: State<SiteConfig>, customization: Customization) -> Option<impl Responder<'static>> {
     let search = PostSearch {
         order_by: PostSearchOrderBy::Newest,
         .. PostSearch::with_my_user_id(0)
@@ -536,11 +541,13 @@ fn rss(conn: MoreInterestingConn, config: State<SiteConfig>) -> Option<impl Resp
     #[derive(Serialize)]
     struct RssContext {
         config: SiteConfig,
+        customization: Customization,
         posts: Vec<PostInfo>,
     }
     Some(Content(ContentType::from_str("application/rss+xml").unwrap(), Template::render("rss", &RssContext {
         posts,
         config: config.clone(),
+        customization,
     })))
 }
 
@@ -551,7 +558,7 @@ struct ModLogParams {
 }
 
 #[get("/mod-log?<params..>")]
-fn mod_log(conn: MoreInterestingConn, login: Option<LoginSession>, flash: Option<FlashMessage>, params: Option<Form<ModLogParams>>, config: State<SiteConfig>) -> impl Responder<'static> {
+fn mod_log(conn: MoreInterestingConn, login: Option<LoginSession>, flash: Option<FlashMessage>, params: Option<Form<ModLogParams>>, config: State<SiteConfig>, customization: Customization) -> impl Responder<'static> {
     let (user, session) = login.map(|l| (l.user, l.session)).unwrap_or((User::default(), UserSession::default()));
     let log = if let Some(after) = params.as_ref().and_then(|params| params.after) {
         conn.get_mod_log_starting_with(after)
@@ -563,6 +570,7 @@ fn mod_log(conn: MoreInterestingConn, login: Option<LoginSession>, flash: Option
         title: Cow::Borrowed("moderation"),
         alert: flash.map(|f| f.msg().to_owned()),
         config: config.clone(),
+        customization,
         user, log, session,
         notifications,
         ..default()
@@ -570,22 +578,24 @@ fn mod_log(conn: MoreInterestingConn, login: Option<LoginSession>, flash: Option
 }
 
 #[get("/post")]
-fn create_post_form(login: Option<LoginSession>, config: State<SiteConfig>) -> impl Responder<'static> {
+fn create_post_form(login: Option<LoginSession>, config: State<SiteConfig>, customization: Customization) -> impl Responder<'static> {
     let (user, session) = login.map(|l| (l.user, l.session)).unwrap_or((User::default(), UserSession::default()));
     Template::render("post", &TemplateContext {
         title: Cow::Borrowed("post"),
         config: config.clone(),
+        customization,
         user, session,
         ..default()
     })
 }
 
 #[get("/submit")]
-fn create_link_form(login: Option<LoginSession>, config: State<SiteConfig>) -> impl Responder<'static> {
+fn create_link_form(login: Option<LoginSession>, config: State<SiteConfig>, customization: Customization) -> impl Responder<'static> {
     let (user, session) = login.map(|l| (l.user, l.session)).unwrap_or((User::default(), UserSession::default()));
     Template::render("submit", &TemplateContext {
         title: Cow::Borrowed("submit"),
         config: config.clone(),
+        customization,
         user, session,
         ..default()
     })
@@ -668,7 +678,7 @@ fn create(login: Option<LoginSession>, conn: MoreInterestingConn, post: Form<New
 }
 
 #[get("/message")]
-fn create_message_form(login: LoginSession, config: State<SiteConfig>) -> Option<impl Responder<'static>> {
+fn create_message_form(login: LoginSession, config: State<SiteConfig>, customization: Customization) -> Option<impl Responder<'static>> {
     let (user, session) = (login.user, login.session);
     if user.trust_level < 2 {
         return None;
@@ -676,6 +686,7 @@ fn create_message_form(login: LoginSession, config: State<SiteConfig>) -> Option
     Some(Template::render("message", &TemplateContext {
         title: Cow::Borrowed("message"),
         config: config.clone(),
+        customization,
         user, session,
         ..default()
     }))
@@ -740,10 +751,11 @@ fn create_message(login: LoginSession, conn: MoreInterestingConn, post: Form<New
 }
 
 #[get("/login")]
-fn login_form(config: State<SiteConfig>, flash: Option<FlashMessage>) -> impl Responder<'static> {
+fn login_form(config: State<SiteConfig>, flash: Option<FlashMessage>, customization: Customization) -> impl Responder<'static> {
     Template::render("login", &TemplateContext {
         title: Cow::Borrowed("log in"),
         config: config.clone(),
+        customization,
         alert: flash.map(|f| f.msg().to_owned()),
         ..default()
     })
@@ -784,7 +796,7 @@ fn logout(mut cookies: Cookies) -> impl Responder<'static> {
 }
 
 #[get("/<uuid>", rank = 1)]
-fn get_comments(conn: MoreInterestingConn, login: Option<LoginSession>, uuid: String, config: State<SiteConfig>, flash: Option<FlashMessage>) -> Result<impl Responder<'static>, Status> {
+fn get_comments(conn: MoreInterestingConn, login: Option<LoginSession>, uuid: String, config: State<SiteConfig>, flash: Option<FlashMessage>, customization: Customization) -> Result<impl Responder<'static>, Status> {
     let (user, session) = login.map(|l| (l.user, l.session)).unwrap_or((User::default(), UserSession::default()));
     if uuid.len() > 0 && &uuid[..1] == "@" {
         let username = &uuid[1..];
@@ -803,6 +815,7 @@ fn get_comments(conn: MoreInterestingConn, login: Option<LoginSession>, uuid: St
             title: Cow::Owned(username.to_owned()),
             alert: flash.map(|f| f.msg().to_owned()),
             config: config.clone(),
+            customization,
             is_me: user_info.id == user.id,
             posts, user, session,
             notifications,
@@ -838,6 +851,7 @@ fn get_comments(conn: MoreInterestingConn, login: Option<LoginSession>, uuid: St
             alert: flash.map(|f| f.msg().to_owned()),
             starred_by: conn.get_post_starred_by(post_id).unwrap_or(Vec::new()),
             config: config.clone(),
+            customization,
             comments, user, title, legacy_comments, session,
             notifications, is_private, is_subscribed,
             ..default()
@@ -847,6 +861,7 @@ fn get_comments(conn: MoreInterestingConn, login: Option<LoginSession>, uuid: St
             title: Cow::Borrowed("signup"),
             invite_token: Some(uuid),
             config: config.clone(),
+            customization,
             session,
             ..default()
         }))
@@ -891,7 +906,7 @@ fn post_comment(conn: MoreInterestingConn, login: LoginSession, comment: Form<Co
 }
 
 #[post("/preview-comment", data = "<comment>")]
-fn preview_comment(conn: MoreInterestingConn, login: LoginSession, comment: Form<CommentForm>, config: State<SiteConfig>) -> Option<impl Responder<'static>> {
+fn preview_comment(conn: MoreInterestingConn, login: LoginSession, comment: Form<CommentForm>, config: State<SiteConfig>, customization: Customization) -> Option<impl Responder<'static>> {
     use models::{BodyFormat, PrettifyData};
     let (user, session) = (login.user, login.session);
     let post_info = conn.get_post_info_by_uuid(user.id, comment.post).into_option()?;
@@ -923,6 +938,7 @@ fn preview_comment(conn: MoreInterestingConn, login: LoginSession, comment: Form
         posts: vec![post_info],
         starred_by: conn.get_post_starred_by(post_id).unwrap_or(Vec::new()),
         config: config.clone(),
+        customization,
         comments, user, title, legacy_comments, session,
         notifications, is_private, is_subscribed,
         comment_preview_text, comment_preview_html,
@@ -972,7 +988,7 @@ fn signup(conn: MoreInterestingConn, user_agent: UserAgentString, form: Form<Sig
 }
 
 #[get("/signup")]
-fn get_public_signup(flash: Option<FlashMessage>, config: State<SiteConfig>) -> Result<impl Responder<'static>, Status> {
+fn get_public_signup(flash: Option<FlashMessage>, config: State<SiteConfig>, customization: Customization) -> Result<impl Responder<'static>, Status> {
     if !config.enable_public_signup {
         return Err(Status::NotFound);
     }
@@ -980,18 +996,20 @@ fn get_public_signup(flash: Option<FlashMessage>, config: State<SiteConfig>) -> 
         title: Cow::Borrowed("sign up"),
         alert: flash.map(|f| f.msg().to_owned()),
         config: config.clone(),
+        customization,
         ..default()
     }))
 }
 
 #[get("/settings")]
-fn get_settings(_conn: MoreInterestingConn, login: LoginSession, flash: Option<FlashMessage>, config: State<SiteConfig>) -> impl Responder<'static> {
+fn get_settings(_conn: MoreInterestingConn, login: LoginSession, flash: Option<FlashMessage>, config: State<SiteConfig>, customization: Customization) -> impl Responder<'static> {
     let user = login.user;
     let session = login.session;
     Template::render("settings", &TemplateContext {
         title: Cow::Borrowed("settings"),
         alert: flash.map(|f| f.msg().to_owned()),
         config: config.clone(),
+        customization,
         user, session,
         ..default()
     })
@@ -1044,20 +1062,21 @@ fn create_invite<'a>(conn: MoreInterestingConn, login: LoginSession, config: Sta
 }
 
 #[get("/tags")]
-fn get_tags(conn: MoreInterestingConn, login: Option<LoginSession>, config: State<SiteConfig>) -> impl Responder<'static> {
+fn get_tags(conn: MoreInterestingConn, login: Option<LoginSession>, config: State<SiteConfig>, customization: Customization) -> impl Responder<'static> {
     let (user, session) = login.map(|l| (l.user, l.session)).unwrap_or((User::default(), UserSession::default()));
     assert!((user.id == 0) ^ (user.username != ""));
     let tags = conn.get_all_tags().unwrap_or(Vec::new());
     Template::render("tags", &TemplateContext {
         title: Cow::Borrowed("all tags"),
         config: config.clone(),
+        customization,
         tags, user, session,
         ..default()
     })
 }
 
 #[get("/@")]
-fn invite_tree(conn: MoreInterestingConn, login: Option<LoginSession>, config: State<SiteConfig>) -> impl Responder<'static> {
+fn invite_tree(conn: MoreInterestingConn, login: Option<LoginSession>, config: State<SiteConfig>, customization: Customization) -> impl Responder<'static> {
     let (user, session) = login.map(|l| (l.user, l.session)).unwrap_or((User::default(), UserSession::default()));
 
     assert!((user.id == 0) ^ (user.username != ""));
@@ -1080,6 +1099,7 @@ fn invite_tree(conn: MoreInterestingConn, login: Option<LoginSession>, config: S
     Template::render("users", &TemplateContext {
         title: Cow::Borrowed("user invite tree"),
         config: config.clone(),
+        customization,
         user, raw_html, session,
         ..default()
     })
@@ -1167,13 +1187,50 @@ fn admin_domains(conn: MoreInterestingConn, _login: ModeratorSession, form: Form
     }
 }
 
+#[get("/admin/customization")]
+fn get_admin_customization(conn: MoreInterestingConn, login: ModeratorSession, flash: Option<FlashMessage>, config: State<SiteConfig>) -> impl Responder<'static> {
+    let site_customization = conn.get_customizations().unwrap_or(Vec::new());
+    Template::render("admin/customization", &AdminTemplateContext {
+        title: Cow::Borrowed("site customization"),
+        user: login.user,
+        session: login.session,
+        alert: flash.map(|f| f.msg().to_owned()),
+        config: config.clone(),
+        page: AdminPage::Customization,
+        site_customization, ..default()
+    })
+}
+
+#[derive(FromForm)]
+struct EditSiteCustomizationForm {
+    name: String,
+    value: String,
+}
+
+#[post("/admin/customization", data = "<form>")]
+fn admin_customization(conn: MoreInterestingConn, _login: ModeratorSession, form: Form<EditSiteCustomizationForm>) -> Option<impl Responder<'static>> {
+    let result = conn.set_customization(SiteCustomization {
+        name: form.name.clone(),
+        value: form.value.clone(),
+    });
+    match result {
+        Ok(_) => {
+            Some(Flash::success(Redirect::to(uri!(get_admin_customization)), "Updated customization"))
+        }
+        Err(e) => {
+            warn!("Unable to update customization: {:?}", e);
+            Some(Flash::error(Redirect::to(uri!(get_admin_customization)), "Unable to update customization"))
+        }
+    }
+}
+
 #[derive(FromForm)]
 struct GetEditPost {
     post: Base32,
 }
 
 #[get("/edit-post?<post..>")]
-fn get_edit_post(conn: MoreInterestingConn, login: ModeratorSession, flash: Option<FlashMessage>, post: Form<GetEditPost>, config: State<SiteConfig>) -> Option<impl Responder<'static>> {
+fn get_edit_post(conn: MoreInterestingConn, login: ModeratorSession, flash: Option<FlashMessage>, post: Form<GetEditPost>, config: State<SiteConfig>, customization: Customization) -> Option<impl Responder<'static>> {
     let post_info = conn.get_post_info_by_uuid(login.user.id, post.post).ok()?;
     let post = conn.get_post_by_id(post_info.id).ok()?;
     Some(Template::render("edit-post", &TemplateContext {
@@ -1182,6 +1239,7 @@ fn get_edit_post(conn: MoreInterestingConn, login: ModeratorSession, flash: Opti
         session: login.session,
         alert: flash.map(|f| f.msg().to_owned()),
         config: config.clone(),
+        customization,
         excerpt: post.excerpt,
         posts: vec![post_info],
         ..default()
@@ -1273,7 +1331,7 @@ struct GetEditComment {
 }
 
 #[get("/edit-comment?<comment..>")]
-fn get_edit_comment(conn: MoreInterestingConn, login: LoginSession, flash: Option<FlashMessage>, comment: Form<GetEditComment>, config: State<SiteConfig>) -> Option<impl Responder<'static>> {
+fn get_edit_comment(conn: MoreInterestingConn, login: LoginSession, flash: Option<FlashMessage>, comment: Form<GetEditComment>, config: State<SiteConfig>, customization: Customization) -> Option<impl Responder<'static>> {
     let comment = conn.get_comment_by_id(comment.comment).ok()?;
     if login.user.trust_level < 3 && comment.created_by != login.user.id {
         return None;
@@ -1282,6 +1340,7 @@ fn get_edit_comment(conn: MoreInterestingConn, login: LoginSession, flash: Optio
         title: Cow::Borrowed("edit comment"),
         alert: flash.map(|f| f.msg().to_owned()),
         config: config.clone(),
+        customization,
         comment: Some(comment),
         user: login.user,
         session: login.session,
@@ -1349,7 +1408,7 @@ struct GetReplyComment {
 }
 
 #[get("/reply-comment?<comment..>")]
-fn get_reply_comment(conn: MoreInterestingConn, login: LoginSession, flash: Option<FlashMessage>, comment: Form<GetReplyComment>, config: State<SiteConfig>) -> Option<impl Responder<'static>> {
+fn get_reply_comment(conn: MoreInterestingConn, login: LoginSession, flash: Option<FlashMessage>, comment: Form<GetReplyComment>, config: State<SiteConfig>, customization: Customization) -> Option<impl Responder<'static>> {
     let post = conn.get_post_info_by_uuid(login.user.id, comment.post).ok()?;
     let comment = conn.get_comment_info_by_id(comment.comment, login.user.id).ok()?;
     if comment.post_id != post.id { return None; }
@@ -1357,6 +1416,7 @@ fn get_reply_comment(conn: MoreInterestingConn, login: LoginSession, flash: Opti
         title: Cow::Borrowed("reply to comment"),
         alert: flash.map(|f| f.msg().to_owned()),
         config: config.clone(),
+        customization,
         comments: vec![comment],
         posts: vec![post],
         user: login.user,
@@ -1390,7 +1450,7 @@ fn change_password(conn: MoreInterestingConn, login: LoginSession, form: Form<Ch
 }
 
 #[get("/mod-queue")]
-fn get_mod_queue(conn: MoreInterestingConn, login: ModeratorSession, flash: Option<FlashMessage>, config: State<SiteConfig>) -> Result<impl Responder<'static>, Status> {
+fn get_mod_queue(conn: MoreInterestingConn, login: ModeratorSession, flash: Option<FlashMessage>, config: State<SiteConfig>, customization: Customization) -> Result<impl Responder<'static>, Status> {
     let user = login.user;
     let session = login.session;
     let mod_a_comment: bool = rand::random();
@@ -1401,6 +1461,7 @@ fn get_mod_queue(conn: MoreInterestingConn, login: ModeratorSession, flash: Opti
                 title: Cow::Borrowed("moderate comment"),
                 alert: flash.map(|f| f.msg().to_owned()),
                 config: config.clone(),
+                customization,
                 comments: vec![comment_info],
                 posts: vec![post_info],
                 user, session,
@@ -1417,6 +1478,7 @@ fn get_mod_queue(conn: MoreInterestingConn, login: ModeratorSession, flash: Opti
             title: Cow::Borrowed("moderate post"),
             alert: flash.map(|f| f.msg().to_owned()),
             config: config.clone(),
+            customization,
             posts: vec![post_info],
             user, session, comments,
             ..default()
@@ -1428,6 +1490,7 @@ fn get_mod_queue(conn: MoreInterestingConn, login: ModeratorSession, flash: Opti
             title: Cow::Borrowed("moderate comment"),
             alert: flash.map(|f| f.msg().to_owned()),
             config: config.clone(),
+            customization,
             comments: vec![comment_info],
             posts: vec![post_info],
             user, session,
@@ -1438,6 +1501,7 @@ fn get_mod_queue(conn: MoreInterestingConn, login: ModeratorSession, flash: Opti
         title: Cow::Borrowed("moderator queue is empty!"),
         alert: flash.map(|f| f.msg().to_owned()),
         config: config.clone(),
+        customization,
         user, session,
         ..default()
     }))
@@ -1718,26 +1782,18 @@ fn main() {
             let enable_user_directory = rocket.config().get_bool("enable_user_directory").unwrap_or(true);
             let enable_anonymous_submissions = rocket.config().get_bool("enable_anonymous_submissions").unwrap_or(false);
             let enable_public_signup = rocket.config().get_bool("enable_public_signup").unwrap_or(false);
-            let site_title_html = rocket.config().get_str("site_title_html").unwrap_or("More Interesting").to_owned();
-            let custom_css = rocket.config().get_str("custom_css").unwrap_or("").to_owned();
             let hide_text_post = rocket.config().get_bool("hide_text_post").unwrap_or(false);
             let hide_link_post = rocket.config().get_bool("hide_link_post").unwrap_or(false);
-            let custom_footer_html = rocket.config().get_str("custom_footer_html").unwrap_or("").to_owned();
-            let comments_placeholder_html = rocket.config().get_str("comments_placeholder_html").unwrap_or("<p>To post a comment, you'll need to <a href=/login>Sign in</a>.</p>").to_owned();
-            let front_notice_html = rocket.config().get_str("front_notice_html").unwrap_or("").to_owned();
             let body_format = match rocket.config().get_str("body_format").unwrap_or("") {
                 "bbcode" => models::BodyFormat::BBCode,
                 _ => models::BodyFormat::Plain,
             };
             Ok(rocket.manage(SiteConfig {
                 enable_user_directory, public_url,
-                site_title_html, custom_css,
                 enable_anonymous_submissions,
                 enable_public_signup,
                 hide_text_post, hide_link_post,
-                custom_footer_html,
-                comments_placeholder_html, body_format,
-                front_notice_html,
+                body_format,
             }))
         }))
         .attach(fairing::AdHoc::on_attach("setup", |rocket| {
@@ -1757,7 +1813,7 @@ fn main() {
             }
             Ok(rocket)
         }))
-        .mount("/", routes![index, login_form, login, logout, create_link_form, create_post_form, create, get_comments, vote, signup, get_settings, create_invite, invite_tree, change_password, post_comment, vote_comment, get_admin_tags, admin_tags, get_tags, edit_post, get_edit_post, edit_comment, get_edit_comment, set_dark_mode, set_big_mode, mod_log, get_mod_queue, moderate_post, moderate_comment, get_public_signup, rebake, random, redirect_legacy_id, latest, rss, top, banner_post, robots_txt, search_comments, new, get_admin_domains, admin_domains, create_message_form, create_message, subscriptions, post_subscriptions, get_reply_comment, preview_comment])
+        .mount("/", routes![index, login_form, login, logout, create_link_form, create_post_form, create, get_comments, vote, signup, get_settings, create_invite, invite_tree, change_password, post_comment, vote_comment, get_admin_tags, admin_tags, get_tags, edit_post, get_edit_post, edit_comment, get_edit_comment, set_dark_mode, set_big_mode, mod_log, get_mod_queue, moderate_post, moderate_comment, get_public_signup, rebake, random, redirect_legacy_id, latest, rss, top, banner_post, robots_txt, search_comments, new, get_admin_domains, admin_domains, create_message_form, create_message, subscriptions, post_subscriptions, get_reply_comment, preview_comment, get_admin_customization, admin_customization])
         .mount("/assets", StaticFiles::from("assets"))
         .attach(Template::custom(|engines| {
             engines.handlebars.register_helper("count", Box::new(count_helper));

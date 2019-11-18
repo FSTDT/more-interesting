@@ -17,9 +17,6 @@
     "ROCKET_PUBLIC_URL": {
       "description": "Where this website will be running (probably <app name>.herokuapp.com)"
     },
-    "ROCKET_SITE_TITLE_HTML": {
-      "description": "What to put in the header"
-    },
     "ROCKET_ENABLE_ANONYMOUS_SUBMISSIONS": {
       "description": "If set to true, users with no account can submit posts that will be subject to manual review",
       "value": "false"

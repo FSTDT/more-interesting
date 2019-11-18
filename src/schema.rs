@@ -159,6 +159,15 @@ table! {
 table! {
     use crate::sql_types::*;
 
+    site_customization (name) {
+        name -> Varchar,
+        value -> Varchar,
+    }
+}
+
+table! {
+    use crate::sql_types::*;
+
     stars (user_id, post_id) {
         user_id -> Int4,
         post_id -> Int4,
@@ -254,6 +263,7 @@ allow_tables_to_appear_in_same_query!(
     post_search_index,
     post_tagging,
     posts,
+    site_customization,
     stars,
     subscriptions,
     tags,

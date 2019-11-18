@@ -2,7 +2,6 @@
 <html class="{{#if user.dark_mode}}dark{{/if}} {{#if user.big_mode}}big{{/if}}">
 <meta name=viewport content="width=device-width">
 <link rel=stylesheet href="../assets/admin.css?27">
-<style>{{{config.custom_css}}}</style>
 <title>{{title}}</title>
 <div class=admin-panel>
     <div class=admin-panel-side>
@@ -10,6 +9,7 @@
         <nav class=admin-list>
             <a class="admin-list-item {{#if (eq page 0)}}current{{/if}}" href="/admin/tags">Tags</a>
             <a class="admin-list-item {{#if (eq page 1)}}current{{/if}}" href="/admin/domains">Domains</a>
+            <a class="admin-list-item {{#if (eq page 2)}}current{{/if}}" href="/admin/customization">Customization</a>
         </nav>
     </div>
     <div class=admin-panel-main>
