@@ -262,21 +262,21 @@ impl FromStr for Base32 {
 }
 
 fn encode(mut number: u64) -> String {
-    if number == 0 {
-        return "2".to_string();
-    }
     let mut encoded = String::new();
     while number != 0 {
         let digit = (number & 0b_11_111) as usize;
         encoded.push(DIGITS[digit]);
         number = number >> 5;
     }
+    if encoded == "" || encoded == "RSS" {
+        encoded.push('2');
+    }
     encoded
 }
 
 fn decode(encoded: &str) -> Result<u64, Base32Error> {
     let mut decoded: u64 = 0;
-    for c in encoded.chars().map(|c| c.to_ascii_uppercase()).rev() {
+    for c in encoded.chars().map(|c| c.to_ascii_uppercase()).map(equiv_chars).rev() {
         if let Some(&digit) = DIGITS_BACK.get(&c) {
             decoded = decoded << 5;
             decoded |= digit as u64;
@@ -285,6 +285,15 @@ fn decode(encoded: &str) -> Result<u64, Base32Error> {
         }
     }
     Ok(decoded)
+}
+
+fn equiv_chars(c: char) -> char {
+    match c {
+        '-' => '_',
+        ' ' => '_',
+        ',' => '.',
+        _ => c,
+    }
 }
 
 #[cfg(test)]
@@ -320,12 +329,23 @@ mod tests {
             h.insert(c);
         }
     }
+    #[test]
+    fn special_urls() {
+        assert_eq!("RSS2", &encode(decode("RSS")));
+        assert_eq!("2", &encode(0));
+    }
+    #[test]
+    fn special_urls_roundtrip() {
+        assert_eq!(decode("RSS2"), decode("RSS"));
+    }
+    #[test]
+    fn equiv_chars() {
+        assert_eq!(decode("-"), decode("_"));
+        assert_eq!(decode(" "), decode("_"));
+    }
     quickcheck!{
         fn prop_round_trip(num: u64) -> bool {
             num == decode(&encode(num)).unwrap()
-        }
-        fn does_not_contain_hyphen(num: u64) -> bool {
-            !encode(num).contains('-')
         }
         fn does_not_percent_encode(num: u64) -> bool {
             use url::percent_encoding::{utf8_percent_encode, DEFAULT_ENCODE_SET};
