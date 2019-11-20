@@ -14,7 +14,7 @@
         {{/if}}
         <footer>
         <a href="@{{this.submitted_by_username}}">{{this.submitted_by_username}}</a> submitted
-        <a is=local-date href={{this.uuid}} title="{{this.created_at}}+00:00">{{this.created_at_relative}}</local-date> and got
+        <a is=local-date href={{this.uuid}} title="{{this.created_at}}+00:00">{{this.created_at_relative}}</a> and got
         <a href="{{this.uuid}}#comments">{{this.comment_count}} comments</a>
         </footer>
     </details></article>
@@ -22,7 +22,7 @@
         <aside id="{{this.id}}">
             <header class=aside-header>
                 <a href="@{{comments.0.created_by_username}}" class=top-header-link>{{comments.0.created_by_username}} commented</a>
-                <a is=local-date href="#{{this.id}}" class="top-header-link footer-aside" title="{{comments.0.created_at}}+00:00">{{comments.0.created_at_relative}} #{{comments.0.id}}</a>
+                <a is=local-date href="#{{this.id}}" class="top-header-link top-header-aside" title="{{comments.0.created_at}}+00:00">{{comments.0.created_at_relative}} #{{comments.0.id}}</a>
             </header>
             <main>{{{comments.0.html}}}</main>
             <footer class=footer-container>

@@ -68,7 +68,7 @@
             <aside id="{{this.id}}"><details open><summary title="Hide comment" class=module-summary>old comment by {{this.author}}</summary>
                 <header class=aside-header>
                     old comment by {{this.author}}
-                    <a is=local-date href="#{{this.id}}" class="top-header-link footer-aside" title="{{this.created_at}}+00:00">{{this.created_at_relative}} #{{this.id}}</a>
+                    <a is=local-date href="#{{this.id}}" class="top-header-link top-header-aside" title="{{this.created_at}}+00:00">{{this.created_at_relative}} #{{this.id}}</a>
                 </header>
                 <main>{{{this.html}}}</main>
             </details></aside>
@@ -77,7 +77,7 @@
             <aside id="{{this.id}}"><details open><summary title="Hide comment" class=module-summary>{{this.created_by_username}} commented</summary>
                 <header class=aside-header>
                     <a href="@{{this.created_by_username}}" class=top-header-link>{{this.created_by_username}} commented</a>
-                    <a is=local-date href="#{{this.id}}" class="top-header-link footer-aside" title="{{this.created_at}}+00:00">{{this.created_at_relative}} #{{this.id}}</a>
+                    <a is=local-date href="#{{this.id}}" class="top-header-link top-header-aside" title="{{this.created_at}}+00:00">{{this.created_at_relative}} #{{this.id}}</a>
                 </header>
                 <main>{{{this.html}}}</main>
                 <footer class=footer-container>
