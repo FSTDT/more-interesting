@@ -1,0 +1,14 @@
+<summary class=inline-summary>
+    {{~#if id~}}
+    {{replace ../customization.post_score_text (count starred_by)}}
+    {{~else~}}
+    {{replace customization.post_score_text (count starred_by)}}
+    {{~/if~}}
+</summary>
+<details-dialog>
+    <ul>
+        {{~#each starred_by~}}
+            <li><a href="@{{this}}">{{this}}</a></li>
+        {{~/each~}}
+    </ul>
+</details-dialog>

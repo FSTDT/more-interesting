@@ -11,4 +11,6 @@ INSERT INTO site_customization (name, value) VALUES
     ('comments_placeholder_html', 'To post a comment, you''ll need to <a href=/login>Sign in</a>.'),
     ('link_submit_notice_html', ''),
     ('blog_post_notice_html', ''),
-    ('message_send_notice_html', '');
+    ('message_send_notice_html', ''),
+    ('post_score_text', 'has {} stars...'),
+    ('comment_score_text', 'has {} stars...');
