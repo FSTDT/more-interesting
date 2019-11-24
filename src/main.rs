@@ -71,6 +71,12 @@ impl Default for SiteConfig {
     }
 }
 
+#[derive(Serialize)]
+struct StarTemplateContext {
+    starred_by: Vec<String>,
+    customization: Customization,
+}
+
 #[derive(Serialize, Default)]
 struct TemplateContext {
     title: Cow<'static, str>,
@@ -165,13 +171,27 @@ struct MaybeRedirect {
 }
 
 impl MaybeRedirect {
-    pub fn maybe_redirect(self) -> Result<impl Responder<'static>, Status> {
+    pub fn maybe_redirect(self) -> Result<Redirect, Status> {
         match self.redirect {
             Some(b) if b == Base32::zero() => Ok(Redirect::to(".")),
             Some(b) => Ok(Redirect::to(b.to_string())),
             None => Err(Status::Created)
         }
     }
+    pub fn maybe_redirect_vote(self) -> VoteResponse {
+        match self.redirect {
+            Some(b) if b == Base32::zero() => VoteResponse::B(Redirect::to(".")),
+            Some(b) => VoteResponse::B(Redirect::to(b.to_string())),
+            None => VoteResponse::C(Status::Created)
+        }
+    }
+}
+
+#[derive(Responder)]
+enum VoteResponse {
+    A(Template),
+    B(Redirect),
+    C(Status)
 }
 
 /*
@@ -192,39 +212,51 @@ struct VoteForm {
     add_flag: Option<Base32>,
 }
 
-#[post("/vote?<redirect..>", data = "<post>")]
-fn vote(conn: MoreInterestingConn, login: LoginSession, redirect: LenientForm<MaybeRedirect>, post: Form<VoteForm>) -> Result<impl Responder<'static>, Status> {
+#[post("/vote?<redirect..>", data = "<p>")]
+fn vote(conn: MoreInterestingConn, login: LoginSession, redirect: LenientForm<MaybeRedirect>, p: Form<VoteForm>, customization: Customization) -> VoteResponse {
     let user = login.user;
-    let result = match (post.add_star, post.rm_star, post.add_flag, post.rm_flag) {
-        (Some(post), None, None, None) => {
-            let post = conn.get_post_info_by_uuid(user.id, post).map_err(|_| Status::NotFound)?;
-            conn.add_star(&NewStar {
+    let (id, result) = match (p.add_star, p.rm_star, p.add_flag, p.rm_flag) {
+        (Some(u), None, None, None) => {
+            let post = match conn.get_post_info_by_uuid(user.id, u) {
+                Ok(post) => post,
+                Err(_) => return VoteResponse::C(Status::NotFound),
+            };
+            (post.id, conn.add_star(&NewStar {
                 user_id: user.id,
                 post_id: post.id,
-            })
+            }))
         }
-        (None, Some(post), None, None) => {
-            let post = conn.get_post_info_by_uuid(user.id, post).map_err(|_| Status::NotFound)?;
-            conn.rm_star(&NewStar {
+        (None, Some(u), None, None) => {
+            let post = match conn.get_post_info_by_uuid(user.id, u) {
+                Ok(post) => post,
+                Err(_) => return VoteResponse::C(Status::NotFound),
+            };
+            (post.id, conn.rm_star(&NewStar {
                 user_id: user.id,
                 post_id: post.id,
-            })
+            }))
         }
-        (None, None, Some(post), None) => {
-            let post = conn.get_post_info_by_uuid(user.id, post).map_err(|_| Status::NotFound)?;
-            conn.add_flag(&NewFlag {
+        (None, None, Some(u), None) => {
+            let post = match conn.get_post_info_by_uuid(user.id, u) {
+                Ok(post) => post,
+                Err(_) => return VoteResponse::C(Status::NotFound),
+            };
+            (post.id, conn.add_flag(&NewFlag {
                 user_id: user.id,
                 post_id: post.id,
-            })
+            }))
         }
-        (None, None, None, Some(post)) => {
-            let post = conn.get_post_info_by_uuid(user.id, post).map_err(|_| Status::NotFound)?;
-            conn.rm_flag(&NewFlag {
+        (None, None, None, Some(u)) => {
+            let post = match conn.get_post_info_by_uuid(user.id, u) {
+                Ok(post) => post,
+                Err(_) => return VoteResponse::C(Status::NotFound),
+            };
+            (post.id, conn.rm_flag(&NewFlag {
                 user_id: user.id,
                 post_id: post.id,
-            })
+            }))
         }
-        _ => false,
+        _ => (0, false),
     };
     if result {
         use chrono::{Utc, Duration};
@@ -233,9 +265,16 @@ fn vote(conn: MoreInterestingConn, login: LoginSession, redirect: LenientForm<Ma
             conn.user_has_received_a_star(user.id) {
             conn.change_user_trust_level(user.id, 1).expect("if voting works, then so should switching trust level")
         }
-        redirect.maybe_redirect()
+        if redirect.redirect.is_some() {
+            redirect.maybe_redirect_vote()
+        } else {
+            let starred_by = conn.get_post_starred_by(id).unwrap_or(Vec::new());
+            VoteResponse::A(Template::render("view-star", &StarTemplateContext {
+                starred_by, customization
+            }))
+        }
     } else {
-        Err(Status::BadRequest)
+        VoteResponse::C(Status::BadRequest)
     }
 }
 
@@ -247,27 +286,27 @@ struct VoteCommentForm {
     rm_flag_comment: Option<i32>,
 }
 
-#[post("/vote-comment?<redirect..>", data = "<comment>")]
-fn vote_comment(conn: MoreInterestingConn, login: LoginSession, redirect: LenientForm<MaybeRedirect>, comment: Form<VoteCommentForm>) -> Result<impl Responder<'static>, Status> {
+#[post("/vote-comment?<redirect..>", data = "<c>")]
+fn vote_comment(conn: MoreInterestingConn, login: LoginSession, redirect: LenientForm<MaybeRedirect>, c: Form<VoteCommentForm>, customization: Customization) -> VoteResponse {
     let user = login.user;
-    let result = match (comment.add_star_comment, comment.rm_star_comment, comment.add_flag_comment, comment.rm_flag_comment) {
-        (Some(comment), None, None, None) => conn.add_star_comment(&NewStarComment{
+    let (id, result) = match (c.add_star_comment, c.rm_star_comment, c.add_flag_comment, c.rm_flag_comment) {
+        (Some(i), None, None, None) => (i, conn.add_star_comment(&NewStarComment{
             user_id: user.id,
-            comment_id: comment,
-        }),
-        (None, Some(comment), None, None) => conn.rm_star_comment(&NewStarComment{
+            comment_id: i,
+        })),
+        (None, Some(i), None, None) => (i, conn.rm_star_comment(&NewStarComment{
             user_id: user.id,
-            comment_id: comment,
-        }),
-        (None, None, Some(comment), None) if user.trust_level >= 1 => conn.add_flag_comment(&NewFlagComment{
+            comment_id: i,
+        })),
+        (None, None, Some(i), None) if user.trust_level >= 1 => (i, conn.add_flag_comment(&NewFlagComment{
             user_id: user.id,
-            comment_id: comment,
-        }),
-        (None, None, None, Some(comment)) => conn.rm_flag_comment(&NewFlagComment{
+            comment_id: i,
+        })),
+        (None, None, None, Some(i)) => (i, conn.rm_flag_comment(&NewFlagComment{
             user_id: user.id,
-            comment_id: comment,
-        }),
-        _ => false,
+            comment_id: i,
+        })),
+        _ => (0, false),
     };
     if result {
         use chrono::{Utc, Duration};
@@ -276,9 +315,16 @@ fn vote_comment(conn: MoreInterestingConn, login: LoginSession, redirect: Lenien
             conn.user_has_received_a_star(user.id) {
             conn.change_user_trust_level(user.id, 1).expect("if voting works, then so should switching trust level")
         }
-        redirect.maybe_redirect()
+        if redirect.redirect.is_some() {
+            redirect.maybe_redirect_vote()
+        } else {
+            let starred_by = conn.get_comment_starred_by(id).unwrap_or(Vec::new());
+            VoteResponse::A(Template::render("view-star-comment", &StarTemplateContext {
+                starred_by, customization,
+            }))
+        }
     } else {
-        Err(Status::BadRequest)
+        VoteResponse::C(Status::BadRequest)
     }
 }
 
@@ -1706,6 +1752,7 @@ Disallow: /mod-log
 Disallow: /login
 Disallow: /signup
 Disallow: /vote
+Disallow: /vote-comment
 Disallow: /submit
 Crawl-delay: {}
 
@@ -1727,16 +1774,6 @@ Disallow: /
 User-agent: MegaIndex
 Disallow: /
 ", crawl_delay)
-}
-
-fn nop_helper(
-    _: &Helper,
-    _: &Handlebars,
-    _: &Context,
-    _: &mut RenderContext,
-    _: &mut dyn Output
-) -> HelperResult {
-    Ok(())
 }
 
 fn docs_helper(
@@ -1764,6 +1801,27 @@ fn count_helper(
     if let Some(param) = h.param(0) {
         if let serde_json::Value::Array(param) = param.value() {
             out.write(&param.len().to_string()) ?;
+        }
+    }
+    Ok(())
+}
+
+fn replace_helper(
+    h: &Helper,
+    _: &Handlebars,
+    _: &Context,
+    _: &mut RenderContext,
+    out: &mut dyn Output
+) -> HelperResult {
+    if let (Some(template), Some(subst)) = (h.param(0), h.param(1)) {
+        if let serde_json::Value::String(template) = template.value() {
+            if let serde_json::Value::String(subst) = subst.value() {
+                let s = template.replace("{}", &subst).to_owned();
+                out.write(&s) ?;
+            } else if let serde_json::Value::Number(subst) = subst.value() {
+                let s = template.replace("{}", &subst.to_string()).to_owned();
+                out.write(&s) ?;
+            }
         }
     }
     Ok(())
@@ -1818,7 +1876,7 @@ fn main() {
         .attach(Template::custom(|engines| {
             engines.handlebars.register_helper("count", Box::new(count_helper));
             engines.handlebars.register_helper("docs", Box::new(docs_helper));
-            engines.handlebars.register_helper("nop", Box::new(nop_helper));
+            engines.handlebars.register_helper("replace", Box::new(replace_helper));
         }))
         .attach(PidFileFairing)
         .launch();

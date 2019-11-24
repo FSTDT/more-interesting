@@ -44,7 +44,7 @@ aside:target {
     position: relative;
 }
 
-:link, :visited {
+:link, :visited, .inline-summary {
     background-image: -webkit-gradient(linear,left top,left bottom,color-stop(50%,transparent),color-stop(50%,#b1b1b3));
     background-image: -webkit-linear-gradient(top,transparent 50%,#b1b1b3 50%);
     background-image: linear-gradient(to bottom,transparent 50%,#b1b1b3 50%);
@@ -679,22 +679,18 @@ aside {
     float: right;
 }
 
-@media (max-width:90em) {
+@media (max-width:75em) {
     .top-header {
         padding: 0 1em;
     }
     .page-wrapper {
         padding: 1em;
     }
-    article {
-        margin-left: 0.25em;
-    }
     aside {
         margin-left: 0.75em;
     }
-}
-@media (max-width:45em) {
     article {
+        margin-left: 0.25em;
         border-left: none;
         border-right: none;
         border-bottom: none;
@@ -813,8 +809,14 @@ details[open] details-dialog {
 
 .details-menu-summary::-webkit-details-marker,
 .details-dialog-summary::-webkit-details-marker,
+.inline-summary::-webkit-details-marker,
 .img-lightbox::-webkit-details-marker {
     display: none;
+}
+.inline-summary {
+    list-style-type: none;
+    cursor: pointer;
+    display: inline;
 }
 .details-menu-summary::before,
 .details-dialog-summary::before {
@@ -846,7 +848,8 @@ details[open] .details-menu-summary::before {
     position: relative;
 }
 
-details[open] .details-dialog-summary::before {
+details[open] > .details-dialog-summary::before,
+details[open] > .inline-summary::before {
     display: block;
     position: fixed;
     content: ".";

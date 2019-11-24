@@ -331,17 +331,17 @@ mod tests {
     }
     #[test]
     fn special_urls() {
-        assert_eq!("RSS2", &encode(decode("RSS")));
+        assert_eq!("RSS2", &encode(decode("RSS").expect("RSS is valid base32")));
         assert_eq!("2", &encode(0));
     }
     #[test]
     fn special_urls_roundtrip() {
-        assert_eq!(decode("RSS2"), decode("RSS"));
+        assert_eq!(decode("RSS2").expect("RSS2 is valid base32"), decode("RSS").expect("RSS is valid base32"));
     }
     #[test]
     fn equiv_chars() {
-        assert_eq!(decode("-"), decode("_"));
-        assert_eq!(decode(" "), decode("_"));
+        assert_eq!(decode("-").expect("- is valid base32"), decode("_").expect("_ is valid base32"));
+        assert_eq!(decode(" ").expect("space is valid base32"), decode("_").expect("_ is valid base32"));
     }
     quickcheck!{
         fn prop_round_trip(num: u64) -> bool {

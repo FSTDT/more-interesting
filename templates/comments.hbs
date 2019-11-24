@@ -39,20 +39,13 @@
             <a href="@{{posts.0.submitted_by_username}}">{{posts.0.submitted_by_username}}</a>
             submitted
             <a is=local-date href="" title="{{posts.0.created_at}}+00:00">{{posts.0.created_at_relative}}</a>
-            {{#if starred_by}}
-                starred by
-                {{#each starred_by}}
-                    <a href="@{{this}}">{{this}}</a>
-                    {{#unless @last}},{{/unless}}
-                {{/each}}
-            {{/if}}
+            <details class=details-dialog-outer id=sp-{{posts.0.uuid}}>{{> view-star}}</details>
             </div>
             <form class=footer-aside action="vote?redirect={{posts.0.uuid}}&U={{session.uuid}}" method=POST>
                 {{#if (gte user.trust_level 3)}}
                     <a href="edit-post?post={{posts.0.uuid}}" class=button>Edit</a>
                 {{/if}}
                 <button{{#if user.id}} title="{{#if posts.0.starred_by_me}}Remove star{{else}}Add star{{/if}}"{{else}} disabled title="Log in to vote"{{/if}} name="{{#if posts.0.starred_by_me}}rm_star{{else}}add_star{{/if}}" value={{posts.0.uuid}}>
-                    <span>{{posts.0.score}}</span>
                     <img width=12 height=12 class=good-img src=assets/{{#if posts.0.starred_by_me}}star_active.svg{{else}}star.svg{{/if}} alt="{{#if posts.0.starred_by_me}}Remove star{{else}}Add star{{/if}}">
                 </button>
                 {{#if (gte user.trust_level 1)}}
@@ -80,32 +73,27 @@
                     <a is=local-date href="#{{this.id}}" class="top-header-link top-header-aside" title="{{this.created_at}}+00:00">{{this.created_at_relative}} #{{this.id}}</a>
                 </header>
                 <main>{{{this.html}}}</main>
+                <form action="vote-comment?redirect={{../posts.0.uuid}}&U={{../session.uuid}}" method=POST>
                 <footer class=footer-container>
                     <div class=footer-main>
-                    {{#if this.starred_by}}
-                        starred by
-                        {{#each this.starred_by}}
-                            <a href="@{{this}}">{{this}}</a>
-                            {{#unless @last}},{{/unless}}
-                        {{/each}}
-                    {{/if}}
+                    <button{{#if ../user.id}} title="{{#if this.starred_by_me}}Remove star{{else}}Add star{{/if}}"{{else}} disabled title="Log in to vote"{{/if}} name="{{#if this.starred_by_me}}rm_star_comment{{else}}add_star_comment{{/if}}" value={{this.id}}>
+                        <img width=12 height=12 class=good-img src=assets/{{#if this.starred_by_me}}star_active.svg{{else}}star.svg{{/if}} alt="{{#if this.starred_by_me}}Remove star{{else}}Add star{{/if}}">
+                    </button>
+                    <details class=details-dialog-outer id=sc-{{this.id}}>{{> view-star-comment}}</details>
                     </div>
-                    <form class=footer-aside action="vote-comment?redirect={{../posts.0.uuid}}&U={{../session.uuid}}" method=POST>
+                    <div class=footer-aside>
                         {{#if ../user.id}}<a href="reply-comment?comment={{this.id}}&post={{../posts.0.uuid}}" class=button>↩️ Reply</a>{{/if}}
                     {{#if (or (gte ../user.trust_level 3) (eq this.created_by ../user.id))}}
                         <a href="edit-comment?comment={{this.id}}" class=button>Edit</a>
                     {{/if}}
-                    <button{{#if ../user.id}} title="{{#if this.starred_by_me}}Remove star{{else}}Add star{{/if}}"{{else}} disabled title="Log in to vote"{{/if}} name="{{#if this.starred_by_me}}rm_star_comment{{else}}add_star_comment{{/if}}" value={{this.id}}>
-                        <span>{{count this.starred_by}}</span>
-                        <img width=12 height=12 class=good-img src=assets/{{#if this.starred_by_me}}star_active.svg{{else}}star.svg{{/if}} alt="{{#if this.starred_by_me}}Remove star{{else}}Add star{{/if}}">
-                    </button>
                     {{#if (gte ../user.trust_level 1)}}
                         <button class={{#if this.flagged_by_me}}flag-button-active{{else}}""{{/if}} name="{{#if this.flagged_by_me}}rm_flag_comment{{else}}add_flag_comment{{/if}}" value={{this.id}} title="{{#if this.flagged_by_me}}Remove flag{{else}}Add flag{{/if}}">
                             <img width=12 height=12 class=good-img src=assets/{{#if this.flagged_by_me}}flag_active{{else}}flag{{/if}}.svg alt="{{#if this.flagged_by_me}}Remove flag{{else}}Add flag{{/if}}">
                         </button>
                     {{/if}}
-                    </form>
+                    </div>
                 </footer>
+                </form>
             </details></aside>
         {{/each}}
     </ajax-form>
