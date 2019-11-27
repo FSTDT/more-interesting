@@ -58,7 +58,7 @@ aside:target {
     outline: none;
 }
 
-html.dark :link, html.dark :visited {
+html.dark :link, html.dark :visited, html.dark .inline-summary {
     background-image: -webkit-gradient(linear,left top,left bottom,color-stop(50%,transparent),color-stop(50%,#737373));
     background-image: -webkit-linear-gradient(top,transparent 50%,#737373 50%);
     background-image: linear-gradient(to bottom,transparent 50%,#737373 50%);
@@ -351,6 +351,11 @@ select,
     padding: 0.25em 0.5em;
     -webkit-user-select: none;
     user-select: none;
+}
+
+.tab-box {
+    -webkit-user-select: auto;
+    user-select: auto;
 }
 
 html.dark button,

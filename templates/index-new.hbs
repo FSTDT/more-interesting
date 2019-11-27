@@ -1,6 +1,30 @@
 {{#*inline "nav-second"}}
 {{~#if is_home~}}
-    <nav class=nav-second><a class=top-header-link href=.>Home</a> &bull; <a class=top-header-link href=latest>Latest</a> &bull; <a class=top-header-link href=top>Top</a> &bull; <b>New</b></nav>
+    <nav class=nav-second>
+        <a class=top-header-link href=".{{#if before_date_param}}?before_date={{before_date_param}}{{#if after_date_param}}&after_date={{after_date_param}}{{else}}{{/if}}{{else}}{{/if}}">Home</a> &bull;
+        <a class=top-header-link href="latest{{#if before_date_param}}?before_date={{before_date_param}}{{#if after_date_param}}&after_date={{after_date_param}}{{else}}{{/if}}{{else}}{{/if}}">Latest</a> &bull;
+        <a class=top-header-link href="top{{#if before_date_param}}?before_date={{before_date_param}}{{#if after_date_param}}&after_date={{after_date_param}}{{else}}{{/if}}{{else}}{{/if}}">Top</a> &bull;
+        <b>New</b> &bull;
+        <details class=details-dialog-outer>
+            <summary class=inline-summary>
+                {{#if before_date_param}}{{before_date_param}}{{else}}Date{{/if}}…
+            </summary>
+            <details-dialog>
+                <form action=new method=GET>
+                    <label>Find posts before
+                        <input type=date name=before_date autofocus required {{#if before_date_param}}value="{{before_date_param}}"{{/if}}>
+                    </label>
+                    <label>Find posts after
+                        <input type=date name=after_date {{#if after_date_param}}value="{{after_date_param}}"{{/if}}>
+                    </label>
+                    <div class=form-footer>
+                        <button class=button-default>Search</button>
+                        <a href="" onclick="return !window.DetailsDialogElement" class=button data-close-dialog>Cancel</a>
+                    </div>
+                </form>
+            </details-dialog>
+        </details>
+    </nav>
 {{~/if~}}
 {{/inline}}
 {{#*inline "page"}}
@@ -8,20 +32,95 @@
 <header class=tight-headline>
 <h2>#{{this.name}}</h2>
 <p>{{this.description}}</p>
-<nav><a href=.?tag={{this.name}}>Home</a> &bull; <a href=latest?tag={{this.name}}>Latest</a> &bull; <a href=top?tag={{this.name}}>Top</a> &bull; <b>New</b></nav>
+<nav>
+    <a href=".?tag={{this.name}}{{#if before_date_param}}&before_date={{before_date_param}}{{#if after_date_param}}&after_date={{after_date_param}}{{else}}{{/if}}{{else}}{{/if}}">Home</a> &bull;
+    <a href="latest?tag={{this.name}}{{#if before_date_param}}&before_date={{before_date_param}}{{#if after_date_param}}&after_date={{after_date_param}}{{else}}{{/if}}{{else}}{{/if}}">Latest</a> &bull;
+    <a href="top?tag={{this.name}}{{#if before_date_param}}&before_date={{before_date_param}}{{#if after_date_param}}&after_date={{after_date_param}}{{else}}{{/if}}{{else}}{{/if}}">Top</a> &bull;
+    <b>New</b> &bull;
+    <details class=details-dialog-outer>
+        <summary class=inline-summary>
+            {{#if ../before_date_param}}{{../before_date_param}}{{else}}Date{{/if}}…
+        </summary>
+        <details-dialog>
+            <form action=new method=GET>
+                <label>Find posts before
+                    <input type=date name=before_date autofocus required {{#if ../before_date_param}}value="{{../before_date_param}}"{{/if}}>
+                </label>
+                <label>Find posts after
+                    <input type=date name=after_date {{#if ../after_date_param}}value="{{../after_date_param}}"{{/if}}>
+                </label>
+                <input type=hidden name=tag value="{{this.name}}">
+                <div class=form-footer>
+                    <button class=button-default>Search</button>
+                    <a href="" onclick="return !window.DetailsDialogElement" class=button data-close-dialog>Cancel</a>
+                </div>
+            </form>
+        </details-dialog>
+    </details>
+</nav>
 </header>
 {{/each}}
 {{#if domain}}
 <header class=tight-headline>
 <h2>www.{{domain}}</h2>
-<nav><a href=.?domain={{domain}}>Home</a> &bull; <a href=latest?domain={{domain}}>Latest</a> &bull; <a href=top?domain={{this.domain}}>Top</a> &bull; <b>New</b></nav>
+<nav>
+    <a href=".?domain={{domain}}{{#if before_date_param}}&before_date={{before_date_param}}{{#if after_date_param}}&after_date={{after_date_param}}{{else}}{{/if}}{{else}}{{/if}}">Home</a> &bull;
+    <a href="latest?domain={{domain}}{{#if before_date_param}}&before_date={{before_date_param}}{{#if after_date_param}}&after_date={{after_date_param}}{{else}}{{/if}}{{else}}{{/if}}">Latest</a> &bull;
+    <a href="top?domain={{this.domain}}{{#if before_date_param}}&before_date={{before_date_param}}{{#if after_date_param}}&after_date={{after_date_param}}{{else}}{{/if}}{{else}}{{/if}}">Top</a> &bull;
+    <b>New</b> &bull;
+    <details class=details-dialog-outer>
+        <summary class=inline-summary>
+            {{#if before_date_param}}{{before_date_param}}{{else}}Date{{/if}}…
+        </summary>
+        <details-dialog>
+            <form action=new method=GET>
+                <label>Find posts before
+                    <input type=date name=before_date autofocus required {{#if before_date_param}}value="{{before_date_param}}"{{/if}}>
+                </label>
+                <label>Find posts after
+                    <input type=date name=after_date {{#if after_date_param}}value="{{after_date_param}}"{{/if}}>
+                </label>
+                <input type=hidden name=domain value="{{domain}}">
+                <div class=form-footer>
+                    <button class=button-default>Search</button>
+                    <a href="" onclick="return !window.DetailsDialogElement" class=button data-close-dialog>Cancel</a>
+                </div>
+            </form>
+        </details-dialog>
+    </details>
+</nav>
 </header>
 {{/if}}
 {{#if keywords_param}}
 <header class=tight-headline>
 <h2>Search results</h2>
 <code>{{keywords_param}}</code>
-<nav><a href=".?q={{keywords_param}}">Relevance</a> &bull; <a href="latest?q={{keywords_param}}">Latest</a> &bull; <a href="top?q={{keywords_param}}">Top</a> &bull; <b>New</b></nav>
+<nav>
+    <a href=".?q={{keywords_param}}{{#if before_date_param}}&before_date={{before_date_param}}{{#if after_date_param}}&after_date={{after_date_param}}{{else}}{{/if}}{{else}}{{/if}}">Relevance</a> &bull;
+    <a href="latest?q={{keywords_param}}{{#if before_date_param}}&before_date={{before_date_param}}{{#if after_date_param}}&after_date={{after_date_param}}{{else}}{{/if}}{{else}}{{/if}}">Latest</a> &bull;
+    <a href="top?q={{keywords_param}}{{#if before_date_param}}&before_date={{before_date_param}}{{#if after_date_param}}&after_date={{after_date_param}}{{else}}{{/if}}{{else}}{{/if}}">Top</a> &bull;
+    <b>New</b> &bull;
+    <details class=details-dialog-outer>
+        <summary class=inline-summary>
+            {{#if before_date_param}}{{before_date_param}}{{else}}Date{{/if}}…
+        </summary>
+        <details-dialog>
+            <form action=new method=GET>
+                <label>Find posts before
+                    <input type=date name=before_date autofocus required {{#if before_date_param}}value="{{before_date_param}}"{{/if}}>
+                </label>
+                <label>Find posts after
+                    <input type=date name=after_date {{#if after_date_param}}value="{{after_date_param}}"{{/if}}>
+                </label>
+                <input type=hidden name=q value="{{keywords_param}}">
+                <div class=form-footer>
+                    <button class=button-default>Search</button>
+                    <a href="" onclick="return !window.DetailsDialogElement" class=button data-close-dialog>Cancel</a>
+                </div>
+            </form>
+        </details-dialog>
+    </details>
+</nav>
 </header>
 {{/if}}
 <ajax-form>
