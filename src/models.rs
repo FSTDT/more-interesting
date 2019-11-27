@@ -1,7 +1,7 @@
 use rocket_contrib::databases::diesel::PgConnection;
 use diesel::prelude::*;
 use diesel::result::Error as DieselError;
-use chrono::NaiveDateTime;
+use chrono::{NaiveDate, NaiveDateTime, NaiveTime};
 use crate::schema::{site_customization, users, user_sessions, posts, stars, invite_tokens, comments, comment_stars, tags, post_tagging, moderation, flags, comment_flags, domains, legacy_comments, domain_synonyms, notifications, subscriptions};
 use crate::password::{password_hash, password_verify, PasswordResult};
 use serde::Serialize;
@@ -375,6 +375,8 @@ pub struct PostSearch {
     pub or_domains: Vec<i32>,
     pub after_post_id: i32,
     pub subscriptions: bool,
+    pub before_date: Option<NaiveDate>,
+    pub after_date: Option<NaiveDate>,
 }
 
 impl PostSearch {
@@ -388,6 +390,8 @@ impl PostSearch {
             or_domains: Vec::new(),
             after_post_id: 0,
             subscriptions: false,
+            before_date: None,
+            after_date: None,
         }
     }
 }
@@ -525,6 +529,14 @@ impl MoreInterestingConn {
             query = query.filter(self::posts::dsl::id.eq_any(ids));
         } else {
             query = query.filter(private.eq(false));
+        }
+        if let Some(before_date) = search.before_date {
+            let midnight = NaiveTime::from_hms(23, 59, 59);
+            query = query.filter(self::posts::dsl::created_at.lt(before_date.and_time(midnight)));
+        }
+        if let Some(after_date) = search.after_date {
+            let midnight = NaiveTime::from_hms(0, 0, 0);
+            query = query.filter(self::posts::dsl::created_at.gt(after_date.and_time(midnight)));
         }
         let mut data = PrettifyData::new(self, 0);
         let mut all: Vec<PostInfo> = if search.keywords != "" && search.order_by == PostSearchOrderBy::Hottest {

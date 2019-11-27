@@ -44,6 +44,7 @@ use rocket::fairing;
 use rocket::State;
 use std::str::FromStr;
 use crate::session::{LoginSession, ModeratorSession, UserAgentString};
+use chrono::NaiveDate;
 
 #[derive(Clone, Serialize)]
 struct SiteConfig {
@@ -95,6 +96,8 @@ struct TemplateContext {
     tag_param: Option<String>,
     domain: Option<String>,
     keywords_param: Option<String>,
+    before_date_param: Option<NaiveDate>,
+    after_date_param: Option<NaiveDate>,
     config: SiteConfig,
     customization: Customization,
     log: Vec<ModerationInfo>,
@@ -335,6 +338,8 @@ struct IndexParams {
     q: Option<String>,
     after: Option<Base32>,
     subscriptions: bool,
+    before_date: Option<String>,
+    after_date: Option<String>,
 }
 
 fn parse_index_params(conn: &MoreInterestingConn, user: &User, params: Option<Form<IndexParams>>) -> Option<(PostSearch, Vec<Tag>)> {
@@ -377,6 +382,12 @@ fn parse_index_params(conn: &MoreInterestingConn, user: &User, params: Option<Fo
             }
         }
     }
+    if let Some(before_date) = params.as_ref().and_then(|params| params.before_date.as_ref()).and_then(|d| d.parse::<NaiveDate>().ok()) {
+        search.before_date = Some(before_date);
+    }
+    if let Some(after_date) = params.as_ref().and_then(|params| params.after_date.as_ref()).and_then(|d| d.parse::<NaiveDate>().ok()) {
+        search.after_date = Some(after_date);
+    }
     if params.map(|p| p.subscriptions).unwrap_or(false) {
         search.subscriptions = true;
     }
@@ -392,6 +403,8 @@ fn index(conn: MoreInterestingConn, login: Option<LoginSession>, flash: Option<F
     let keywords_param = params.as_ref().and_then(|params| Some(params.q.as_ref()?.to_string()));
     let is_home = tag_param.is_none() && domain.is_none() && keywords_param.is_none();
     let (search, tags) = parse_index_params(&conn, &user, params)?;
+    let before_date_param = search.before_date;
+    let after_date_param = search.after_date;
     let posts = conn.search_posts(&search).ok()?;
     let notifications = conn.list_notifications(user.id).unwrap_or(Vec::new());
     let is_private = keywords_param.is_some() && search.after_post_id != 0;
@@ -399,7 +412,7 @@ fn index(conn: MoreInterestingConn, login: Option<LoginSession>, flash: Option<F
     Some(Template::render("index", &TemplateContext {
         alert: flash.map(|f| f.msg().to_owned()),
         config: config.clone(),
-        customization,
+        customization, before_date_param, after_date_param,
         title, user, posts, is_home,
         tags, session, tag_param, domain, keywords_param,
         notifications, is_private,
@@ -447,6 +460,8 @@ fn top(conn: MoreInterestingConn, login: Option<LoginSession>, flash: Option<Fla
     let keywords_param = params.as_ref().and_then(|params| Some(params.q.as_ref()?.to_string()));
     let is_home = tag_param.is_none() && domain.is_none() && keywords_param.is_none();
     let (search, tags) = parse_index_params(&conn, &user, params)?;
+    let before_date_param = search.before_date;
+    let after_date_param = search.after_date;
     let search = PostSearch {
         order_by: PostSearchOrderBy::Top,
         .. search
@@ -458,7 +473,7 @@ fn top(conn: MoreInterestingConn, login: Option<LoginSession>, flash: Option<Fla
         title: Cow::Borrowed("top"),
         alert: flash.map(|f| f.msg().to_owned()),
         config: config.clone(),
-        customization,
+        customization, before_date_param, after_date_param,
         is_home, keywords_param,
         user, posts, session, tags, tag_param, domain,
         notifications, is_private,
@@ -474,6 +489,8 @@ fn subscriptions(conn: MoreInterestingConn, login: Option<LoginSession>, flash: 
     let keywords_param = params.as_ref().and_then(|params| Some(params.q.as_ref()?.to_string()));
     let is_home = tag_param.is_none() && domain.is_none() && keywords_param.is_none();
     let (search, tags) = parse_index_params(&conn, &user, params)?;
+    let before_date_param = search.before_date;
+    let after_date_param = search.after_date;
     let search = PostSearch {
         order_by: PostSearchOrderBy::Latest,
         subscriptions: true,
@@ -485,7 +502,7 @@ fn subscriptions(conn: MoreInterestingConn, login: Option<LoginSession>, flash: 
         title: Cow::Borrowed("top"),
         alert: flash.map(|f| f.msg().to_owned()),
         config: config.clone(),
-        customization,
+        customization, before_date_param, after_date_param,
         is_home, keywords_param,
         user, posts, session, tags, tag_param, domain,
         notifications,
@@ -531,6 +548,8 @@ fn new(conn: MoreInterestingConn, login: Option<LoginSession>, flash: Option<Fla
     let keywords_param = params.as_ref().and_then(|params| Some(params.q.as_ref()?.to_string()));
     let is_home = tag_param.is_none() && domain.is_none() && keywords_param.is_none();
     let (search, tags) = parse_index_params(&conn, &user, params)?;
+    let before_date_param = search.before_date;
+    let after_date_param = search.after_date;
     let search = PostSearch {
         order_by: PostSearchOrderBy::Newest,
         .. search
@@ -542,7 +561,7 @@ fn new(conn: MoreInterestingConn, login: Option<LoginSession>, flash: Option<Fla
         title: Cow::Borrowed("new"),
         alert: flash.map(|f| f.msg().to_owned()),
         config: config.clone(),
-        customization,
+        customization, before_date_param, after_date_param,
         is_home, keywords_param,
         user, posts, session, tags, tag_param, domain,
         notifications, is_private,
@@ -558,6 +577,8 @@ fn latest(conn: MoreInterestingConn, login: Option<LoginSession>, params: Option
     let keywords_param = params.as_ref().and_then(|params| Some(params.q.as_ref()?.to_string()));
     let is_home = tag_param.is_none() && domain.is_none() && keywords_param.is_none();
     let (search, tags) = parse_index_params(&conn, &user, params)?;
+    let before_date_param = search.before_date;
+    let after_date_param = search.after_date;
     let search = PostSearch {
         order_by: PostSearchOrderBy::Latest,
         .. search
@@ -569,7 +590,7 @@ fn latest(conn: MoreInterestingConn, login: Option<LoginSession>, params: Option
         title: Cow::Borrowed("latest"),
         alert: flash.map(|f| f.msg().to_owned()),
         config: config.clone(),
-        customization,
+        customization, before_date_param, after_date_param,
         is_home, keywords_param,
         user, posts, session, tags, tag_param, domain,
         notifications, is_private,
