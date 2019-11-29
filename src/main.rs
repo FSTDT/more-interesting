@@ -444,6 +444,7 @@ fn search_comments(conn: MoreInterestingConn, login: Option<LoginSession>, flash
             customization,
             is_me: by_user.id == user.id,
             title, user, comment_search_result, session,
+            is_private: true,
             notifications,
             ..default()
         }))
@@ -556,7 +557,7 @@ fn new(conn: MoreInterestingConn, login: Option<LoginSession>, flash: Option<Fla
     };
     let posts = conn.search_posts(&search).ok()?;
     let notifications = conn.list_notifications(user.id).unwrap_or(Vec::new());
-    let is_private = keywords_param.is_some() && search.after_post_id != 0;
+    let is_private = ((keywords_param.is_some() || tags.len() > 0 || domain.is_some()) && search.after_post_id != 0;
     Some(Template::render("index-new", &TemplateContext {
         title: Cow::Borrowed("new"),
         alert: flash.map(|f| f.msg().to_owned()),
