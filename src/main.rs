@@ -1450,15 +1450,13 @@ fn edit_comment(conn: MoreInterestingConn, login: LoginSession, form: Form<EditC
     } else {
         match conn.update_comment(post.id, form.comment, &form.text, config.body_format) {
             Ok(_) => {
-                if user.trust_level >= 3 && comment.created_by != user.id {
-                    conn.mod_log_edit_comment(
-                        user.id,
-                        comment.id,
-                        post.uuid,
-                        &comment.text,
-                        &form.text,
-                    ).expect("if updating the comment worked, then so should logging");
-                }
+                conn.mod_log_edit_comment(
+                    user.id,
+                    comment.id,
+                    post.uuid,
+                    &comment.text,
+                    &form.text,
+                ).expect("if updating the comment worked, then so should logging");
                 Ok(Flash::success(Redirect::to(post.uuid.to_string()), "Updated comment"))
             },
             Err(e) => {
