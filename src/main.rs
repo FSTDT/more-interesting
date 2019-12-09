@@ -1349,13 +1349,15 @@ fn edit_post(conn: MoreInterestingConn, login: ModeratorSession, form: Form<Edit
     if form.delete {
         match conn.delete_post(post_id) {
             Ok(_) => {
-                conn.mod_log_delete_post(
-                    login.user.id,
-                    post_info.uuid,
-                    &post_info.title,
-                    post_info.url.as_ref().map(|x| &x[..]).unwrap_or(""),
-                    post.excerpt.as_ref().map(|x| &x[..]).unwrap_or(""),
-                ).expect("if updating the post worked, then so should logging");
+                if !post_info.private {
+                    conn.mod_log_delete_post(
+                        login.user.id,
+                        post_info.uuid,
+                        &post_info.title,
+                        post_info.url.as_ref().map(|x| &x[..]).unwrap_or(""),
+                        post.excerpt.as_ref().map(|x| &x[..]).unwrap_or(""),
+                    ).expect("if updating the post worked, then so should logging");
+                }
                 return Ok(Flash::success(Redirect::to(uri!(get_mod_queue)), "Deleted post"))
             },
             Err(e) => {
@@ -1373,16 +1375,18 @@ fn edit_post(conn: MoreInterestingConn, login: ModeratorSession, form: Form<Edit
             private: post_info.private,
         }, config.body_format) {
             Ok(_) => {
-                conn.mod_log_edit_post(
-                    login.user.id,
-                    post_info.uuid,
-                    &post_info.title,
-                    &form.title,
-                    post_info.url.as_ref().map(|x| &x[..]).unwrap_or(""),
-                    url.as_ref().map(|x| &x[..]).unwrap_or(""),
-                    post.excerpt.as_ref().map(|x| &x[..]).unwrap_or(""),
-                    form.excerpt.as_ref().map(|x| &x[..]).unwrap_or(""),
-                ).expect("if updating the post worked, then so should logging");
+                if !post_info.private {
+                    conn.mod_log_edit_post(
+                        login.user.id,
+                        post_info.uuid,
+                        &post_info.title,
+                        &form.title,
+                        post_info.url.as_ref().map(|x| &x[..]).unwrap_or(""),
+                        url.as_ref().map(|x| &x[..]).unwrap_or(""),
+                        post.excerpt.as_ref().map(|x| &x[..]).unwrap_or(""),
+                        form.excerpt.as_ref().map(|x| &x[..]).unwrap_or(""),
+                    ).expect("if updating the post worked, then so should logging");
+                }
                 Ok(Flash::success(Redirect::to(form.post.to_string()), "Updated post"))
             },
             Err(e) => {
@@ -1434,12 +1438,14 @@ fn edit_comment(conn: MoreInterestingConn, login: LoginSession, form: Form<EditC
     if form.delete && user.trust_level >= 3 {
         match conn.delete_comment(comment.id) {
             Ok(_) => {
-                conn.mod_log_delete_comment(
-                    user.id,
-                    comment.id,
-                    post.uuid,
-                    &comment.text,
-                ).expect("if updating the comment worked, then so should logging");
+                if !post.private {
+                    conn.mod_log_delete_comment(
+                        user.id,
+                        comment.id,
+                        post.uuid,
+                        &comment.text,
+                    ).expect("if updating the comment worked, then so should logging");
+                }
                 Ok(Flash::success(Redirect::to(uri!(get_mod_queue)), "Deleted comment"))
             },
             Err(e) => {
@@ -1450,13 +1456,15 @@ fn edit_comment(conn: MoreInterestingConn, login: LoginSession, form: Form<EditC
     } else {
         match conn.update_comment(post.id, form.comment, &form.text, config.body_format) {
             Ok(_) => {
-                conn.mod_log_edit_comment(
-                    user.id,
-                    comment.id,
-                    post.uuid,
-                    &comment.text,
-                    &form.text,
-                ).expect("if updating the comment worked, then so should logging");
+                if !post.private {
+                    conn.mod_log_edit_comment(
+                        user.id,
+                        comment.id,
+                        post.uuid,
+                        &comment.text,
+                        &form.text,
+                    ).expect("if updating the comment worked, then so should logging");
+                }
                 Ok(Flash::success(Redirect::to(post.uuid.to_string()), "Updated comment"))
             },
             Err(e) => {
@@ -1596,13 +1604,15 @@ fn moderate_post(conn: MoreInterestingConn, login: ModeratorSession, form: Form<
     if form.action == "approve" {
         match conn.approve_post(post_id) {
             Ok(_) => {
-                conn.mod_log_approve_post(
-                    user.id,
-                    post_info.uuid,
-                    &post_info.title,
-                    post_info.url.as_ref().map(|x| &x[..]).unwrap_or(""),
-                    post.excerpt.as_ref().map(|x| &x[..]).unwrap_or(""),
-                ).expect("if updating the post worked, then so should logging");
+                if !post_info.private {
+                    conn.mod_log_approve_post(
+                        user.id,
+                        post_info.uuid,
+                        &post_info.title,
+                        post_info.url.as_ref().map(|x| &x[..]).unwrap_or(""),
+                        post.excerpt.as_ref().map(|x| &x[..]).unwrap_or(""),
+                    ).expect("if updating the post worked, then so should logging");
+                }
                 Ok(Flash::success(Redirect::to(uri!(get_mod_queue)), "Approved post"))
             },
             Err(e) => {
@@ -1613,13 +1623,15 @@ fn moderate_post(conn: MoreInterestingConn, login: ModeratorSession, form: Form<
     } else {
         match conn.delete_post(post_id) {
             Ok(_) => {
-                conn.mod_log_delete_post(
-                    user.id,
-                    post_info.uuid,
-                    &post_info.title,
-                    post_info.url.as_ref().map(|x| &x[..]).unwrap_or(""),
-                    post.excerpt.as_ref().map(|x| &x[..]).unwrap_or(""),
-                ).expect("if updating the post worked, then so should logging");
+                if !post_info.private {
+                    conn.mod_log_delete_post(
+                        user.id,
+                        post_info.uuid,
+                        &post_info.title,
+                        post_info.url.as_ref().map(|x| &x[..]).unwrap_or(""),
+                        post.excerpt.as_ref().map(|x| &x[..]).unwrap_or(""),
+                    ).expect("if updating the post worked, then so should logging");
+                }
                 Ok(Flash::success(Redirect::to(uri!(get_mod_queue)), "Deleted post"))
             },
             Err(e) => {
@@ -1649,12 +1661,14 @@ fn banner_post(conn: MoreInterestingConn, login: ModeratorSession, form: Form<Ba
     let post_id = post_info.id;
     match conn.banner_post(post_id, banner_title, banner_desc) {
         Ok(_) => {
-            conn.mod_log_banner_post(
-                login.user.id,
-                post_info.uuid,
-                banner_title.unwrap_or(""),
-                banner_desc.unwrap_or(""),
-            ).expect("if updating the post worked, then so should logging");
+            if !post_info.private {
+                conn.mod_log_banner_post(
+                    login.user.id,
+                    post_info.uuid,
+                    banner_title.unwrap_or(""),
+                    banner_desc.unwrap_or(""),
+                ).expect("if updating the post worked, then so should logging");
+            }
             Ok(Flash::success(Redirect::to(uri!(get_mod_queue)), "Added banner to post"))
         },
         Err(e) => {
@@ -1704,12 +1718,14 @@ fn moderate_comment(conn: MoreInterestingConn, login: ModeratorSession, form: Fo
     if form.action == "approve" {
         match conn.approve_comment(comment_info.id) {
             Ok(_) => {
-                conn.mod_log_approve_comment(
-                    login.user.id,
-                    comment_info.id,
-                    post_info.uuid,
-                    &comment_info.text,
-                ).expect("if updating the comment worked, then so should logging");
+                if !post_info.private {
+                    conn.mod_log_approve_comment(
+                        login.user.id,
+                        comment_info.id,
+                        post_info.uuid,
+                        &comment_info.text,
+                    ).expect("if updating the comment worked, then so should logging");
+                }
                 Ok(Flash::success(Redirect::to(uri!(get_mod_queue)), "Approved comment"))
             },
             Err(e) => {
@@ -1720,12 +1736,14 @@ fn moderate_comment(conn: MoreInterestingConn, login: ModeratorSession, form: Fo
     } else {
         match conn.delete_comment(comment_info.id) {
             Ok(_) => {
-                conn.mod_log_delete_comment(
-                    login.user.id,
-                    comment_info.id,
-                    post_info.uuid,
-                    &comment_info.text,
-                ).expect("if updating the comment worked, then so should logging");
+                if !post_info.private {
+                    conn.mod_log_delete_comment(
+                        login.user.id,
+                        comment_info.id,
+                        post_info.uuid,
+                        &comment_info.text,
+                    ).expect("if updating the comment worked, then so should logging");
+                }
                 Ok(Flash::success(Redirect::to(uri!(get_mod_queue)), "Deleted comment"))
             },
             Err(e) => {
