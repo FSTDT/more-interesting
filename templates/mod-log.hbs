@@ -2,16 +2,14 @@
     <table class=good-table>
         <thead>
             <tr>
-                <th>Date</th>
-                <th>Moderator</th>
+                <th>Date / Moderator</th>
                 <th>Action</th>
             </tr>
         </thead>
         <tbody>
         {{#each log}}
             <tr>
-                <td><a href="?after={{this.id}}">{{this.created_at}}</a></td>
-                <td>{{this.created_by_username}}</td>
+                <td><a href="?after={{this.id}}">{{this.created_at}}</a> / {{this.created_by_username}}</td>
                 <td>
                     <dl>
                         {{#each this.payload}}
