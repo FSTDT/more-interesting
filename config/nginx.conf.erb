@@ -64,7 +64,7 @@ http {
 			set $botck "${botck}bad";
 		}
 		# Unconditionally block UAs that are sending no UA string, or just a '-'.
-		if ($http_user_agent ~* "^-?$") {
+		if ($http_user_agent ~* "^['\"\s\-]*$") {
 			set $botck "${botck}bad";
 		}
 		# Block UAs that look like browsers or other known entities, but have no Accept header.
