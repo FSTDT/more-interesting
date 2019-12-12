@@ -1,7 +1,6 @@
 use url::Url;
 use kuchiki::traits::*;
 use kuchiki::{NodeDataRef, ElementData, parse_html};
-use html5ever::serialize::{serialize, SerializeOpts};
 use std::time::Duration;
 use std::io::Read;
 
@@ -61,7 +60,7 @@ fn extract_text(el: &NodeDataRef<ElementData>, out: &mut String) {
     } else if &*el.name.local == "table" {
         out.push_str("<table>");
         let mut ret_val = Vec::new();
-        serialize(&mut ret_val, el.as_node(), SerializeOpts::default())
+        el.as_node().serialize(&mut ret_val)
             .expect("Writing to a string shouldn't fail (expect on OOM)");
         out.push_str(&String::from_utf8(ret_val)
             .expect("html5ever only supports UTF8"));
