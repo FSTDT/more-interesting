@@ -60,7 +60,7 @@ http {
 		if ($request_uri = /robots.txt) {
 			set $botck "{botck}txt";
 		}
-		if ($http_user_agent ~* (ahrefsbot|semrushbot|mauibot|moreover|megaindex|360Spider)) {
+		if ($http_user_agent ~* "(ahrefsbot|semrushbot|mauibot|moreover|megaindex|360Spider|Facebot Twitterbot)") {
 			set $botck "${botck}bad";
 		}
 		# Unconditionally block UAs that are sending no UA string, or just a '-'.
