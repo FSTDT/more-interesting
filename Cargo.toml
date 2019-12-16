@@ -14,7 +14,7 @@ chrono = { version = "0.4.9", features = ["serde"] }
 chrono-humanize = "0.0.11"
 ring = "0.13.5"
 rand = "0.7.2"
-serde = { version = "1.0.102", features = ["derive"] }
+serde = { version = "1.0.104", features = ["derive"] }
 unicode-normalization = "0.1.9"
 lazy_static = "1"
 quickcheck = "0.9"
