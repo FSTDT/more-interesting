@@ -1,0 +1,4 @@
+image: gitpod/workspace-postgres
+tasks:
+  - init: rustup override set nightly && cd assets && npm install && cd .. && sh run-webpack.sh && cargo check
+    command: cargo run
