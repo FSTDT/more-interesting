@@ -27,8 +27,8 @@
 
     <aside id="{{comments.0.id}}">
         <header class=aside-header>
-            @{{comments.0.created_by_username}}
-            <a is=local-date href="#{{comments.0.id}}" class="top-header-link footer-aside" title="{{comments.0.created_at}}+00:00">{{comments.0.created_at_relative}} #{{comments.0.id}}</a>
+            {{comments.0.created_by_username}}
+            <span class="top-header-link top-header-aside"><a is=local-date href="#{{comments.0.id}}" title="{{comments.0.created_at}}+00:00">{{comments.0.created_at_relative}} #{{comments.0.id}}</a></span>
         </header>
         <main>{{{comments.0.html}}}</main>
         <footer class=footer-container>

@@ -67,10 +67,10 @@
             </details></aside>
         {{/each}}
         {{#each comments}}
-            <aside id="{{this.id}}"><details open><summary title="Hide comment" class=module-summary>{{this.created_by_username}} commented</summary>
+            <aside id="{{this.id}}"><details open><summary title="Hide comment" class=module-summary>{{this.created_by_username}}</summary>
                 <header class=aside-header>
-                    <a href="@{{this.created_by_username}}" class=top-header-link>{{this.created_by_username}} commented</a>
-                    <a is=local-date href="#{{this.id}}" class="top-header-link top-header-aside" title="{{this.created_at}}+00:00">{{this.created_at_relative}} #{{this.id}}</a>
+                    <a href="@{{this.created_by_username}}" class=top-header-link>{{this.created_by_username}}</a>
+                    <span class="top-header-link top-header-aside"><a is=local-date href="#{{this.id}}" title="{{this.created_at}}+00:00">{{this.created_at_relative}} #{{this.id}}</a></span>
                 </header>
                 <main>{{{this.html}}}</main>
                 <form action="vote-comment?redirect={{../posts.0.uuid}}&U={{../session.uuid}}" method=POST>
@@ -82,7 +82,7 @@
                     <details class=details-dialog-outer id=sc-{{this.id}}>{{> view-star-comment}}</details>
                     </div>
                     <div class=footer-aside>
-                        {{#if ../user.id}}<a href="reply-comment?comment={{this.id}}&post={{../posts.0.uuid}}" class=button>↩️ Reply</a>{{/if}}
+                        {{#if ../user.id}}<a href="reply-comment?comment={{this.id}}&post={{../posts.0.uuid}}" class=button>↩ Reply</a>{{/if}}
                     {{#if (or (gte ../user.trust_level 3) (eq this.created_by ../user.id))}}
                         <a href="edit-comment?comment={{this.id}}" class=button>Edit</a>
                     {{/if}}
@@ -105,7 +105,7 @@
     </div>
     <div class=tab-box>
     <form action="comment?U={{session.uuid}}" method=POST id=comment-form>
-        <aside><header class=aside-header>{{user.username}} commented</header><main>{{{comment_preview_html}}}</main></aside>
+        <aside><header class=aside-header>{{user.username}}</header><main>{{{comment_preview_html}}}</main></aside>
         <input type=hidden name=text value="{{comment_preview_text}}">
         <input type=hidden name=post value="{{posts.0.uuid}}">
         <span style="float:left;margin-top:1em;position:relative;top:2px"><button>Add comment</button>&nbsp;</span>

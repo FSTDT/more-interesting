@@ -1,3 +1,5 @@
+[![Open in Gitpod](https://gitpod.io/button/open-in-gitpod.svg)](https://gitpod.io/#https://github.com/notriddle/more-interesting)
+
 # A kit for more interesting links and discussions
 
 More Interesting (will become) a link sharing app that seeks to avoid discussion tangents, circlejerkery, and mobbing.

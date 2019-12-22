@@ -1,4 +1,4 @@
-import DetailsDialogElement from 'details-dialog-element'
+import DetailsDialogElement from '@github/details-dialog-element'
 import DetailsMenuBarElement from './details-menu-bar.mjs'
 import AjaxFormElement from './ajax-form.mjs'
 import LocalDateElement from './local-date.mjs'
