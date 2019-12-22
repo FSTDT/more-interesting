@@ -3,15 +3,15 @@
     "webpack": "webpack"
   },
   "devDependencies": {
-    "@babel/core": "^7.7.5",
-    "@babel/preset-env": "^7.7.6",
+    "@babel/core": "^7.7.7",
+    "@babel/preset-env": "^7.7.7",
     "babel-loader": "^8.0.6",
-    "webpack": "^4.41.2",
+    "webpack": "^4.41.4",
     "webpack-cli": "^3.3.10"
   },
   "dependencies": {
     "@webcomponents/webcomponentsjs": "^2.4.0",
-    "details-dialog-element": "^3.0.3",
+    "@github/details-dialog-element": "^3.0.3",
     "details-element-polyfill": "^2.4.0"
   }
 }
