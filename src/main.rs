@@ -1794,6 +1794,12 @@ Disallow: /vote-comment
 Disallow: /submit
 Crawl-delay: {}
 
+User-agent: seo spider
+Disallow: /
+
+User-agent: Seekport
+Disallow: /
+
 User-agent: AhrefsBot
 Disallow: /
 
@@ -1806,10 +1812,19 @@ Disallow: /
 User-agent: SemrushBot
 Disallow: /
 
+User-agent: MJ12bot
+Disallow: /
+
+User-agent: BLEXBot
+Disallow: /
+
 User-agent: MauiBot
 Disallow: /
     
 User-agent: MegaIndex
+Disallow: /
+
+User-agent: serpstatbot
 Disallow: /
 ", crawl_delay)
 }
