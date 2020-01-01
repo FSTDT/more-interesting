@@ -48,6 +48,9 @@ impl<'a, 'r> FromRequest<'a, 'r> for LoginSession {
             let conn = MoreInterestingConn::from_request(request).unwrap();
             if let Ok(session) = conn.get_session_by_uuid(session_uuid) {
                 if let Ok(user) = conn.get_user_by_id(session.user_id) {
+                    if user.banned {
+                        return Outcome::Failure((Status::BadRequest, ()));
+                    }
                     Outcome::Success(LoginSession { session, user })
                 } else {
                     Outcome::Failure((Status::BadRequest, ()))
