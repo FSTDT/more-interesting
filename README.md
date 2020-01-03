@@ -1,5 +1,7 @@
 [![Open in Gitpod](https://gitpod.io/button/open-in-gitpod.svg)](https://gitpod.io/#https://github.com/notriddle/more-interesting)
 
+**Warning**: This software does not currently provide any kind of stability guarantee. If you want to use it, be prepared for manual migrations and other kinds of breakage.
+
 # A kit for more interesting links and discussions
 
 More Interesting (will become) a link sharing app that seeks to avoid discussion tangents, circlejerkery, and mobbing.
