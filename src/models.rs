@@ -1613,6 +1613,7 @@ impl MoreInterestingConn {
             ))
             .filter(visible.eq(false))
             .filter(rejected.eq(false))
+            .filter(self::users::dsl::trust_level.le(-2))
             .order_by(self::posts::dsl::created_at.asc())
             .limit(50)
             .get_results::<(i32, Base32, String, Option<String>, bool, bool, i32, i32, i32, bool, NaiveDateTime, i32, Option<String>, Option<i32>, Option<i32>, String, Option<String>, Option<String>)>(&self.0).ok()?
@@ -1645,6 +1646,7 @@ impl MoreInterestingConn {
             ))
             .filter(visible.eq(false))
             .filter(rejected.eq(false))
+            .filter(self::users::dsl::trust_level.le(-2))
             .order_by(self::comments::dsl::created_at.asc())
             .limit(50)
             .get_results::<(i32, String, String, bool, i32, NaiveDateTime, i32, Option<i32>, Option<i32>, String)>(&self.0).ok()?
