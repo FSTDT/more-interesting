@@ -33,19 +33,12 @@
         <main>{{{comments.0.html}}}</main>
         <footer class=footer-container>
             <div class=footer-main>
-            {{#if this.starred_by}}
-                starred by
-                {{#each this.starred_by}}
-                    <a href="@{{this}}">{{this}}</a>
-                    {{#unless @last}},{{/unless}}
-                {{/each}}
-            {{/if}}
-            </div>
-            <form class=footer-aside action="vote-comment?redirect={{posts.0.uuid}}&U={{session.uuid}}" method=POST>
                 <button title="{{#if comments.0.starred_by_me}}Remove star{{else}}Add star{{/if}}" name="{{#if this.starred_by_me}}rm_star_comment{{else}}add_star_comment{{/if}}" value={{this.id}}>
-                    <span>{{count comments.0.starred_by}}</span>
                     <img width=12 height=12 class=good-img src=assets/{{#if comments.0.starred_by_me}}star_active.svg{{else}}star.svg{{/if}} alt="{{#if comments.0.starred_by_me}}Remove star{{else}}Add star{{/if}}">
                 </button>
+            </div>
+            <form class=footer-aside action="vote-comment?redirect={{posts.0.uuid}}&U={{session.uuid}}" method=POST>
+                <button disabled>↩ Reply</button>
             </form>
         </footer>
     </aside>
