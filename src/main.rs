@@ -1776,14 +1776,14 @@ fn robots_txt() -> impl Responder<'static> {
 // won't harmonize, even if the bot operator themselves is too stupid
 // to randomize their delays (I'm looking at you, mj12bot).
 let crawl_delay = match rand::random() {
-    0...31u8 => 4,
-    32...63 => 5,
-    64...95 => 7,
-    96...127 => 11,
-    128...159 => 13,
-    160...191 => 17,
-    192...223 => 19,
-    _ => 3,
+    0...31u8 => 23,
+    32...63 => 29,
+    64...95 => 31,
+    96...127 => 37,
+    128...159 => 41,
+    160...191 => 43,
+    192...223 => 47,
+    _ => 53,
 };
 format!("User-agent: *
 Disallow: /mod-log
