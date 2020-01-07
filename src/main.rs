@@ -912,7 +912,7 @@ fn get_comments(conn: MoreInterestingConn, login: Option<LoginSession>, uuid: St
             });
         }
         let notifications = conn.list_notifications(user.id).unwrap_or(Vec::new());
-        let is_private = post_info.private;
+        let is_private = post_info.private || !post_info.visible;
         let is_subscribed = conn.is_subscribed(post_info.id, user.id).unwrap_or(false);
         Ok(Template::render("comments", &TemplateContext {
             posts: vec![post_info],
