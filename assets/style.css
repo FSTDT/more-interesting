@@ -807,7 +807,7 @@ html.dark details-dialog, html.dark .details-menu-inner, html.dark .inner-banner
 details-dialog {
     display: none;
 }
-details[open] details-dialog {
+details[open] > details-dialog {
     z-index: 400;
     display: block;
 }
