@@ -1,4 +1,4 @@
 image: gitpod/workspace-postgres
 tasks:
-  - command: bash -c 'rustup override set nightly && cd assets && npm install && cd .. && sh run-webpack.sh && cargo install diesel_cli --git https://github.com/notriddle/diesel && 
-             export DATABASE_URL="postgresql://gitpod@localhost/more_interesting" && export ROCKET_DATABASES="{more_interesting={url=\"$DATABASE_URL\"}}" && gp env DATABASE_URL="$DATABASE_URL" && diesel database setup && cargo run'
+  - command: bash -c 'rustup override set nightly && cd assets && npm install && cd .. && sh run-webpack.sh && cargo install diesel_cli --git https://github.com/notriddle/diesel && cargo install cargo-watch &&
+             export DATABASE_URL="postgresql://gitpod@localhost/more_interesting" && export ROCKET_DATABASES="{more_interesting={url=\"$DATABASE_URL\"}}" && gp env DATABASE_URL="$DATABASE_URL" && diesel database setup && cargo watch -x run'
