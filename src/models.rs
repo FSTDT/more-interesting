@@ -15,6 +15,18 @@ use url::Url;
 
 const FLAG_HIDE_THRESHOLD: i64 = 3;
 
+#[derive(Debug)]
+pub enum CreatePostError {
+    DieselError(DieselError),
+    RequireTag,
+}
+
+impl From<DieselError> for CreatePostError {
+    fn from(e: DieselError) -> CreatePostError {
+        CreatePostError::DieselError(e)
+    }
+}
+
 #[derive(Clone, Copy, Debug, Eq, PartialEq, Serialize)]
 pub enum BodyFormat {
     Plain,
@@ -368,6 +380,7 @@ pub struct NewSubscription {
 
 pub struct PostSearch {
     pub my_user_id: i32,
+    pub for_user_id: i32,
     pub order_by: PostSearchOrderBy,
     pub keywords: String,
     pub or_tags: Vec<i32>,
@@ -383,6 +396,7 @@ impl PostSearch {
     pub fn with_my_user_id(my_user_id: i32) -> PostSearch {
         PostSearch {
             my_user_id,
+            for_user_id: 0,
             order_by: PostSearchOrderBy::Hottest,
             keywords: String::new(),
             or_tags: Vec::new(),
@@ -537,6 +551,9 @@ impl MoreInterestingConn {
         if let Some(after_date) = search.after_date {
             let midnight = NaiveTime::from_hms(0, 0, 0);
             query = query.filter(self::posts::dsl::created_at.gt(after_date.and_time(midnight)));
+        }
+	if search.for_user_id != 0 {
+            query = query.filter(self::posts::dsl::submitted_by.eq(search.for_user_id));
         }
         let mut data = PrettifyData::new(self, 0);
         let mut all: Vec<PostInfo> = if search.keywords != "" && search.order_by == PostSearchOrderBy::Hottest {
@@ -762,7 +779,7 @@ impl MoreInterestingConn {
             (None, None)
         }
     }
-    pub fn create_post(&self, new_post: &NewPost, body_format: BodyFormat) -> Result<Post, DieselError> {
+    pub fn create_post(&self, new_post: &NewPost, body_format: BodyFormat) -> Result<Post, CreatePostError> {
         #[derive(Insertable)]
         #[table_name="posts"]
         struct CreatePost<'a> {
@@ -778,6 +795,9 @@ impl MoreInterestingConn {
             domain_id: Option<i32>,
         }
         let title_html_and_stuff = crate::prettify::prettify_title(new_post.title, "", &mut PrettifyData::new(self, 0));
+        if title_html_and_stuff.hash_tags.is_empty() {
+            return Err(CreatePostError::RequireTag);
+        }
         let excerpt_html_and_stuff = if let Some(excerpt) = new_post.excerpt {
             let body = match body_format {
                 BodyFormat::Plain => crate::prettify::prettify_body(excerpt, &mut PrettifyData::new(self, 0)),
@@ -814,7 +834,7 @@ impl MoreInterestingConn {
                 }
             }
         }
-        result
+        result.map_err(Into::into)
     }
     pub fn update_post(&self, post_id_value: i32, bump: bool, new_post: &NewPost, body_format: BodyFormat) -> Result<(), DieselError> {
         let title_html_and_stuff = crate::prettify::prettify_title(new_post.title, "", &mut PrettifyData::new(self, 0));

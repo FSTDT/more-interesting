@@ -25,6 +25,7 @@ use rocket::request::{Form, FlashMessage, LenientForm};
 use rocket::response::{Responder, Redirect, Flash, Content};
 use rocket::http::{Cookies, Cookie, ContentType};
 pub use models::MoreInterestingConn;
+use models::CreatePostError;
 use crate::customization::Customization;
 use models::User;
 use models::UserAuth;
@@ -94,6 +95,7 @@ struct TemplateContext {
     raw_html: String,
     tags: Vec<Tag>,
     tag_param: Option<String>,
+    user_param: Option<String>,
     domain: Option<String>,
     keywords_param: Option<String>,
     before_date_param: Option<NaiveDate>,
@@ -340,6 +342,7 @@ struct IndexParams {
     subscriptions: bool,
     before_date: Option<String>,
     after_date: Option<String>,
+    user: Option<String>,
 }
 
 fn parse_index_params(conn: &MoreInterestingConn, user: &User, params: Option<Form<IndexParams>>) -> Option<(PostSearch, Vec<Tag>)> {
@@ -381,6 +384,11 @@ fn parse_index_params(conn: &MoreInterestingConn, user: &User, params: Option<Fo
                 return None;
             }
         }
+    }
+    if let Some(user) = params.as_ref().and_then(|params| params.user.as_ref()) {
+        if let Ok(user) =conn.get_user_by_username(user) {
+		search.for_user_id = user.id;
+	}
     }
     if let Some(before_date) = params.as_ref().and_then(|params| params.before_date.as_ref()).and_then(|d| d.parse::<NaiveDate>().ok()) {
         search.before_date = Some(before_date);
@@ -545,6 +553,7 @@ fn post_subscriptions(conn: MoreInterestingConn, login: LoginSession, form: Form
 fn new(conn: MoreInterestingConn, login: Option<LoginSession>, flash: Option<FlashMessage>, config: State<SiteConfig>, params: Option<Form<IndexParams>>, customization: Customization) -> Option<impl Responder<'static>> {
     let (user, session) = login.map(|l| (l.user, l.session)).unwrap_or((User::default(), UserSession::default()));
     let tag_param = params.as_ref().and_then(|params| Some(params.tag.as_ref()?.to_string()));
+    let user_param = params.as_ref().and_then(|params| Some(params.user.as_ref()?.to_string()));
     let domain = params.as_ref().and_then(|params| Some(params.domain.as_ref()?.to_string()));
     let keywords_param = params.as_ref().and_then(|params| Some(params.q.as_ref()?.to_string()));
     let is_home = tag_param.is_none() && domain.is_none() && keywords_param.is_none();
@@ -564,7 +573,7 @@ fn new(conn: MoreInterestingConn, login: Option<LoginSession>, flash: Option<Fla
         config: config.clone(),
         customization, before_date_param, after_date_param,
         is_home, keywords_param,
-        user, posts, session, tags, tag_param, domain,
+        user, posts, session, tags, tag_param, domain, user_param,
         notifications, is_private,
         ..default()
     }))
@@ -658,11 +667,12 @@ fn create_post_form(login: Option<LoginSession>, config: State<SiteConfig>, cust
 }
 
 #[get("/submit")]
-fn create_link_form(login: Option<LoginSession>, config: State<SiteConfig>, customization: Customization) -> impl Responder<'static> {
+fn create_link_form(login: Option<LoginSession>, config: State<SiteConfig>, customization: Customization, flash: Option<FlashMessage>) -> impl Responder<'static> {
     let (user, session) = login.map(|l| (l.user, l.session)).unwrap_or((User::default(), UserSession::default()));
     Template::render("submit", &TemplateContext {
         title: Cow::Borrowed("submit"),
         config: config.clone(),
+        alert: flash.map(|f| f.msg().to_owned()),
         customization,
         user, session,
         ..default()
@@ -737,7 +747,10 @@ fn create(login: Option<LoginSession>, conn: MoreInterestingConn, post: Form<New
         private: false,
         title, excerpt
     }, config.body_format) {
-        Ok(post) => Ok(Redirect::to(post.uuid.to_string())),
+        Ok(post) => Ok(Flash::success(Redirect::to(post.uuid.to_string()), "Post created")),
+        Err(CreatePostError::RequireTag) => {
+            Ok(Flash::error(Redirect::to("submit".to_string()), "Please specify at least one tag"))
+        }
         Err(e) => {
             warn!("{:?}", e);
             Err(Status::InternalServerError)
@@ -1764,6 +1777,11 @@ fn random(conn: MoreInterestingConn) -> Option<impl Responder<'static>> {
     }
 }
 
+#[get("/conv/<id>")]
+fn conv_legacy_id(id: Base32) -> String {
+  id.into_i64().to_string()
+}
+
 #[get("/id/<id>")]
 fn redirect_legacy_id(id: i64) -> impl Responder<'static> {
     Redirect::moved(format!("/{}", Base32::from(id)))
@@ -1924,7 +1942,7 @@ fn main() {
             }
             Ok(rocket)
         }))
-        .mount("/", routes![index, login_form, login, logout, create_link_form, create_post_form, create, get_comments, vote, signup, get_settings, create_invite, invite_tree, change_password, post_comment, vote_comment, get_admin_tags, admin_tags, get_tags, edit_post, get_edit_post, edit_comment, get_edit_comment, set_dark_mode, set_big_mode, mod_log, get_mod_queue, moderate_post, moderate_comment, get_public_signup, rebake, random, redirect_legacy_id, latest, rss, top, banner_post, robots_txt, search_comments, new, get_admin_domains, admin_domains, create_message_form, create_message, subscriptions, post_subscriptions, get_reply_comment, preview_comment, get_admin_customization, admin_customization])
+        .mount("/", routes![index, login_form, login, logout, create_link_form, create_post_form, create, get_comments, vote, signup, get_settings, create_invite, invite_tree, change_password, post_comment, vote_comment, get_admin_tags, admin_tags, get_tags, edit_post, get_edit_post, edit_comment, get_edit_comment, set_dark_mode, set_big_mode, mod_log, get_mod_queue, moderate_post, moderate_comment, get_public_signup, rebake, random, redirect_legacy_id, latest, rss, top, banner_post, robots_txt, search_comments, new, get_admin_domains, admin_domains, create_message_form, create_message, subscriptions, post_subscriptions, get_reply_comment, preview_comment, get_admin_customization, admin_customization, conv_legacy_id])
         .mount("/assets", StaticFiles::from("assets"))
         .attach(Template::custom(|engines| {
             engines.handlebars.register_helper("count", Box::new(count_helper));

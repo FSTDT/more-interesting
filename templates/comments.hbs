@@ -30,7 +30,7 @@
             <p class=post-banner-desc>{{{posts.0.banner_desc}}}</p>
         {{/if}}
         <article>
-            <h2 class=article-header>{{#if posts.0.private}}<span class=article-header-inner>🔒 </span>{{/if}}{{{posts.0.title_html}}}</h2>
+            <h2 class=article-header>{{#if is_private}}<span class=article-header-inner>🔒 </span>{{/if}}{{{posts.0.title_html}}}</h2>
             {{#if posts.0.excerpt_html}}
                 <main>{{{posts.0.excerpt_html}}}</main>
             {{/if}}
