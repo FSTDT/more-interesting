@@ -1182,7 +1182,7 @@ impl MoreInterestingConn {
             visible: bool,
         }
         // TODO: make this configurable
-        if self.get_user_comments_count_today(new_post.created_by) > 10 {
+        if self.get_user_comments_count_today(new_post.created_by) > 20 {
             return Err(CreateCommentError::TooManyComments);
         }
         let html_and_stuff = match body_format {
