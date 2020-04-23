@@ -746,7 +746,7 @@ fn create(login: Option<LoginSession>, conn: MoreInterestingConn, post: Form<New
         visible: user.trust_level > 0,
         private: false,
         title, excerpt
-    }, config.body_format) {
+    }, config.body_format, user.username != "anonymous") {
         Ok(post) => Ok(Flash::success(Redirect::to(post.uuid.to_string()), "Post created")),
         Err(CreatePostError::TooManyPosts) => {
             Ok(Flash::error(Redirect::to("submit".to_string()), "You have exceeded the post limit for today; try again tomorrow"))
@@ -801,7 +801,7 @@ fn create_message(login: LoginSession, conn: MoreInterestingConn, post: Form<New
         visible: true,
         private: true,
         title, excerpt
-    }, config.body_format) {
+    }, config.body_format, false) {
         Ok(post) => {
             conn.create_subscription(NewSubscription {
                 user_id: user.id,

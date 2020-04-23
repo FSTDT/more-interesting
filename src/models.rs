@@ -812,7 +812,7 @@ impl MoreInterestingConn {
             (None, None)
         }
     }
-    pub fn create_post(&self, new_post: &NewPost, body_format: BodyFormat) -> Result<Post, CreatePostError> {
+    pub fn create_post(&self, new_post: &NewPost, body_format: BodyFormat, enforce_rate_limit: bool) -> Result<Post, CreatePostError> {
         #[derive(Insertable)]
         #[table_name="posts"]
         struct CreatePost<'a> {
@@ -832,7 +832,7 @@ impl MoreInterestingConn {
             return Err(CreatePostError::RequireTag);
         }
         // TODO: make this configurable
-        if self.get_user_posts_count_today(new_post.submitted_by) > 5 {
+        if self.get_user_posts_count_today(new_post.submitted_by) > 5 && enforce_rate_limit {
             return Err(CreatePostError::TooManyPosts);
         }
         let excerpt_html_and_stuff = if let Some(excerpt) = new_post.excerpt {
@@ -1182,7 +1182,7 @@ impl MoreInterestingConn {
             visible: bool,
         }
         // TODO: make this configurable
-        if self.get_user_comments_count_today(new_post.created_by) > 20 {
+        if self.get_user_comments_count_today(new_post.created_by) > 100 {
             return Err(CreateCommentError::TooManyComments);
         }
         let html_and_stuff = match body_format {
