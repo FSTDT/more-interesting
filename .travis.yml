@@ -26,7 +26,7 @@ matrix:
         - cd test/webdriver && npm ci && cd ../..
         - cd assets && npm install && npm run webpack && cd ..
       install:
-        - which diesel || cargo install diesel_cli --git https://github.com/notriddle/diesel
+        - which diesel || cargo install diesel_cli
         - which chromedriver || (wget https://chromedriver.storage.googleapis.com/78.0.3904.70/chromedriver_linux64.zip && unzip chromedriver_linux64.zip -d /home/travis/.cargo/bin && chmod +x /home/travis/.cargo/bin/chromedriver)
       script:
         - diesel database setup
