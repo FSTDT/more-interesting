@@ -1,7 +1,7 @@
 use rocket_contrib::databases::diesel::PgConnection;
 use diesel::prelude::*;
 use diesel::result::Error as DieselError;
-use chrono::{NaiveDate, NaiveDateTime, NaiveTime};
+use chrono::{NaiveDate, NaiveDateTime, NaiveTime, Utc, Duration};
 use crate::schema::{site_customization, users, user_sessions, posts, stars, invite_tokens, comments, comment_stars, tags, post_tagging, moderation, flags, comment_flags, domains, legacy_comments, domain_synonyms, notifications, subscriptions};
 use crate::password::{password_hash, password_verify, PasswordResult};
 use serde::Serialize;
@@ -16,9 +16,22 @@ use url::Url;
 const FLAG_HIDE_THRESHOLD: i64 = 3;
 
 #[derive(Debug)]
+pub enum CreateCommentError {
+    DieselError(DieselError),
+    TooManyComments,
+}
+
+impl From<DieselError> for CreateCommentError {
+    fn from(e: DieselError) -> CreateCommentError {
+        CreateCommentError::DieselError(e)
+    }
+}
+
+#[derive(Debug)]
 pub enum CreatePostError {
     DieselError(DieselError),
     RequireTag,
+    TooManyPosts,
 }
 
 impl From<DieselError> for CreatePostError {
@@ -722,6 +735,26 @@ impl MoreInterestingConn {
             .filter(uuid.eq(uuid_param.into_i64()))
             .first::<(i32, Base32, String, Option<String>, bool, bool, i32, i32, i32, bool, NaiveDateTime, i32, Option<String>, Option<i32>, Option<i32>, String, Option<String>, Option<String>)>(&self.0)?, self.get_current_stellar_time()))
     }
+    pub fn get_user_comments_count_today(&self, user_id_value: i32) -> i32 {
+        use self::comments::dsl::*;
+        let yesterday = Utc::now().naive_utc() - Duration::days(1);
+        comments
+            .filter(created_by.eq(user_id_value))
+            .filter(created_at.gt(yesterday))
+            .count()
+            .get_result(&self.0)
+            .unwrap_or(0) as i32
+    }
+    pub fn get_user_posts_count_today(&self, user_id_value: i32) -> i32 {
+        use self::posts::dsl::*;
+        let yesterday = Utc::now().naive_utc() - Duration::days(1);
+        posts
+            .filter(submitted_by.eq(user_id_value))
+            .filter(created_at.gt(yesterday))
+            .count()
+            .get_result(&self.0)
+            .unwrap_or(0) as i32
+    }
     pub fn get_current_stellar_time(&self) -> i32 {
         use self::stars::dsl::*;
         // the stars table should be limited by the i32 limits, but diesel doesn't know that
@@ -797,6 +830,10 @@ impl MoreInterestingConn {
         let title_html_and_stuff = crate::prettify::prettify_title(new_post.title, "", &mut PrettifyData::new(self, 0));
         if title_html_and_stuff.hash_tags.is_empty() {
             return Err(CreatePostError::RequireTag);
+        }
+        // TODO: make this configurable
+        if self.get_user_posts_count_today(new_post.submitted_by) > 5 {
+            return Err(CreatePostError::TooManyPosts);
         }
         let excerpt_html_and_stuff = if let Some(excerpt) = new_post.excerpt {
             let body = match body_format {
@@ -1134,7 +1171,7 @@ impl MoreInterestingConn {
             domains.filter(hostname.eq(hostname_value)).get_result::<Domain>(&self.0)
         }
     }
-    pub fn comment_on_post(&self, new_post: NewComment, body_format: BodyFormat) -> Result<Comment, DieselError> {
+    pub fn comment_on_post(&self, new_post: NewComment, body_format: BodyFormat) -> Result<Comment, CreateCommentError> {
         #[derive(Insertable)]
         #[table_name="comments"]
         struct CreateComment<'a> {
@@ -1144,12 +1181,16 @@ impl MoreInterestingConn {
             created_by: i32,
             visible: bool,
         }
+        // TODO: make this configurable
+        if self.get_user_comments_count_today(new_post.created_by) > 10 {
+            return Err(CreateCommentError::TooManyComments);
+        }
         let html_and_stuff = match body_format {
             BodyFormat::Plain => crate::prettify::prettify_body(&new_post.text, &mut PrettifyData::new(self, new_post.post_id)),
             BodyFormat::BBCode => crate::prettify::prettify_body_bbcode(&new_post.text, &mut PrettifyData::new(self, new_post.post_id)),
         };
         self.update_comment_count_on_post(new_post.post_id, 1)?;
-        diesel::insert_into(comments::table)
+        Ok(diesel::insert_into(comments::table)
             .values(CreateComment{
                 text: new_post.text,
                 html: &html_and_stuff.string,
@@ -1157,7 +1198,7 @@ impl MoreInterestingConn {
                 created_by: new_post.created_by,
                 visible: new_post.visible,
             })
-            .get_result(&self.0)
+            .get_result(&self.0)?)
     }
     pub fn update_comment(&self, post_id_value: i32, comment_id_value: i32, text_value: &str, body_format: BodyFormat) -> Result<(), DieselError> {
         let html_and_stuff = match body_format {
@@ -1893,7 +1934,6 @@ fn relative_date(dt: &NaiveDateTime) -> String {
     //   Localized dates, which can't be shown until after the JS loads because
     //   timezones can't be reliably pulled from HTTP headers, are relegated
     //   to tooltips.
-    use chrono::Utc;
     use chrono_humanize::{Accuracy, HumanTime, Tense};
     let h = HumanTime::from(*dt - Utc::now().naive_utc());
     v_htmlescape::escape(&h.to_text_en(Accuracy::Rough, Tense::Past)).to_string()

@@ -25,7 +25,7 @@ use rocket::request::{Form, FlashMessage, LenientForm};
 use rocket::response::{Responder, Redirect, Flash, Content};
 use rocket::http::{Cookies, Cookie, ContentType};
 pub use models::MoreInterestingConn;
-use models::CreatePostError;
+use models::{CreatePostError, CreateCommentError};
 use crate::customization::Customization;
 use models::User;
 use models::UserAuth;
@@ -748,6 +748,9 @@ fn create(login: Option<LoginSession>, conn: MoreInterestingConn, post: Form<New
         title, excerpt
     }, config.body_format) {
         Ok(post) => Ok(Flash::success(Redirect::to(post.uuid.to_string()), "Post created")),
+        Err(CreatePostError::TooManyPosts) => {
+            Ok(Flash::error(Redirect::to("submit".to_string()), "You have exceeded the post limit for today; try again tomorrow"))
+        }
         Err(CreatePostError::RequireTag) => {
             Ok(Flash::error(Redirect::to("submit".to_string()), "Please specify at least one tag"))
         }
@@ -962,12 +965,25 @@ struct CommentForm {
 fn post_comment(conn: MoreInterestingConn, login: LoginSession, comment: Form<CommentForm>, config: State<SiteConfig>) -> Option<impl Responder<'static>> {
     let post_info = conn.get_post_info_by_uuid(login.user.id, comment.post).into_option()?;
     let visible = login.user.trust_level > 0 || post_info.private;
-    conn.comment_on_post(NewComment {
+    let comment_result = conn.comment_on_post(NewComment {
         post_id: post_info.id,
         text: &comment.text,
         created_by: login.user.id,
         visible,
-    }, config.body_format).into_option()?;
+    }, config.body_format);
+    match comment_result {
+        Ok(_) => (),
+        Err(CreateCommentError::TooManyComments) => {
+            return Some(Flash::error(
+                Redirect::to(comment.post.to_string()),
+                "Comment rate limit exceeded; try again later"
+            ));
+        }
+        Err(e) => {
+            warn!("Post comment error: {:?}", e);
+            return None;
+        }
+    }
     let subscribed_users = conn.list_subscribed_users(post_info.id).unwrap_or_else(|e| {
         warn!("Failed to get subscribed users list for post uuid {}: {:?}", post_info.uuid, e);
         Vec::new()
