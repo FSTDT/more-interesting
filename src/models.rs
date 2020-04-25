@@ -7,6 +7,7 @@ use crate::password::{password_hash, password_verify, PasswordResult};
 use serde::Serialize;
 use crate::base32::Base32;
 use std::cmp::max;
+use std::mem;
 use ordered_float::OrderedFloat;
 use std::collections::{HashMap, HashSet};
 use crate::prettify::{self, prettify_title};
@@ -557,11 +558,16 @@ impl MoreInterestingConn {
         } else {
             query = query.filter(private.eq(false));
         }
-        if let Some(before_date) = search.before_date {
+	let mut before_date = search.before_date;
+	let mut after_date = search.after_date;
+        if before_date < after_date {
+            mem::swap(&mut after_date, &mut before_date);
+        }
+        if let Some(before_date) = before_date {
             let midnight = NaiveTime::from_hms(23, 59, 59);
             query = query.filter(self::posts::dsl::created_at.lt(before_date.and_time(midnight)));
         }
-        if let Some(after_date) = search.after_date {
+        if let Some(after_date) = after_date {
             let midnight = NaiveTime::from_hms(0, 0, 0);
             query = query.filter(self::posts::dsl::created_at.gt(after_date.and_time(midnight)));
         }
