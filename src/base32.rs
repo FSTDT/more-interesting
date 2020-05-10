@@ -268,7 +268,7 @@ fn encode(mut number: u64) -> String {
         encoded.push(DIGITS[digit]);
         number = number >> 5;
     }
-    if encoded == "" || encoded == "RSS" {
+    if encoded == "" || encoded == "RSS" || encoded.ends_with('.') {
         encoded.push('2');
     }
     encoded
