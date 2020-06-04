@@ -27,7 +27,7 @@ matrix:
         - cd assets && npm install && npm run webpack && cd ..
       install:
         - which diesel || cargo install diesel_cli --version 1.4.0
-        - which chromedriver || (wget https://chromedriver.storage.googleapis.com/83.0.4103.39/chromedriver_linux64.zip && unzip chromedriver_linux64.zip -d /home/travis/.cargo/bin && chmod +x /home/travis/.cargo/bin/chromedriver)
+        - which chromedriver || (wget https://chromedriver.storage.googleapis.com/LATEST_RELEASE -O LATEST_RELEASE && wget https://chromedriver.storage.googleapis.com/`cat LATEST_RELEASE`/chromedriver_linux64.zip && unzip chromedriver_linux64.zip -d /home/travis/.cargo/bin && chmod +x /home/travis/.cargo/bin/chromedriver)
       script:
         - diesel database setup
         - diesel migration run

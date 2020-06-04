@@ -31,8 +31,3 @@ kuchiki = "0.7"
 reqwest = "0.9.22"
 readability = "0.1.5"
 regex = "1"
-
-[patch.crates-io]
-diesel = { git = "https://github.com/notriddle/diesel" }
-diesel_derives = { git = "https://github.com/notriddle/diesel" }
-diesel_full_text_search = { git = "https://github.com/notriddle/diesel_full_text_search" }
