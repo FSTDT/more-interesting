@@ -39,7 +39,7 @@
                             <a class=details-menu-item href="mod-queue">Mod queue</a>
                         {{/if}}
                         <a class=details-menu-item href=settings role=menuitem>Settings</a>
-                        <a class=details-menu-item href="@{{user.username}}" role=menuitem>Your profile</a>
+                        <a class=details-menu-item href="@{{urlencode user.username}}" role=menuitem>Your profile</a>
                         <button class=details-menu-item role=menuitem>Sign out</button>
                     </form>
                 </details>

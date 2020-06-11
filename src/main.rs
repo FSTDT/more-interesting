@@ -1878,6 +1878,21 @@ fn docs_helper(
     Ok(())
 }
 
+fn urlencode_helper(
+    h: &Helper,
+    _: &Handlebars,
+    _: &Context,
+    _: &mut RenderContext,
+    out: &mut dyn Output
+) -> HelperResult {
+    if let Some(param) = h.param(0) {
+        if let serde_json::Value::String(param) = param.value() {
+            out.write(&utf8_percent_encode(&param.to_string(), NON_ALPHANUMERIC).to_string()) ?;
+        }
+    }
+    Ok(())
+}
+
 fn count_helper(
     h: &Helper,
     _: &Handlebars,
@@ -1962,6 +1977,7 @@ fn main() {
         .mount("/assets", StaticFiles::from("assets"))
         .attach(Template::custom(|engines| {
             engines.handlebars.register_helper("count", Box::new(count_helper));
+            engines.handlebars.register_helper("urlencode", Box::new(urlencode_helper));
             engines.handlebars.register_helper("docs", Box::new(docs_helper));
             engines.handlebars.register_helper("replace", Box::new(replace_helper));
         }))

@@ -13,6 +13,7 @@ use std::collections::{HashMap, HashSet};
 use crate::prettify::{self, prettify_title};
 use serde_json::{self as json, json};
 use url::Url;
+use percent_encoding::{utf8_percent_encode, NOT_ALPHANUMERIC};
 
 const FLAG_HIDE_THRESHOLD: i64 = 3;
 
@@ -62,6 +63,7 @@ pub struct ModerationInfo {
     pub created_at: NaiveDateTime,
     pub created_by: i32,
     pub created_by_username: String,
+    pub created_by_username_urlencode: String,
 }
 
 #[derive(Queryable, QueryableByName, Serialize)]
@@ -180,6 +182,7 @@ pub struct PostInfo {
     pub created_at_relative: String,
     pub submitted_by: i32,
     pub submitted_by_username: String,
+    pub submitted_by_username_urlencode: String,
     pub starred_by_me: bool,
     pub flagged_by_me: bool,
     pub excerpt_html: Option<String>,
@@ -1882,6 +1885,7 @@ fn tuple_to_post_info(data: &mut PrettifyData, (id, uuid, title, url, visible, p
     let title_html_output = prettify_title(&title, &link_url, data);
     let title_html = title_html_output.string;
     let created_at_relative = relative_date(&created_at);
+    let submitted_by_username_urlencode = utf8_percent_encode(&submitted_by_username, NOT_ALPHANUMERIC);
     PostInfo {
         id, uuid, title, url, visible, private, score, authored_by_submitter,
         submitted_by, submitted_by_username, comment_count, title_html,
@@ -1889,15 +1893,18 @@ fn tuple_to_post_info(data: &mut PrettifyData, (id, uuid, title, url, visible, p
         created_at, created_at_relative,
         starred_by_me: starred_post_id.is_some(),
         flagged_by_me: flagged_post_id.is_some(),
+        submitted_by_username_urlencode,
         hotness: compute_hotness(initial_stellar_time, current_stellar_time, score, authored_by_submitter)
     }
 }
 
 fn tuple_to_comment_info(conn: &MoreInterestingConn, (id, text, html, visible, post_id, created_at, created_by, starred_comment_id, flagged_comment_id, created_by_username): (i32, String, String, bool, i32, NaiveDateTime, i32, Option<i32>, Option<i32>, String)) -> CommentInfo {
     let created_at_relative = relative_date(&created_at);
+    let created_by_username_urlencode = utf8_percent_encode(&created_by_username, NOT_ALPHANUMERIC);
     CommentInfo {
         id, text, html, visible, post_id, created_by, created_by_username,
         created_at, created_at_relative,
+        created_by_username_urlencode,
         starred_by: conn.get_comment_starred_by(id).unwrap_or(Vec::new()),
         starred_by_me: starred_comment_id.is_some(),
         flagged_by_me: flagged_comment_id.is_some(),
