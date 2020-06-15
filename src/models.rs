@@ -63,7 +63,6 @@ pub struct ModerationInfo {
     pub created_at: NaiveDateTime,
     pub created_by: i32,
     pub created_by_username: String,
-    pub created_by_username_urlencode: String,
 }
 
 #[derive(Queryable, QueryableByName, Serialize)]
@@ -1886,7 +1885,7 @@ fn tuple_to_post_info(data: &mut PrettifyData, (id, uuid, title, url, visible, p
     let title_html_output = prettify_title(&title, &link_url, data);
     let title_html = title_html_output.string;
     let created_at_relative = relative_date(&created_at);
-    let submitted_by_username_urlencode = utf8_percent_encode(&submitted_by_username, NON_ALPHANUMERIC);
+    let submitted_by_username_urlencode = utf8_percent_encode(&submitted_by_username, NON_ALPHANUMERIC).to_string();
     PostInfo {
         id, uuid, title, url, visible, private, score, authored_by_submitter,
         submitted_by, submitted_by_username, comment_count, title_html,
@@ -1901,7 +1900,7 @@ fn tuple_to_post_info(data: &mut PrettifyData, (id, uuid, title, url, visible, p
 
 fn tuple_to_comment_info(conn: &MoreInterestingConn, (id, text, html, visible, post_id, created_at, created_by, starred_comment_id, flagged_comment_id, created_by_username): (i32, String, String, bool, i32, NaiveDateTime, i32, Option<i32>, Option<i32>, String)) -> CommentInfo {
     let created_at_relative = relative_date(&created_at);
-    let created_by_username_urlencode = utf8_percent_encode(&created_by_username, NON_ALPHANUMERIC);
+    let created_by_username_urlencode = utf8_percent_encode(&created_by_username, NON_ALPHANUMERIC).to_string();
     CommentInfo {
         id, text, html, visible, post_id, created_by, created_by_username,
         created_at, created_at_relative,

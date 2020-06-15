@@ -46,6 +46,7 @@ use rocket::State;
 use std::str::FromStr;
 use crate::session::{LoginSession, ModeratorSession, UserAgentString};
 use chrono::NaiveDate;
+use percent_encoding::{utf8_percent_encode, NON_ALPHANUMERIC};
 
 #[derive(Clone, Serialize)]
 struct SiteConfig {
