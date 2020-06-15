@@ -46,6 +46,9 @@ use rocket::State;
 use std::str::FromStr;
 use crate::session::{LoginSession, ModeratorSession, UserAgentString};
 use chrono::NaiveDate;
+use percent_encoding::{utf8_percent_encode, NON_ALPHANUMERIC};
+use lazy_static::lazy_static;
+use regex::Regex;
 
 #[derive(Clone, Serialize)]
 struct SiteConfig {
@@ -1878,6 +1881,44 @@ fn docs_helper(
     Ok(())
 }
 
+fn urlencode_helper(
+    h: &Helper,
+    _: &Handlebars,
+    _: &Context,
+    _: &mut RenderContext,
+    out: &mut dyn Output
+) -> HelperResult {
+    if let Some(param) = h.param(0) {
+        if let serde_json::Value::String(param) = param.value() {
+            out.write(&utf8_percent_encode(&param.to_string(), NON_ALPHANUMERIC).to_string()) ?;
+        }
+    }
+    Ok(())
+}
+
+fn usernamewrap_helper(
+    h: &Helper,
+    _: &Handlebars,
+    _: &Context,
+    _: &mut RenderContext,
+    out: &mut dyn Output
+) -> HelperResult {
+    lazy_static!{
+        static ref BASIC_USERNAME: Regex = Regex::new(r"^[a-zA-Z0-9\-_]+$").unwrap();
+    }
+    if let Some(param) = h.param(0) {
+        if let serde_json::Value::String(param) = param.value() {
+            let username = param.to_string();
+            let is_basic = BASIC_USERNAME.is_match(&username);
+            if !is_basic { out.write("<") ?; }
+            out.write("@") ?;
+            out.write(&username) ?;
+            if !is_basic { out.write(">") ?; }
+        }
+    }
+    Ok(())
+}
+
 fn count_helper(
     h: &Helper,
     _: &Handlebars,
@@ -1962,6 +2003,8 @@ fn main() {
         .mount("/assets", StaticFiles::from("assets"))
         .attach(Template::custom(|engines| {
             engines.handlebars.register_helper("count", Box::new(count_helper));
+            engines.handlebars.register_helper("urlencode", Box::new(urlencode_helper));
+            engines.handlebars.register_helper("usernamewrap", Box::new(usernamewrap_helper));
             engines.handlebars.register_helper("docs", Box::new(docs_helper));
             engines.handlebars.register_helper("replace", Box::new(replace_helper));
         }))

@@ -8,7 +8,7 @@
 <details-dialog>
     <ul>
         {{~#each starred_by~}}
-            <li><a href="@{{this}}">{{this}}</a></li>
+            <li><a href="@{{urlencode this}}">{{this}}</a></li>
         {{~/each~}}
     </ul>
 </details-dialog>

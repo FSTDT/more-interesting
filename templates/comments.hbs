@@ -36,7 +36,7 @@
             {{/if}}
             <footer class=footer-container>
             <div class=footer-main>
-            <a href="@{{posts.0.submitted_by_username}}">{{posts.0.submitted_by_username}}</a>
+            <a href="@{{posts.0.submitted_by_username_urlencode}}">{{posts.0.submitted_by_username}}</a>
             submitted
             <a is=local-date href="" title="{{posts.0.created_at}}+00:00">{{posts.0.created_at_relative}}</a>
             <details class=details-dialog-outer id=sp-{{posts.0.uuid}}>{{> view-star}}</details>
@@ -69,7 +69,7 @@
         {{#each comments}}
             <aside id="{{this.id}}"><details open><summary title="Hide comment" class=module-summary>{{this.created_by_username}}</summary>
                 <header class=aside-header>
-                    <a href="@{{this.created_by_username}}" class=top-header-link>{{this.created_by_username}}</a>
+                    <a href="@{{this.created_by_username_urlencode}}" class=top-header-link>{{this.created_by_username}}</a>
                     <span class="top-header-link top-header-aside"><a class=top-header-link is=local-date href="#{{this.id}}" title="{{this.created_at}}+00:00">{{this.created_at_relative}} #{{this.id}}</a></span>
                 </header>
                 <main>{{{this.html}}}</main>

@@ -3,6 +3,7 @@ use std::fmt::{self, Display, Formatter};
 use lazy_static::lazy_static;
 use url::Url;
 use regex::Regex;
+use percent_encoding::{utf8_percent_encode, NON_ALPHANUMERIC};
 
 const URL_PROTOCOLS: &[&str] = &["http:", "https:", "ftp:", "gopher:", "mailto:", "magnet:"];
 
@@ -810,13 +811,14 @@ pub fn prettify_title<D: Data>(text: &str, url: &str, data: &mut D) -> Output {
 fn maybe_write_username<D: Data>(username_without_at: &str, data: &mut D, out: &mut Output, embedded: Option<&str>) {
     let html = escape(&username_without_at).to_string();
     if data.check_username(username_without_at) {
+        let url = utf8_percent_encode(&username_without_at.to_string(), NON_ALPHANUMERIC).to_string();
         out.usernames.push(username_without_at.to_owned());
         if embedded.is_some() {
             out.push_str("</a></span><span class=article-header-inner><a class=\"inner-link article-header-inner\" href=\"@");
         } else {
             out.push_str("<a href=\"@");
         }
-        out.push_str(&html);
+        out.push_str(&url);
         out.push_str("\">@");
         out.push_str(&html);
         out.push_str("</a>");
@@ -1171,6 +1173,27 @@ mod test {
             }
             fn check_username(&mut self, username: &str) -> bool {
                 username == "mentioning"
+            }
+            fn get_domain_canonical(&mut self, hostname: &str) -> String {
+                hostname.to_owned()
+            }
+        }
+        assert_eq!(prettify_body(comment, &mut MyData).string, CLEANER.clean(html).to_string());
+    }
+    #[test]
+    fn test_username_punct() {
+        let comment = "<@username?>";
+        let html = "<p>&lt;<a href=\"@username%3F\">@username?</a>&gt;";
+        struct MyData;
+        impl Data for MyData {
+            fn check_comment_ref(&mut self, id: i32) -> bool {
+                id == 12345
+            }
+            fn check_hash_tag(&mut self, tag: &str) -> bool {
+                tag == "words"
+            }
+            fn check_username(&mut self, username: &str) -> bool {
+                username == "username?"
             }
             fn get_domain_canonical(&mut self, hostname: &str) -> String {
                 hostname.to_owned()
