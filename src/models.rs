@@ -13,7 +13,7 @@ use std::collections::{HashMap, HashSet};
 use crate::prettify::{self, prettify_title};
 use serde_json::{self as json, json};
 use url::Url;
-use percent_encoding::{utf8_percent_encode, NOT_ALPHANUMERIC};
+use percent_encoding::{utf8_percent_encode, NON_ALPHANUMERIC};
 
 const FLAG_HIDE_THRESHOLD: i64 = 3;
 
@@ -1885,7 +1885,7 @@ fn tuple_to_post_info(data: &mut PrettifyData, (id, uuid, title, url, visible, p
     let title_html_output = prettify_title(&title, &link_url, data);
     let title_html = title_html_output.string;
     let created_at_relative = relative_date(&created_at);
-    let submitted_by_username_urlencode = utf8_percent_encode(&submitted_by_username, NOT_ALPHANUMERIC);
+    let submitted_by_username_urlencode = utf8_percent_encode(&submitted_by_username, NON_ALPHANUMERIC);
     PostInfo {
         id, uuid, title, url, visible, private, score, authored_by_submitter,
         submitted_by, submitted_by_username, comment_count, title_html,
@@ -1900,7 +1900,7 @@ fn tuple_to_post_info(data: &mut PrettifyData, (id, uuid, title, url, visible, p
 
 fn tuple_to_comment_info(conn: &MoreInterestingConn, (id, text, html, visible, post_id, created_at, created_by, starred_comment_id, flagged_comment_id, created_by_username): (i32, String, String, bool, i32, NaiveDateTime, i32, Option<i32>, Option<i32>, String)) -> CommentInfo {
     let created_at_relative = relative_date(&created_at);
-    let created_by_username_urlencode = utf8_percent_encode(&created_by_username, NOT_ALPHANUMERIC);
+    let created_by_username_urlencode = utf8_percent_encode(&created_by_username, NON_ALPHANUMERIC);
     CommentInfo {
         id, text, html, visible, post_id, created_by, created_by_username,
         created_at, created_at_relative,
