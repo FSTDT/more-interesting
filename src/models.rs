@@ -259,6 +259,7 @@ pub struct CommentInfo {
     pub created_at_relative: String,
     pub created_by: i32,
     pub created_by_username: String,
+    pub created_by_username_urlencode: String,
     pub starred_by_me: bool,
     pub flagged_by_me: bool,
     pub starred_by: Vec<String>,
