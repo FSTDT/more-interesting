@@ -6,7 +6,7 @@
     <form action="comment?U={{session.uuid}}" method=POST id=comment-form>
         <label>
             <h3 id=comment-form>Add your comment</h3>
-            <smart-textarea><textarea name=text autofocus required is=smart-punct-textarea>@{{comments.0.created_by_username_urlencode}} #{{comments.0.id}}
+            <smart-textarea><textarea name=text autofocus required is=smart-punct-textarea>{{usernamewrap comments.0.created_by_username}} #{{comments.0.id}}
 
 </textarea></smart-textarea>
         </label>
