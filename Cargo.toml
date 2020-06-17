@@ -15,7 +15,7 @@ chrono-humanize = "0.0.11"
 ring = "0.13.5"
 rand = "0.7.3"
 serde = { version = "1.0.104", features = ["derive"] }
-unicode-normalization = "0.1.12"
+unicode-normalization = "0.1.13"
 lazy_static = "1"
 quickcheck = "0.9"
 byteorder = "1.3"
