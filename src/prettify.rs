@@ -990,6 +990,8 @@ pub trait Data {
         if let Some(id) = id {
             if self.check_comment_ref(id) {
                 NumberSign::Comment(id)
+            } else if self.check_hash_tag(number) {
+                NumberSign::Tag(number)
             } else {
                 NumberSign::None
             }
