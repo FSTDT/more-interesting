@@ -409,6 +409,21 @@ pub struct PostSearch {
     pub after_date: Option<NaiveDate>,
 }
 
+#[derive(Queryable, Serialize)]
+pub struct PostFlagInfo {
+    pub uuid: Base32,
+    pub title: String,
+    pub created_by_username: String,
+}
+
+#[derive(Queryable, Serialize)]
+pub struct CommentFlagInfo {
+    pub uuid: Base32,
+    pub id: i32,
+    pub title: String,
+    pub created_by_username: String,
+}
+
 impl PostSearch {
     pub fn with_my_user_id(my_user_id: i32) -> PostSearch {
         PostSearch {
@@ -431,6 +446,51 @@ impl PostSearch {
 pub struct MoreInterestingConn(PgConnection);
 
 impl MoreInterestingConn {
+    pub fn get_recent_post_flags(&self) -> Vec<PostFlagInfo> {
+        use self::flags::dsl as f;
+        use self::posts::dsl::{*, self as p};
+        use self::users::dsl::{*, self as u};
+        let all: Vec<PostFlagInfo> = f::flags
+            .inner_join(users.on(u::id.eq(f::user_id)))
+            .inner_join(posts)
+            .select((
+                p::uuid,
+                p::title,
+                u::username,
+            ))
+            .filter(p::visible.eq(true))
+            .order_by(f::created_at.desc())
+            .limit(200)
+            .get_results::<PostFlagInfo>(&self.0)
+            .unwrap_or(Vec::new())
+            .into_iter()
+            .collect();
+        all
+    }
+    pub fn get_recent_comment_flags(&self) -> Vec<CommentFlagInfo> {
+        use self::comment_flags::dsl as f;
+        use self::posts::dsl::{*, self as p};
+        use self::comments::dsl::{*, self as c};
+        use self::users::dsl::{*, self as u};
+        let all: Vec<CommentFlagInfo> = f::comment_flags
+            .inner_join(users.on(u::id.eq(f::user_id)))
+            .inner_join(comments)
+            .inner_join(posts.on(p::id.eq(c::post_id)))
+            .select((
+                p::uuid,
+                c::id,
+                p::title,
+                u::username,
+            ))
+            .filter(c::visible.eq(true))
+            .order_by(f::created_at.desc())
+            .limit(200)
+            .get_results::<CommentFlagInfo>(&self.0)
+            .unwrap_or(Vec::new())
+            .into_iter()
+            .collect();
+        all
+    }
     pub fn set_customization(&self, new: SiteCustomization) -> Result<(), DieselError> {
         use self::site_customization::dsl::*;
         let affected_rows = if self.get_customization_value(&new.name).is_some() {

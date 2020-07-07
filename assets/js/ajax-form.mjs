@@ -24,18 +24,6 @@ export class AjaxFormElement extends HTMLElement {
                 img.alt = t.title = "Add star";
                 t.name = 'add_star' + suff;
                 break;
-            case "flag_active":
-                img.src = "assets/flag_active.svg";
-                img.alt = t.title = "Remove flag";
-                t.name = 'rm_flag';
-                t.className += ' flag-button-active';
-                break;
-            case "flag":
-                img.src = "assets/flag.svg";
-                img.alt = t.title = "Add flag";
-                t.name = 'add_flag';
-                t.className = t.className.replace('flag-button-active', '');
-                break;
         }
     }
     _clickEvent(e) {
@@ -72,24 +60,6 @@ export class AjaxFormElement extends HTMLElement {
                         body
                     });
                     break;
-                case "add_flag":
-                    this._setImage(t, "flag_active");
-                    fail = "flag";
-                    fut = fetch("vote?U=" + session_uuid, {
-                        method: "post",
-                        credentials: "include",
-                        body
-                    });
-                    break;
-                case "rm_flag":
-                    this._setImage(t, "flag");
-                    fail = "flag_active";
-                    fut = fetch("vote?U=" + session_uuid, {
-                        method: "post",
-                        credentials: "include",
-                        body
-                    });
-                    break;
                 case "add_star_comment":
                     this._setImage(t, "star_active");
                     fail = "star";
@@ -104,24 +74,6 @@ export class AjaxFormElement extends HTMLElement {
                     this._setImage(t, "star");
                     fail = "star_active";
                     dest = "sc-" + t.value;
-                    fut = fetch("vote-comment?U=" + session_uuid, {
-                        method: "post",
-                        credentials: "include",
-                        body
-                    });
-                    break;
-                case "add_flag_comment":
-                    this._setImage(t, "flag_active");
-                    fail = "flag";
-                    fut = fetch("vote-comment?U=" + session_uuid, {
-                        method: "post",
-                        credentials: "include",
-                        body
-                    });
-                    break;
-                case "rm_flag_comment":
-                    this._setImage(t, "flag");
-                    fail = "flag_active";
                     fut = fetch("vote-comment?U=" + session_uuid, {
                         method: "post",
                         credentials: "include",

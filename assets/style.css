@@ -386,7 +386,7 @@ html input[type="submit"]:active,
 select:active,
 .button:active,
 .details-menu-summary:active,
-details[open] .details-menu-summary,
+details[open] > .details-menu-summary,
 .details-dialog-summary:active {
     border: solid 2px #eee;
     border-top-color: #0c0c0d;
@@ -405,7 +405,7 @@ html.dark html input[type="submit"]:active,
 html.dark select:active,
 html.dark .button:active,
 html.dark .details-menu-summary:active,
-html.dark details[open] .details-menu-summary,
+html.dark details[open] > .details-menu-summary,
 html.dark .details-dialog-summary:active {
     border: solid 2px #575765;
     border-top-color: #0f1126;
@@ -732,7 +732,7 @@ html.dark article, html.dark aside {
     margin: -0.5em calc(-0.25em + 1px);
 }
 
-details[open] .module-summary {
+details[open] > .module-summary {
     position: absolute;
     top: 0;
     bottom: 0;
@@ -745,7 +745,7 @@ details[open] .module-summary {
     padding-right: 0;
 }
 
-details[open] .module-summary:before {
+details[open] > .module-summary:before {
     content: "-";
     margin-right: 1em;
 }
@@ -849,10 +849,10 @@ details[open] > details-dialog {
 .details-menu-summary::after {
     content: " ▾";
 }
-.js details[open] .details-menu-summary {
+.js details[open] > .details-menu-summary {
     z-index: 100;
 }
-details[open] .details-menu-summary::before {
+details[open] > .details-menu-summary::before {
     display: block;
     position: fixed;
     content: ".";
@@ -887,7 +887,7 @@ details[open] > .inline-summary::before {
     padding-right: 3px;
     margin: 2px;
 }
-details[open] .details-menu-inner, .typeahead-inner {
+details[open] > .details-menu-inner, .typeahead-inner {
     display: block;
 }
 

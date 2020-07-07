@@ -121,6 +121,8 @@ enum AdminPage {
     Tags = 0,
     Domains = 1,
     Customization = 2,
+    Flags = 3,
+    CommentFlags = 4,
 }
 
 impl Serialize for AdminPage {
@@ -149,6 +151,8 @@ struct AdminTemplateContext {
     config: SiteConfig,
     page: AdminPage,
     site_customization: Vec<SiteCustomization>,
+    post_flags: Vec<models::PostFlagInfo>,
+    comment_flags: Vec<models::CommentFlagInfo>,
 }
 
 fn default<T: Default>() -> T { T::default() }
@@ -1225,6 +1229,34 @@ fn get_admin_tags(conn: MoreInterestingConn, login: ModeratorSession, flash: Opt
     })
 }
 
+#[get("/admin/flags")]
+fn get_admin_flags(conn: MoreInterestingConn, login: ModeratorSession, flash: Option<FlashMessage>, config: State<SiteConfig>) -> impl Responder<'static> {
+    let post_flags = conn.get_recent_post_flags();
+    Template::render("admin/flags", &AdminTemplateContext {
+        title: Cow::Borrowed("recent flags"),
+        user: login.user,
+        session: login.session,
+        alert: flash.map(|f| f.msg().to_owned()),
+        config: config.clone(),
+        page: AdminPage::Flags,
+        post_flags, ..default()
+    })
+}
+
+#[get("/admin/comment-flags")]
+fn get_admin_comment_flags(conn: MoreInterestingConn, login: ModeratorSession, flash: Option<FlashMessage>, config: State<SiteConfig>) -> impl Responder<'static> {
+    let comment_flags = conn.get_recent_comment_flags();
+    Template::render("admin/comment-flags", &AdminTemplateContext {
+        title: Cow::Borrowed("recent flags"),
+        user: login.user,
+        session: login.session,
+        alert: flash.map(|f| f.msg().to_owned()),
+        config: config.clone(),
+        page: AdminPage::CommentFlags,
+        comment_flags, ..default()
+    })
+}
+
 #[derive(FromForm)]
 struct EditTagsForm {
     name: String,
@@ -2005,7 +2037,7 @@ fn main() {
             }
             Ok(rocket)
         }))
-        .mount("/", routes![index, login_form, login, logout, create_link_form, create_post_form, create, get_comments, vote, signup, get_settings, create_invite, invite_tree, change_password, post_comment, vote_comment, get_admin_tags, admin_tags, get_tags, edit_post, get_edit_post, edit_comment, get_edit_comment, set_dark_mode, set_big_mode, mod_log, get_mod_queue, moderate_post, moderate_comment, get_public_signup, rebake, random, redirect_legacy_id, latest, rss, top, banner_post, robots_txt, search_comments, new, get_admin_domains, admin_domains, create_message_form, create_message, subscriptions, post_subscriptions, get_reply_comment, preview_comment, get_admin_customization, admin_customization, conv_legacy_id, get_tags_json])
+        .mount("/", routes![index, login_form, login, logout, create_link_form, create_post_form, create, get_comments, vote, signup, get_settings, create_invite, invite_tree, change_password, post_comment, vote_comment, get_admin_tags, admin_tags, get_tags, edit_post, get_edit_post, edit_comment, get_edit_comment, set_dark_mode, set_big_mode, mod_log, get_mod_queue, moderate_post, moderate_comment, get_public_signup, rebake, random, redirect_legacy_id, latest, rss, top, banner_post, robots_txt, search_comments, new, get_admin_domains, admin_domains, create_message_form, create_message, subscriptions, post_subscriptions, get_reply_comment, preview_comment, get_admin_customization, admin_customization, conv_legacy_id, get_tags_json, get_admin_flags, get_admin_comment_flags])
         .mount("/assets", StaticFiles::from("assets"))
         .attach(Template::custom(|engines| {
             engines.handlebars.register_helper("count", Box::new(count_helper));

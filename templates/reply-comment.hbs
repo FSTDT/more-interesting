@@ -1,4 +1,40 @@
 {{#*inline "page"}}
+
+    <aside id="{{comments.0.id}}">
+        <header class=aside-header>
+            {{comments.0.created_by_username}}
+            <span class="top-header-link top-header-aside"><a class=top-header-link is=local-date href="#{{comments.0.id}}" title="{{comments.0.created_at}}+00:00">{{comments.0.created_at_relative}} #{{comments.0.id}}</a></span>
+        </header>
+        <main>{{{comments.0.html}}}</main>
+        <form action="vote-comment?redirect={{../posts.0.uuid}}&U={{../session.uuid}}" method=POST>
+        <footer class=footer-container>
+            <div class=footer-main>
+            <button{{#if ../user.id}} title="{{#if comments.0.starred_by_me}}Remove star{{else}}Add star{{/if}}"{{else}} disabled title="Log in to vote"{{/if}} name="{{#if comments.0.starred_by_me}}rm_star_comment{{else}}add_star_comment{{/if}}" value={{comments.0.id}}>
+                <img width=12 height=12 class=good-img src=assets/{{#if comments.0.starred_by_me}}star_active.svg{{else}}star.svg{{/if}} alt="{{#if comments.0.starred_by_me}}Remove star{{else}}Add star{{/if}}">
+            </button>
+            <details class=details-dialog-outer id=sc-{{comments.0.id}}>{{> view-star-comment}}</details>
+            </div>
+            <details-menu-bar class=footer-aside>
+                <button disabled>↩ Reply</button>
+                <details class="details-menu-outer backwards">
+                <summary class="details-menu-summary backwards" aria-haspopup=menu>More</summary>
+                <div class="details-menu-inner backwards" role=menu>
+                <a href="#{{comments.0.id}}" class=details-menu-item>Permalink</a>
+                {{#if (or (gte ../user.trust_level 3) (eq comments.0.created_by ../user.id))}}
+                <a href="edit-comment?comment={{comments.0.id}}" class=details-menu-item>Edit</a>
+                {{/if}}
+                {{#if (gte ../user.trust_level 1)}}
+                <button class=details-menu-item name="{{#if comments.0.flagged_by_me}}rm_flag_comment{{else}}add_flag_comment{{/if}}" value={{comments.0.id}}>
+                    {{#if comments.0.flagged_by_me}}Remove flag{{else}}Add flag{{/if}}
+                </button>
+                {{/if}}
+                </div>
+            </details>
+            </details-menu-bar>
+        </footer>
+        </form>
+    </aside>
+    <hr>
     <div class=tab-bar>
         <label for=comment-form class=active-tab>Edit</label><button name=preview value=preview class=tab form=comment-form formaction="preview-comment?U={{session.uuid}}#comment-form" onclick="if(!this.form||!this.formAction){var f=document.forms['comment-form'];f.action=this.getAttribute('formaction');var inp=document.createElement('input');inp.name='preview';inp.value='preview';inp.type='hidden';f.appendChild(inp);f.submit();return false}">Preview</button>
     </div>
@@ -24,25 +60,5 @@
         </details>
     </details-menu-bar>
     </div>
-
-    <aside id="{{comments.0.id}}">
-        <header class=aside-header>
-            {{comments.0.created_by_username}}
-            <span class="top-header-link top-header-aside"><a class=top-header-link is=local-date href="#{{comments.0.id}}" title="{{comments.0.created_at}}+00:00">{{comments.0.created_at_relative}} #{{comments.0.id}}</a></span>
-        </header>
-        <main>{{{comments.0.html}}}</main>
-        <footer class=footer-container>
-            <div class=footer-main>
-            </div>
-            <form class=footer-aside action="vote-comment?redirect={{posts.0.uuid}}&U={{session.uuid}}" method=POST>
-                <button title="{{#if comments.0.starred_by_me}}Remove star{{else}}Add star{{/if}}" name="{{#if this.starred_by_me}}rm_star_comment{{else}}add_star_comment{{/if}}" value={{this.id}}>
-                    <img width=12 height=12 class=good-img src=assets/{{#if comments.0.starred_by_me}}star_active.svg{{else}}star.svg{{/if}} alt="{{#if comments.0.starred_by_me}}Remove star{{else}}Add star{{/if}}">
-                </button>
-            </div>
-            <form class=footer-aside action="vote-comment?redirect={{posts.0.uuid}}&U={{session.uuid}}" method=POST>
-                <button disabled>↩ Reply</button>
-            </form>
-        </footer>
-    </aside>
 {{/inline}}
 {{~> layout~}}

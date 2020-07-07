@@ -1,0 +1,8 @@
+{{#*inline "page"}}
+    <div class=admin-list>
+        {{#each comment_flags}}
+        <a class=admin-list-item href="../{{uuid}}#{{id}}"><b>{{title}}</b> #{{id}}<br>flagged by {{created_by_username}}</a>
+        {{/each}}
+    </div>
+{{/inline}}
+{{~> admin/layout~}}
