@@ -18,7 +18,6 @@ mod session;
 mod base32;
 mod prettify;
 mod pid_file_fairing;
-mod extract_excerpt;
 mod sql_types;
 
 use rocket::request::{Form, FlashMessage, LenientForm};
@@ -34,6 +33,7 @@ use rocket_contrib::serve::StaticFiles;
 use rocket_contrib::templates::{Template, handlebars};
 use serde::{Serialize, Serializer};
 use std::borrow::Cow;
+use std::collections::BTreeMap;
 use crate::models::{SiteCustomization, NotificationInfo, NewNotification, NewSubscription, PostSearch, PostSearchOrderBy, UserSession, PostInfo, NewStar, NewUser, CommentInfo, NewPost, NewComment, NewStarComment, NewTag, Tag, Comment, ModerationInfo, NewFlag, NewFlagComment, LegacyComment, CommentSearchResult, DomainSynonym, DomainSynonymInfo, NewDomain};
 use base32::Base32;
 use url::Url;
@@ -685,12 +685,16 @@ fn create_link_form(login: Option<LoginSession>, config: State<SiteConfig>, cust
 #[derive(FromForm)]
 struct NewPostForm {
     title: String,
+    tags: Option<String>,
     url: Option<String>,
     excerpt: Option<String>,
 }
 
 #[post("/submit", data = "<post>")]
 fn create(login: Option<LoginSession>, conn: MoreInterestingConn, post: Form<NewPostForm>, config: State<SiteConfig>) -> Result<impl Responder<'static>, Status> {
+    lazy_static!{
+        static ref TAGS_SPLIT: Regex = Regex::new(r"[#, \t]+").unwrap();
+    }
     let user = login.as_ref().map(|l| l.user.clone());
     let user = if let Some(user) = user {
         if user.banned {
@@ -714,9 +718,18 @@ fn create(login: Option<LoginSession>, conn: MoreInterestingConn, post: Form<New
     } else {
         return Err(Status::BadRequest);
     };
-    let NewPostForm { title, url, excerpt } = &*post;
-    let mut title = &title[..];
-    let mut url = url.as_ref().and_then(|u| {
+    let NewPostForm { title, url, excerpt, tags } = &*post;
+    let mut title = title.clone();
+    for tag in TAGS_SPLIT.split(tags.as_ref().map(|x| &x[..]).unwrap_or("")) {
+        if tag == "" { continue }
+        if conn.get_tag_by_name(tag).is_err() {
+            return Ok(Flash::error(Redirect::to("submit".to_string()), "The specified tag does not exist"))
+        }
+        title += " #";
+        title += tag;
+    }
+    let title = &title[..];
+    let url = url.as_ref().and_then(|u| {
         if u == "" {
             None
         } else if !u.contains(":") && !u.starts_with("//") {
@@ -725,24 +738,7 @@ fn create(login: Option<LoginSession>, conn: MoreInterestingConn, post: Form<New
             Some(u.to_owned())
         }
     });
-    let e;
-    let mut excerpt = excerpt.as_ref().and_then(|k| if k == "" { None } else { Some(&k[..]) });
-    if let (None, Some(url_)) = (excerpt, &url) {
-        if let Ok(url_) = Url::parse(url_) {
-            e = extract_excerpt::extract_excerpt_url(url_);
-            if let Some(ref e) = e {
-                if e.body != "" {
-                    excerpt = Some(&e.body);
-                }
-                if title == "" {
-                    title = &e.title;
-                }
-                if e.url.as_str() != url.as_ref().map(|s| &s[..]).unwrap_or("") {
-                    url = Some(e.url.to_string());
-                }
-            }
-        }
-    }
+    let excerpt = excerpt.as_ref().and_then(|k| if k == "" { None } else { Some(&k[..]) });
     match conn.create_post(&NewPost {
         url: url.as_ref().map(|s| &s[..]),
         submitted_by: user.id,
@@ -1159,6 +1155,16 @@ fn create_invite<'a>(conn: MoreInterestingConn, login: LoginSession, config: Sta
             Flash::error(Redirect::to(uri!(get_settings)), "Failed to create invite")
         }
     }
+}
+
+#[get("/tags.json")]
+fn get_tags_json(conn: MoreInterestingConn) -> Option<impl Responder<'static>> {
+    let tags = conn.get_all_tags().unwrap_or(Vec::new());
+    let tags_map: BTreeMap<String, String> = tags.into_iter().map(|tag| {
+        (tag.name, tag.description.unwrap_or(String::new()))
+    }).collect();
+    let json = serde_json::to_string(&tags_map).ok()?;
+    Some(Content(ContentType::from_str("text/json").unwrap(), json))
 }
 
 #[get("/tags")]
@@ -1999,7 +2005,7 @@ fn main() {
             }
             Ok(rocket)
         }))
-        .mount("/", routes![index, login_form, login, logout, create_link_form, create_post_form, create, get_comments, vote, signup, get_settings, create_invite, invite_tree, change_password, post_comment, vote_comment, get_admin_tags, admin_tags, get_tags, edit_post, get_edit_post, edit_comment, get_edit_comment, set_dark_mode, set_big_mode, mod_log, get_mod_queue, moderate_post, moderate_comment, get_public_signup, rebake, random, redirect_legacy_id, latest, rss, top, banner_post, robots_txt, search_comments, new, get_admin_domains, admin_domains, create_message_form, create_message, subscriptions, post_subscriptions, get_reply_comment, preview_comment, get_admin_customization, admin_customization, conv_legacy_id])
+        .mount("/", routes![index, login_form, login, logout, create_link_form, create_post_form, create, get_comments, vote, signup, get_settings, create_invite, invite_tree, change_password, post_comment, vote_comment, get_admin_tags, admin_tags, get_tags, edit_post, get_edit_post, edit_comment, get_edit_comment, set_dark_mode, set_big_mode, mod_log, get_mod_queue, moderate_post, moderate_comment, get_public_signup, rebake, random, redirect_legacy_id, latest, rss, top, banner_post, robots_txt, search_comments, new, get_admin_domains, admin_domains, create_message_form, create_message, subscriptions, post_subscriptions, get_reply_comment, preview_comment, get_admin_customization, admin_customization, conv_legacy_id, get_tags_json])
         .mount("/assets", StaticFiles::from("assets"))
         .attach(Template::custom(|engines| {
             engines.handlebars.register_helper("count", Box::new(count_helper));

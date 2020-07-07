@@ -80,6 +80,7 @@ article,
 aside,
 details-dialog,
 .details-menu-inner,
+.typeahead-inner,
 .inner-banner,
 .tab-box,
 .tab,
@@ -100,6 +101,7 @@ html.dark input,
 html.dark textarea,
 html.dark details-dialog,
 html.dark .details-menu-inner,
+html.dark .typeahead-inner,
 html.dark .inner-banner
 {
     background: #202340;
@@ -785,7 +787,7 @@ article .module-summary {
     margin-left: -1.75em;
 }
 
-details-dialog, .details-menu-inner, .inner-banner {
+details-dialog, .details-menu-inner, .inner-banner, .typeahead-inner {
     box-shadow: 0.25em 0.25em 0 #0c0c0d;
     border: solid 2px #fff;
     border-image: url("data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAgAAAAICAYAAADED76LAAAABHNCSVQICAgIfAhkiAAAAAlwSFlzAAAOxAAADsQBlSsOGwAAABl0RVh0U29mdHdhcmUAd3d3Lmlua3NjYXBlLm9yZ5vuPBoAAABBSURBVBhXY/hPADCAiLdvP+DEcAUMaKC4uPi4sLDIW0IK3lNBQWlp6X8QBgr8QcP/pKSkPzDw8fH/x4V5eHj/AwAIl4WCOETMYgAAAABJRU5ErkJggg==") 2;
@@ -796,7 +798,18 @@ details-dialog, .details-menu-inner, .inner-banner {
     overflow: hidden;
 }
 
-html.dark details-dialog, html.dark .details-menu-inner, html.dark .inner-banner {
+.typeahead-outer {
+    position: relative;
+}
+
+.typeahead-inner {
+    position: absolute;
+    width: 100%;
+    max-height: 10em;
+    overflow-y: scroll;
+}
+
+html.dark details-dialog, html.dark .details-menu-inner, html.dark .inner-banner, html.dark .typeahead-inner {
     border-image: url("data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAgAAAAICAYAAADED76LAAAABHNCSVQICAgIfAhkiAAAAAlwSFlzAAAOxAAADsQBlSsOGwAAABl0RVh0U29mdHdhcmUAd3d3Lmlua3NjYXBlLm9yZ5vuPBoAAABASURBVBhXYyguLv6PDzOACDPLSJwYroABDfALqh1nZGR+S0jBeyooEBBS/w/CQIE/aPgfExPrB6Baxv+4McN/ANClS9zIVZoLAAAAAElFTkSuQmCC") 2;
 }
 
@@ -865,7 +878,7 @@ details[open] > .inline-summary::before {
     background: rgba(50, 50, 50, 0.5);
 }
 
-.details-menu-inner {
+.details-menu-inner, .typeahead-inner {
     position: absolute;
     z-index: 300;
     display: none;
@@ -874,7 +887,7 @@ details[open] > .inline-summary::before {
     padding-right: 3px;
     margin: 2px;
 }
-details[open] .details-menu-inner {
+details[open] .details-menu-inner, .typeahead-inner {
     display: block;
 }
 
@@ -913,10 +926,10 @@ get anything reasonable-looking.
 button.details-menu-item {
     width: 100% !important;
 }
-.details-menu-item:focus {
+.details-menu-item:focus, .details-menu-item-active {
     background: #45a1ff !important;
 }
-html.dark .details-menu-item:focus {
+html.dark .details-menu-item:focus, html.dark .details-menu-item-active {
     background: #003eaa !important;
 }
 

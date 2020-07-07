@@ -2,14 +2,17 @@
 {{#if customization.blog_post_notice_html}}
 <div class=inner-banner>{{{customization.blog_post_notice_html}}}</div>
 {{/if}}
-    <form action="submit{{#if user.id}}?U={{session.uuid}}{{/if}}" method=POST>
-        <label>Title and #hashtags <input name=title autofocus required is="smart-punct-input"></label>
-        <label>Write your post
-            <smart-textarea><textarea name=excerpt is=smart-punct-textarea required></textarea></smart-textarea>
-        </label>
-        <div class=form-footer>
-            <button>Create post</button>
-        </div>
-    </form>
+<form action="submit{{#if user.id}}?U={{session.uuid}}{{/if}}" method=POST>
+    <label>Title <input name=title autofocus is=smart-punct-input></label>
+    <label for=tags-typeahead-input>Tags</label> <div class=typeahead-outer>
+        <input id=tags-typeahead-input name=tags is=tags-typeahead>
+    </div>
+    <label>Write your post
+        <smart-textarea><textarea name=excerpt is=smart-punct-textarea required></textarea></smart-textarea>
+    </label>
+    <div class=form-footer>
+        <button>Create post</button>
+    </div>
+</form>
 {{/inline}}
 {{~> layout~}}

@@ -2,15 +2,18 @@
 {{#if customization.link_submit_notice_html}}
 <div class=inner-banner>{{{customization.link_submit_notice_html}}}</div>
 {{/if}}
-  <form action="{{#if user.id}}?U={{session.uuid}}{{/if}}" method=POST>
-      <label>URL <input name=url required></label>
-      <label>Title and #hashtags <input name=title autofocus is="smart-punct-input"></label>
-      <label>Excerpt
-          <smart-textarea><textarea name=excerpt placeholder="If you leave the title or excerpt empty, we'll try to automatically pull it from the page." is=smart-punct-textarea></textarea></smart-textarea>
-      </label>
-      <div class=form-footer>
-          <button>Submit link</button>
-      </div>
-  </form>
+<form action="{{#if user.id}}?U={{session.uuid}}{{/if}}" method=POST>
+    <label>URL <input name=url required autofocus></label>
+    <label>Title <input name=title is=smart-punct-input></label>
+    <label for=tags-typeahead-input>Tags</label> <div class=typeahead-outer>
+        <input id=tags-typeahead-input name=tags is=tags-typeahead>
+    </div>
+    <label>Excerpt
+        <smart-textarea><textarea name=excerpt is=smart-punct-textarea></textarea></smart-textarea>
+    </label>
+    <div class=form-footer>
+        <button>Submit link</button>
+    </div>
+</form>
 {{/inline}}
 {{~> layout~}}
