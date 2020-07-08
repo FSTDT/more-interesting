@@ -170,7 +170,6 @@ html, body {
         display: flex;
         flex-direction: column;
         flex-grow: 1;
-        margin: 0 0;
     }
     .page-wrapper-outer {
         flex-grow: 1;
@@ -686,6 +685,9 @@ aside {
 }
 
 @media (max-width:75em) {
+    html, body {
+        margin: 0 0;
+    }
     .top-header {
         padding: 0 1em;
     }
