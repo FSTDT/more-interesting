@@ -705,6 +705,9 @@ aside {
 }
 
 @media (max-width:75em) {
+    html, body {
+        margin: 0 0;
+    }
     .top-header {
         padding: 0 1em;
     }
