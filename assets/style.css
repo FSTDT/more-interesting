@@ -162,7 +162,7 @@ nav {
 }
 
 html, body {
-    margin: 0;
+    margin: 0 1em;
 }
 
 @supports (display: flex) {
@@ -170,6 +170,7 @@ html, body {
         display: flex;
         flex-direction: column;
         flex-grow: 1;
+        margin: 0 0;
     }
     .page-wrapper-outer {
         flex-grow: 1;
@@ -673,8 +674,6 @@ aside {
 
 .top-header {
     background: #363959;
-    border-bottom: solid 1px #0f1126;
-    box-shadow: 0 1px 0 #0c0c0d;
     color: #fff;
     padding: 0 5em;
     overflow: visible;
@@ -704,6 +703,9 @@ aside {
     }
     .article-header {
         margin-left: -0.75em;
+    }
+    html body .hide-small {
+        display: none !important;
     }
 }
 

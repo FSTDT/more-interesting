@@ -152,10 +152,10 @@
     <a href="@{{this.submitted_by_username_urlencode}}">{{this.submitted_by_username}}</a>
     submitted
     <a is=local-date href="{{this.uuid}}" title="{{this.created_at}}+00:00">{{this.created_at_relative}}</a>
-    <details class=details-dialog-outer id=sp-{{this.uuid}}>{{> view-star}}</details>
+    and got <a href="{{this.uuid}}#comments">{{this.comment_count}} comments</a>
     </div>
     <details-menu-bar class=footer-aside>
-        <a href="{{this.uuid}}#comment-form" class=button>↩ Comment</a>
+        <a href="{{this.uuid}}#comment-form" class="button hide-small">↩ Comment</a>
         <details class="details-menu-outer backwards">
         <summary class="details-menu-summary backwards" aria-haspopup=menu>More</summary>
         <div class="details-menu-inner backwards" role=menu>
@@ -200,7 +200,7 @@
     <a href="@{{this.submitted_by_username_urlencode}}">{{this.submitted_by_username}}</a>
     submitted
     <a is=local-date href="{{this.uuid}}" title="{{this.created_at}}+00:00">{{this.created_at_relative}}</a>
-    <details class=details-dialog-outer id=sp-{{this.uuid}}>{{> view-star}}</details>
+    and got <a href="{{this.uuid}}#comments">{{this.comment_count}} comments</a>
     </div>
     <details-menu-bar class=footer-aside>
         <details class="details-menu-outer backwards">
