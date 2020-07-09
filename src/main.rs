@@ -1189,7 +1189,7 @@ fn faq(conn: MoreInterestingConn, login: Option<LoginSession>, config: State<Sit
     let (user, session) = login.map(|l| (l.user, l.session)).unwrap_or((User::default(), UserSession::default()));
 
     assert!((user.id == 0) ^ (user.username != ""));
-    let raw_html = conn.get_customization_value(&self, "faq_html").unwrap_or_else(||String::from("To fill this in, modify the faq_html variable in the admin / customization screen"));
+    let raw_html = conn.get_customization_value("faq_html").unwrap_or_else(||String::from("To fill this in, modify the faq_html variable in the admin / customization screen"));
     Template::render("faq", &TemplateContext {
         title: Cow::Borrowed("user invite tree"),
         config: config.clone(),
