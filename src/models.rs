@@ -7,6 +7,7 @@ use crate::password::{password_hash, password_verify, PasswordResult};
 use serde::Serialize;
 use crate::base32::Base32;
 use std::cmp::max;
+use std::cmp::Ordering;
 use std::mem;
 use ordered_float::OrderedFloat;
 use std::collections::{HashMap, HashSet};
@@ -1502,7 +1503,14 @@ impl MoreInterestingConn {
     }
     pub fn get_all_tags(&self) -> Result<Vec<Tag>, DieselError> {
         use self::tags::dsl::*;
-        tags.get_results::<Tag>(&self.0)
+        let mut t = tags.get_results::<Tag>(&self.0)?;
+        t.sort_by(|a, b| {
+            // place all-number tags last
+            if a.name.as_bytes()[0] < b'a' && b.name.as_bytes()[0] >= b'a' { return Ordering::Greater };
+            if b.name.as_bytes()[0] < b'a' && a.name.as_bytes()[0] >= b'a' { return Ordering::Less };
+            a.name.cmp(&b.name)
+        });
+        Ok(t)
     }
     pub fn set_dark_mode(&self, user_id_value: i32, dark_mode_value: bool) -> Result<(), DieselError> {
         use self::users::dsl::*;

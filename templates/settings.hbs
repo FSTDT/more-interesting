@@ -4,7 +4,7 @@
         <header class="article-header"><span class="article-header-inner">Authentication</span></header>
         <main class="main-mini">
             <details-menu-bar>
-                {{#if (or config.enable_public_signup (gt user.trust_level 1))}}
+                {{#if (or (not config.enable_public_signup) (gt user.trust_level 1))}}
                 <form class=inline-form action="create-invite?U={{session.uuid}}" method=post>
                     <button>Invite someone to this site</button>
                 </form>

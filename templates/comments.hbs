@@ -160,6 +160,13 @@
     </details-menu-bar>
     <p>When you subscribe, you get a notification whenever someone comments on this post.</p>
     </div>
+    <script>
+window.setTimeout(function() {
+    if (window.location.hash == "#comment-form") {
+      document.getElementById('comment-text').focus();
+    }
+}, 200);
+    </script>
     {{/if}}
     {{else}}
     <div class=inner-banner>

@@ -33,7 +33,6 @@ use rocket_contrib::serve::StaticFiles;
 use rocket_contrib::templates::{Template, handlebars};
 use serde::{Serialize, Serializer};
 use std::borrow::Cow;
-use std::collections::BTreeMap;
 use crate::models::{SiteCustomization, NotificationInfo, NewNotification, NewSubscription, PostSearch, PostSearchOrderBy, UserSession, PostInfo, NewStar, NewUser, CommentInfo, NewPost, NewComment, NewStarComment, NewTag, Tag, Comment, ModerationInfo, NewFlag, NewFlagComment, LegacyComment, CommentSearchResult, DomainSynonym, DomainSynonymInfo, NewDomain};
 use base32::Base32;
 use url::Url;
@@ -1164,8 +1163,8 @@ fn create_invite<'a>(conn: MoreInterestingConn, login: LoginSession, config: Sta
 #[get("/tags.json")]
 fn get_tags_json(conn: MoreInterestingConn) -> Option<impl Responder<'static>> {
     let tags = conn.get_all_tags().unwrap_or(Vec::new());
-    let tags_map: BTreeMap<String, String> = tags.into_iter().map(|tag| {
-        (tag.name, tag.description.unwrap_or(String::new()))
+    let tags_map: serde_json::Map<String, serde_json::Value> = tags.into_iter().map(|tag| {
+        (tag.name, tag.description.unwrap_or(String::new()).into())
     }).collect();
     let json = serde_json::to_string(&tags_map).ok()?;
     Some(Content(ContentType::from_str("text/json").unwrap(), json))

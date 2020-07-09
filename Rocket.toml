@@ -18,3 +18,6 @@ custom_header_html = "Developer header"
 
 [production]
 pid_file = "/tmp/app-initialized"
+init_username = "root"
+init_password = "ready2go"
+public_url = "https://oldnews.dev"

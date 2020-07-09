@@ -96,6 +96,13 @@ export class TagsTypeaheadElement extends HTMLInputElement {
                 var availableTags = Object.keys(this._tags).filter(tag => {
                     return !currentTag || tag.indexOf(currentTag) !== -1;
                 });
+			availableTags.sort(function(a, b) {
+                    if (a[0] < 'a' && b[0] >= 'a') return 1;
+                    if (b[0] < 'a' && a[0] >= 'a') return -1;
+                    if (a < b) return -1;
+                    if (b < a) return 1;
+                    return 0;
+                });
                 if (this._index + 1 > availableTags.length) {
                     this._index = 0;
                 }
@@ -138,7 +145,14 @@ export class TagsTypeaheadElement extends HTMLInputElement {
         var availableTags = Object.keys(this._tags).filter(tag => {
             return !currentTag || tag.indexOf(currentTag) !== -1;
         });
-        if (this._index + 1 > availableTags.length) {
+			availableTags.sort(function(a, b) {
+            if (a[0] < 'a' && b[0] >= 'a') return 1;
+            if (b[0] < 'a' && a[0] >= 'a') return -1;
+            if (a < b) return -1;
+            if (b < a) return 1;
+            return 0;
+        });
+	if (this._index + 1 > availableTags.length) {
             this._index = 0;
         }
         if (this._index < 0) {
