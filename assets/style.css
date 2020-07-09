@@ -146,11 +146,12 @@ html.big nav, html.big .page-wrapper {
 
 .page-wrapper-outer {
     overflow: visible;
-    padding: 0;
+    padding: 0 1em;
 }
 
 .page-wrapper {
     overflow: hidden;
+    padding: 1em 4em;
 }
 
 nav {
@@ -162,7 +163,7 @@ nav {
 }
 
 html, body {
-    margin: 0 1em;
+    margin: 0;
 }
 
 @supports (display: flex) {
@@ -685,14 +686,14 @@ aside {
 }
 
 @media (max-width:75em) {
-    html, body {
-        margin: 0 0;
-    }
     .top-header {
         padding: 0 1em;
     }
     .page-wrapper {
         padding: 1em;
+    }
+    .page-wrapper-outer {
+        padding: 0;
     }
     aside {
         margin-left: 0.75em;
