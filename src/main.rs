@@ -44,7 +44,7 @@ use rocket::fairing;
 use rocket::State;
 use std::str::FromStr;
 use crate::session::{LoginSession, ModeratorSession, UserAgentString};
-use chrono::NaiveDate;
+use chrono::{NaiveDate, Duration, Utc};
 use percent_encoding::{utf8_percent_encode, NON_ALPHANUMERIC};
 use lazy_static::lazy_static;
 use regex::Regex;
@@ -270,7 +270,6 @@ fn vote(conn: MoreInterestingConn, login: LoginSession, redirect: LenientForm<Ma
         _ => (0, false),
     };
     if result {
-        use chrono::{Utc, Duration};
         if user.trust_level == 0 &&
             (Utc::now().naive_utc() - user.created_at) > Duration::seconds(60 * 60 * 24) &&
             conn.user_has_received_a_star(user.id) {
@@ -320,7 +319,6 @@ fn vote_comment(conn: MoreInterestingConn, login: LoginSession, redirect: Lenien
         _ => (0, false),
     };
     if result {
-        use chrono::{Utc, Duration};
         if user.trust_level == 0 &&
             (Utc::now().naive_utc() - user.created_at) > Duration::seconds(60 * 60 * 24) &&
             conn.user_has_received_a_star(user.id) {
