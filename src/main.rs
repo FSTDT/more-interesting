@@ -721,6 +721,10 @@ fn create(login: Option<LoginSession>, conn: MoreInterestingConn, post: Form<New
     } else {
         return Err(Status::BadRequest);
     };
+    if user.trust_level == 1 &&
+        (Utc::now().naive_utc() - user.created_at) > Duration::seconds(60 * 60 * 24 * 7) {
+        conn.change_user_trust_level(user.id, 2).expect("if voting works, then so should switching trust level")
+    }
     let NewPostForm { title, url, excerpt, tags } = &*post;
     let mut title = title.clone();
     for tag in TAGS_SPLIT.split(tags.as_ref().map(|x| &x[..]).unwrap_or("")) {
