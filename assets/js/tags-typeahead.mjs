@@ -89,6 +89,7 @@ export class TagsTypeaheadElement extends HTMLInputElement {
                 break;
             case "enter":
             case "return":
+            case "tab":
                 var tag_split_last = /([#, \t])(?!.*[#, \t])/g;
                 var tag_split = /[#, \t]+/g;
                 var currentTagParts = this.value.split(tag_split);
@@ -96,26 +97,25 @@ export class TagsTypeaheadElement extends HTMLInputElement {
                 var availableTags = Object.keys(this._tags).filter(tag => {
                     return !currentTag || tag.indexOf(currentTag) !== -1;
                 });
-			availableTags.sort(function(a, b) {
+                availableTags.sort(function(a, b) {
                     if (a[0] < 'a' && b[0] >= 'a') return 1;
                     if (b[0] < 'a' && a[0] >= 'a') return -1;
                     if (a < b) return -1;
                     if (b < a) return 1;
                     return 0;
                 });
-                if (this._index + 1 > availableTags.length) {
+                if (e.key.toLowerCase() === "tab") {
+                    this._index = -2;
+                } else {
                     this._index = 0;
-                }
-                if (this._index < 0) {
-                    this._index = avaiableTags.length - 1;
+                    e.preventDefault();
+                    e.stopPropagation();
                 }
                 if (tag_split_last.test(this.value)) {
                     this.value = this.value.slice(0, tag_split_last.lastIndex) + availableTags[this._index] + " ";
                 } else {
                     this.value = availableTags[this._index] + " ";
                 }
-                e.preventDefault();
-                e.stopPropagation();
                 break;
         }
     }
@@ -145,14 +145,14 @@ export class TagsTypeaheadElement extends HTMLInputElement {
         var availableTags = Object.keys(this._tags).filter(tag => {
             return !currentTag || tag.indexOf(currentTag) !== -1;
         });
-			availableTags.sort(function(a, b) {
+        availableTags.sort(function(a, b) {
             if (a[0] < 'a' && b[0] >= 'a') return 1;
             if (b[0] < 'a' && a[0] >= 'a') return -1;
             if (a < b) return -1;
             if (b < a) return 1;
             return 0;
         });
-	if (this._index + 1 > availableTags.length) {
+        if (this._index + 1 > availableTags.length) {
             this._index = 0;
         }
         if (this._index < 0) {
