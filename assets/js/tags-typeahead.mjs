@@ -9,10 +9,9 @@ export class TagsTypeaheadElement extends HTMLInputElement {
             this.parentNode.setAttribute("aria-haspopup", "listbox");
             this.parentNode.setAttribute("aria-expanded", "false");
             this.setAttribute("aria-autocomplete", "list");
-            this.addEventListener("focus", this._change.bind(this));
+            this.addEventListener("click", this._change.bind(this));
             this.addEventListener("blur", this._blur.bind(this));
             this.addEventListener("keydown", this._keydown.bind(this));
-            this.addEventListener("keyup", this._change.bind(this));
             this.addEventListener("paste", this._change.bind(this));
             this.addEventListener("change", this._change.bind(this));
             fetch("tags.json", {
@@ -90,6 +89,7 @@ export class TagsTypeaheadElement extends HTMLInputElement {
             case "enter":
             case "return":
             case "tab":
+                if (!this._menu) return;
                 var tag_split_last = /([#, \t])(?!.*[#, \t])/g;
                 var tag_split = /[#, \t]+/g;
                 var currentTagParts = this.value.split(tag_split);
@@ -104,30 +104,35 @@ export class TagsTypeaheadElement extends HTMLInputElement {
                     if (b < a) return 1;
                     return 0;
                 });
-                if (e.key.toLowerCase() === "tab") {
-                    this._index = -2;
-                } else {
-                    this._index = 0;
-                    e.preventDefault();
-                    e.stopPropagation();
-                }
                 if (tag_split_last.test(this.value)) {
                     this.value = this.value.slice(0, tag_split_last.lastIndex) + availableTags[this._index] + " ";
                 } else {
                     this.value = availableTags[this._index] + " ";
                 }
+                if (e.key.toLowerCase() === "tab") {
+                    this._index = -2;
+                } else {
+                    this._index = 0;
+                }
+                this._change();
+                e.preventDefault();
+                e.stopPropagation();
                 break;
+            default:
+                if (this._index === -2) this._index = 0;
+                setTimeout(() => { this._change(); }, 1);
         }
     }
     _change() {
         if (!this._tags || this !== document.activeElement) {
             return;
         }
-        if (this._index === -2) {
-            return;
-        }
         if (this._menu) {
             this.parentNode.removeChild(this._menu);
+            this._menu = null;
+        }
+        if (this._index === -2) {
+            return;
         }
         this.parentNode.setAttribute("aria-expanded", "true");
         this.setAttribute("aria-controls", "tags-typeahead");
