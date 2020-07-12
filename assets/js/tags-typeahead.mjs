@@ -77,6 +77,7 @@ export class TagsTypeaheadElement extends HTMLInputElement {
                     // Both do this.
                     this._index += 1;
                 }
+                this._change();
                 e.preventDefault();
                 e.stopPropagation();
                 break;
@@ -85,6 +86,7 @@ export class TagsTypeaheadElement extends HTMLInputElement {
                 this._index -= 1;
                 e.preventDefault();
                 e.stopPropagation();
+                this._change();
                 break;
             case "enter":
             case "return":
