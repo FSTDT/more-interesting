@@ -120,6 +120,8 @@ export class TagsTypeaheadElement extends HTMLInputElement {
                 e.preventDefault();
                 e.stopPropagation();
                 break;
+            case "shift":
+                break;
             default:
                 if (this._index === -2) this._index = 0;
                 setTimeout(() => { this._change(); }, 1);
