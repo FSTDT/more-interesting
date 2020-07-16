@@ -31,4 +31,10 @@ serde_json = { version = "1.0.53", features = ["preserve_order"] }
 kuchiki = "0.8"
 reqwest = "0.9.22"
 regex = "1"
+more-interesting-base32 = { path = "libraries/more-interesting-base32" }
+
+[workspace]
+members = [
+    "libraries/more-interesting-base32"
+]
 

@@ -1,0 +1,19 @@
+[package]
+name = "more-interesting-base32"
+version = "0.1.0"
+authors = ["Michael Howell <michael@notriddle.com>"]
+edition = "2018"
+license = "MIT OR Apache-2.0"
+
+[lib]
+path = "lib.rs"
+
+[dependencies]
+rocket = { git = "https://github.com/SergioBenitez/Rocket" }
+rocket_contrib = { git = "https://github.com/SergioBenitez/Rocket", default-features = false, features = ["diesel_postgres_pool", "serve", "handlebars_templates"] }
+diesel = { version = "1.4.3", features = ["postgres", "chrono", "serde_json"] }
+serde = { version = "1.0.104", features = ["derive"] }
+byteorder = "1.3"
+lazy_static = "1"
+quickcheck = "0.9"
+

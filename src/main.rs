@@ -15,7 +15,6 @@ mod schema;
 mod models;
 mod password;
 mod session;
-mod base32;
 mod prettify;
 mod pid_file_fairing;
 mod sql_types;
@@ -34,7 +33,7 @@ use rocket_contrib::templates::{Template, handlebars};
 use serde::{Serialize, Serializer};
 use std::borrow::Cow;
 use crate::models::{SiteCustomization, NotificationInfo, NewNotification, NewSubscription, PostSearch, PostSearchOrderBy, UserSession, PostInfo, NewStar, NewUser, CommentInfo, NewPost, NewComment, NewStarComment, NewTag, Tag, Comment, ModerationInfo, NewFlag, NewFlagComment, LegacyComment, CommentSearchResult, DomainSynonym, DomainSynonymInfo, NewDomain};
-use base32::Base32;
+use more_interesting_base32::Base32;
 use url::Url;
 use std::collections::HashMap;
 use v_htmlescape::escape;
@@ -862,6 +861,10 @@ fn login(conn: MoreInterestingConn, post: Form<UserForm>, mut cookies: Cookies, 
         password: &post.password,
     }) {
         Some(user) => {
+            if user.trust_level == -2 || user.banned {
+                let cookie = Cookie::build("B", "1").path("/").permanent().same_site(SameSite::None).finish();
+                cookies.add(cookie);
+            }
             if user.banned {
                 return Flash::error(Redirect::to("."), "Sorry. Not sorry. You're banned.");
             }
@@ -1077,7 +1080,9 @@ fn signup(conn: MoreInterestingConn, user_agent: UserAgentString, form: Form<Sig
         password: &form.password,
         invited_by,
     }) {
-        if invited_by.as_ref().and_then(|user_id| conn.get_user_by_id(*user_id).ok()).map(|user| user.trust_level).unwrap_or(-1) >= 2 {
+        if cookies.get("B").is_some() {
+            conn.change_user_trust_level(user.id, -2).expect("if logging in worked, then so should changing trust level");
+        } else if invited_by.as_ref().and_then(|user_id| conn.get_user_by_id(*user_id).ok()).map(|user| user.trust_level).unwrap_or(-1) >= 2 {
             conn.change_user_trust_level(user.id, 1).expect("if logging in worked, then so should changing trust level");
         }
         let session = conn.create_session(user.id, user_agent.user_agent).expect("failed to allocate a session");

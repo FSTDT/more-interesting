@@ -5,7 +5,7 @@ use chrono::{NaiveDate, NaiveDateTime, NaiveTime, Utc, Duration};
 use crate::schema::{site_customization, users, user_sessions, posts, stars, invite_tokens, comments, comment_stars, tags, post_tagging, moderation, flags, comment_flags, domains, legacy_comments, domain_synonyms, notifications, subscriptions};
 use crate::password::{password_hash, password_verify, PasswordResult};
 use serde::Serialize;
-use crate::base32::Base32;
+use more_interesting_base32::Base32;
 use std::cmp::max;
 use std::cmp::Ordering;
 use std::mem;

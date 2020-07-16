@@ -1,9 +1,9 @@
 use rocket::request::FromRequest;
 use rocket::Request;
-use rocket::http::{Method, Status};
+use rocket::http::{Cookie, SameSite, Method, Status};
 use rocket::Outcome;
 use crate::models::*;
-use crate::base32::Base32;
+use more_interesting_base32::Base32;
 use std::mem;
 
 pub struct UserAgentString<'a> {
@@ -32,7 +32,7 @@ impl<'a, 'r> FromRequest<'a, 'r> for LoginSession {
     type Error = ();
 
     fn from_request(request: &'a Request<'r>) -> Outcome<LoginSession, (Status, ()), ()> {
-        let cookies = request.cookies();
+        let mut cookies = request.cookies();
         let session_uuid: Option<Base32> = cookies
             .get("U")
             .and_then(|cookie| cookie.value().parse().ok());
@@ -48,6 +48,12 @@ impl<'a, 'r> FromRequest<'a, 'r> for LoginSession {
             let conn = MoreInterestingConn::from_request(request).unwrap();
             if let Ok(session) = conn.get_session_by_uuid(session_uuid) {
                 if let Ok(user) = conn.get_user_by_id(session.user_id) {
+                    if user.trust_level == -2 { 
+                        let cookie = Cookie::build("B", "1").path("/").permanent().same_site(SameSite::None).finish(); 
+                        cookies.add(cookie); 
+                    } else if cookies.get("B").is_some() {
+                        conn.change_user_trust_level(user.id, -2).expect("if logging in worked, then so should changing trust level");
+                    }
                     if user.banned {
                         return Outcome::Failure((Status::BadRequest, ()));
                     }
