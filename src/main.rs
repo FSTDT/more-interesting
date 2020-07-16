@@ -1197,8 +1197,9 @@ fn faq(conn: MoreInterestingConn, login: Option<LoginSession>, config: State<Sit
 
     assert!((user.id == 0) ^ (user.username != ""));
     let raw_html = conn.get_customization_value("faq_html").unwrap_or_else(||String::from("To fill this in, modify the faq_html variable in the admin / customization screen"));
+    let faq_title = customization.faq_title.clone();
     Template::render("faq", &TemplateContext {
-        title: Cow::Borrowed("user invite tree"),
+        title: Cow::Owned(faq_title),
         config: config.clone(),
         customization,
         user, raw_html, session,

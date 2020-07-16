@@ -1,4 +1,7 @@
 {{#*inline "page"}}
+{{#if customization.login_notice_html}}
+<div class=inner-banner>{{{customization.login_notice_html}}}</div>
+{{/if}}
   <form action='' method=post>
       <label>Username <input name=username autofocus></label>
       <label>Password <input name=password type=password></label>

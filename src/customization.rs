@@ -17,6 +17,8 @@ pub struct Customization {
     pub message_send_notice_html: String,
     pub post_score_text: String,
     pub comment_score_text: String,
+    pub login_notice_html: String,
+    pub faq_title: String,
 }
 
 impl<'a, 'r> FromRequest<'a, 'r> for Customization {
@@ -44,6 +46,8 @@ impl<'a, 'r> FromRequest<'a, 'r> for Customization {
                 "post_score_text" => customization.post_score_text = variable.value,
                 "comment_score_text" => customization.comment_score_text = variable.value,
                 "message_send_notice_html" => customization.message_send_notice_html = variable.value,
+                "login_notice_html" => customization.login_notice_html = variable.value,
+                "faq_title" => customization.faq_title = variable.value,
                 _ => (),
             }
         }
