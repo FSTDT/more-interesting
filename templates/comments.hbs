@@ -77,7 +77,7 @@
         {{#each comments}}
             <aside id="{{this.id}}"><details {{#if this.flagged_by_me}}{{else}}open{{/if}}><summary title="Hide comment" class=module-summary>{{this.created_by_username}}</summary>
                 <header class=aside-header>
-                    <img width=15 height=15 src=identicon/{{this.created_by_identicon}}>
+                    <img width=15 height=15 class=identicon src=identicon/{{this.created_by_identicon}}>
                     <a href="@{{this.created_by_username_urlencode}}" class=top-header-link>{{this.created_by_username}}</a>
                     <span class="top-header-link top-header-aside"><a class=top-header-link is=local-date href="#{{this.id}}" title="{{this.created_at}}+00:00">{{this.created_at_relative}} #{{this.id}}</a></span>
                 </header>

@@ -662,6 +662,11 @@ article, aside {
     color: #fff;
 }
 
+.identicon {
+    position: relative;
+    top: 2px;
+}
+
 article {
     margin-top: 2.5em;
     margin-bottom: 3em;
