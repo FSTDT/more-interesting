@@ -23,6 +23,23 @@ impl<'a, 'r> FromRequest<'a, 'r> for UserAgentString<'a> {
     }
 }
 
+pub struct ReferrerString<'a> {
+    pub referrer: &'a str,
+}
+
+impl<'a, 'r> FromRequest<'a, 'r> for ReferrerString<'a> {
+    type Error = ();
+
+    fn from_request(request: &'a Request<'r>) -> Outcome<ReferrerString<'a>, (Status, ()), ()> {
+        let referrer = request.headers().get("referer").next();
+        if let Some(referrer) = referrer {
+            Outcome::Success(ReferrerString { referrer })
+        } else {
+            Outcome::Failure((Status::BadRequest, ()))
+        }
+    }
+}
+
 pub struct LoginSession {
     pub session: UserSession,
     pub user: User,

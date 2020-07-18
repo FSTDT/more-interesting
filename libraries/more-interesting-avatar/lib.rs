@@ -2,45 +2,22 @@
 Identicon renderer
 */
 
-use image::{Rgb, RgbImage};
+include!("data.rs");
+include!(concat!(env!("OUT_DIR"), "/data.rs"));
 
-const CENTER_PATCH_TYPES: [u32; 4] = [0, 4, 8, 15];
+use std::io::Cursor;
+use image::{Rgb, RgbImage, SubImage, DynamicImage, ImageOutputFormat};
 
-const patch0: &[u8] = &[ 0, 4, 24, 20 ];
+pub fn to_png(image: RgbImage) -> Vec<u8> {
+  let mut ret_val = Vec::new();
+  DynamicImage::ImageRgb8(image)
+    .write_to(&mut Cursor::new(&mut ret_val), ImageOutputFormat::Png).expect("vec is infallibe");
+  ret_val
+}
 
-const patch1: &[u8] = &[ 0, 4, 20 ];
+pub fn render(code: u32) -> RgbImage {
+  let size = 30;
 
-const patch2: &[u8] = &[ 2, 24, 20 ];
-
-const patch3: &[u8] = &[ 0, 2, 20, 22 ];
-
-const patch4: &[u8] = &[ 2, 14, 22, 10 ];
-
-const patch5: &[u8] = &[ 0, 14, 24, 22 ];
-
-const patch6: &[u8] = &[ 2, 24, 22, 13, 11, 22, 20 ];
-
-const patch7: &[u8] = &[ 0, 14, 22 ];
-
-const patch8: &[u8] = &[ 6, 8, 18, 16 ];
-
-const patch9: &[u8] = &[ 4, 20, 10, 12, 2 ];
-
-const patch10: &[u8] = &[ 0, 2, 12, 10 ];
-
-const patch11: &[u8] = &[ 10, 14, 22 ];
-
-const patch12: &[u8] = &[ 20, 12, 24 ];
-
-const patch13: &[u8] = &[ 10, 2, 12 ];
-
-const patch14: &[u8] = &[ 0, 2, 10 ];
-
-const PATCH_TYPES: [&[u8]; 15] = [PATCH0, PATCH1, PATCH2,
-			PATCH3, PATCH4, PATCH5, PATCH6, PATCH7, PATCH8, PATCH9, PATCH10,
-			PATCH11, PATCH12, PATCH13, PATCH14, PATCH0];
-
-pub fn render(code: u32, size: u32) -> RgbImage {
   // decode the code into parts
   // bit 0-1: middle patch type
   // bit 2: middle invert
@@ -53,11 +30,11 @@ pub fn render(code: u32, size: u32) -> RgbImage {
   // bit 16-20: blue color component
   // bit 21-26: green color component
   // bit 27-31: red color component
-  let middle_type = CENTER_PATCH_TYPES[code & 0x3];
+  let middle_type = CENTER_PATCH_TYPES[code as usize & 0x3];
   let middle_invert = ((code >> 2) & 0x1) != 0;
   let corner_type = (code >> 3) & 0xf;
   let corner_invert = ((code >> 7) & 0x1) != 0;
-  let corner_turn = (code >> 8) & 0x3;
+  let mut corner_turn = (code >> 8) & 0x3;
   let side_type = (code >> 10) & 0x0f;
   let side_invert = ((code >> 14) & 0x1) != 0;
   let mut side_turn = (code >> 15) & 0x3;
@@ -67,20 +44,22 @@ pub fn render(code: u32, size: u32) -> RgbImage {
 
   // color components are used at top of range for color difference
   // use white background for now
+  let background_color: Rgb<u8> = Rgb([255, 255, 255]);
   let fill_color: Rgb<u8> = Rgb([(red << 3) as u8, (green << 3) as u8, (blue << 3) as u8]);
 
   // outline shapes with a noticeable color (complementary will do) if
   // shape color and background color are too similar (measured by color
   // distance)
-  let stroke_color = None;
-  if get_color_distance(fill_color, background_color) < 32.0 {
-    stroke_color = Some(get_complementary_color(fill_color));
-  }
+  let stroke_color = if get_color_distance(fill_color, background_color) < 32.0 {
+    Some(get_complementary_color(fill_color))
+  } else {
+    None
+  };
 
   let mut target_image = RgbImage::new(size, size);
 
-  let block_size = size / 3.0;
-  let block_size_2 = size / 2.0;
+  let block_size = size / 3;
+  let block_size_2 = size / 2;
 
   // fill with white background
   for p in target_image.pixels_mut() {
@@ -88,52 +67,100 @@ pub fn render(code: u32, size: u32) -> RgbImage {
   }
 
   // middle patch
-  draw_patch(&mut target_image, block_size, block_size, block_size, middle_type,
-      0, middle_invert, fill_color, stroke_color);
+  draw_patch(&mut target_image, block_size, block_size, middle_type,
+      0, middle_invert, fill_color, stroke_color, background_color);
 
   // side patches, starting from top and moving clock-wise
-  draw_patch(&mut target_image, block_size, 0, block_size, side_type, side_turn, side_invert,
-      fill_color, stroke_color);
+  draw_patch(&mut target_image, block_size, 0, side_type, side_turn, side_invert,
+      fill_color, stroke_color, background_color);
   side_turn += 1;
-  draw_patch(&mut target_image, block_size2, block_size, block_size, side_type, side_turn,
-      side_invert, fill_color, stroke_color);
+  draw_patch(&mut target_image, block_size_2, block_size, side_type, side_turn,
+      side_invert, fill_color, stroke_color, background_color);
   side_turn += 1;
-  draw_patch(&mut target_image, block_size, block_size2, block_size, side_type, side_turn,
-      side_invert, fill_color, stroke_color);
+  draw_patch(&mut target_image, block_size, block_size_2, side_type, side_turn,
+      side_invert, fill_color, stroke_color, background_color);
   side_turn += 1;
-  draw_patch(&mut target_image, 0, block_size, block_size, side_type, side_turn, side_invert,
-      fill_color, stroke_color);
-  side_turn += 1;
+  draw_patch(&mut target_image, 0, block_size, side_type, side_turn, side_invert,
+      fill_color, stroke_color, background_color);
 
   // corner patches, starting from top left and moving clock-wise
 
-  draw_patch(&mut target_image, 0, 0, block_size, corner_type, corner_turn, corner_invert,
-      fill_color, stroke_color);
-  side_turn += 1;
-  draw_patch(&mut target_image, block_size2, 0, block_size, corner_type, corner_turn,
-      corner_invert, fill_color, stroke_color);
-  side_turn += 1;
-  draw_patch(&mut target_image, block_size2, block_size2, block_size, corner_type,
-      corner_turn, corner_invert, fill_color, stroke_color);
-  side_turn += 1;
-  draw_patch(&mut target_image, 0, block_size2, block_size, corner_type, corner_turn,
-      corner_invert, fill_color, stroke_color);
-  side_turn += 1;
+  draw_patch(&mut target_image, 0, 0, corner_type, corner_turn, corner_invert,
+      fill_color, stroke_color, background_color);
+  corner_turn += 1;
+  draw_patch(&mut target_image, block_size_2, 0, corner_type, corner_turn,
+      corner_invert, fill_color, stroke_color, background_color);
+  corner_turn += 1;
+  draw_patch(&mut target_image, block_size_2, block_size_2, corner_type,
+      corner_turn, corner_invert, fill_color, stroke_color, background_color);
+  corner_turn += 1;
+  draw_patch(&mut target_image, 0, block_size_2, corner_type, corner_turn,
+      corner_invert, fill_color, stroke_color, background_color);
 
-  return target_image;
+  target_image
 }
 
-fn draw_patch(target_image: &mut RgbImage, x: f64, y: f64, size: f64, patch: i32, turn: i32, mut invert: bool, fill_color: Rgb<u8>, stroke_color: Option<Rgb<u8>>) {
-  assert!(patch >= 0);
-  assert!(turn >= 0);
+fn draw_patch(target_image: &mut RgbImage, x: u32, y: u32, patch: u32, turn: u32, mut invert: bool, fill_color: Rgb<u8>, stroke_color: Option<Rgb<u8>>, background_color: Rgb<u8>) {
 
-  patch %= PATCH_TYPES.len();
-  turn %= 4;
+  let patch = patch % PATCH_TYPES.len() as u32;
+  let turn = turn % 4;
 
-  if patch_flags[patch] & PATCH_INVERTED != 0 {
+  if PATCH_FLAGS[patch as usize] & PATCH_INVERTED != 0 {
     invert = !invert;
   }
 
-  //
+  let shape = PATCH_SHAPES[patch as usize];
+
+  let rendered_shape = SubImage::new(target_image, x, y, 10, 10);
+  let mut rendered_shape = rendered_shape.to_image();
+
+  let fill = if invert { background_color } else { fill_color };
+  let background = if invert { fill_color } else { background_color };
+  for (x, y, pixel) in rendered_shape.enumerate_pixels_mut() {
+    let p = match turn {
+      0 => x + (y * 10),
+      1 => y + ((9 - x) * 10),
+      2 => (9 - x) + ((9 - y) * 10),
+      3 => (9 - y) + (x * 10),
+      _ => unreachable!(),
+    };
+    let on = (1 << p) & shape != 0;
+    *pixel = if on { fill } else { background };
+  }
+
+  if let Some(stroke) = stroke_color {
+    let outline = PATCH_OUTLINES[patch as usize];
+    for (x, y, pixel) in rendered_shape.enumerate_pixels_mut() {
+      let p = match turn {
+        0 => x + (y * 10),
+        1 => y + ((9 - x) * 10),
+        2 => (9 - x) + ((9 - y) * 10),
+        3 => (9 - y) + (x * 10),
+        _ => unreachable!(),
+      };
+      let on = (1 << p) & outline != 0;
+      if on { *pixel = stroke; }
+    }
+  }
+}
+
+fn get_color_distance(a: Rgb<u8>, b: Rgb<u8>) -> f64 {
+  let b1 = a[2] as f64;
+  let g1 = a[1] as f64;
+  let r1 = a[0] as f64;
+  let b2 = b[2] as f64;
+  let g2 = b[1] as f64;
+  let r2 = b[0] as f64;
+  fn sq(x: f64) -> f64 {
+    x*x
+  }
+  (sq(r1+r2)+sq(g1+g2)+sq(b1+b2)).sqrt()
+}
+
+fn get_complementary_color(color: Rgb<u8>) -> Rgb<u8> {
+  let b = color[2];
+  let g = color[1];
+  let r = color[0];
+  Rgb([255 - r, 255 - g, 255 - b])
 }
 

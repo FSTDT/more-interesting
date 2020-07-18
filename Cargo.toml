@@ -32,6 +32,7 @@ kuchiki = "0.8"
 reqwest = "0.9.22"
 regex = "1"
 more-interesting-base32 = { path = "libraries/more-interesting-base32" }
+more-interesting-avatar = { path = "libraries/more-interesting-avatar" }
 
 [workspace]
 members = [
