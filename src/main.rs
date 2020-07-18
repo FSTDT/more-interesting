@@ -42,11 +42,13 @@ use crate::pid_file_fairing::PidFileFairing;
 use rocket::fairing;
 use rocket::State;
 use std::str::FromStr;
-use crate::session::{LoginSession, ModeratorSession, UserAgentString};
+use crate::session::{LoginSession, ModeratorSession, UserAgentString, ReferrerString};
 use chrono::{NaiveDate, Duration, Utc};
 use percent_encoding::{utf8_percent_encode, NON_ALPHANUMERIC};
 use lazy_static::lazy_static;
 use regex::Regex;
+use more_interesting_avatar::render as render_avatar;
+use more_interesting_avatar::to_png;
 
 #[derive(Clone, Serialize)]
 struct SiteConfig {
@@ -1856,6 +1858,17 @@ fn random(conn: MoreInterestingConn) -> Option<impl Responder<'static>> {
     }
 }
 
+#[get("/identicon/<id>")]
+fn identicon(id: Base32, referrer: ReferrerString, config: State<SiteConfig>) -> Option<impl Responder<'static>> {
+    let referrer = Url::parse(referrer.referrer).ok();
+    if referrer.is_some() && referrer.as_ref().and_then(|u| u.host()) != config.public_url.host() {
+        return None;
+    }
+    let img = render_avatar(id.into_u64() as u32);
+    let png = to_png(img);
+    Some(Content(ContentType::from_str("image/png").unwrap(), png))
+}
+
 #[get("/conv/<id>")]
 fn conv_legacy_id(id: Base32) -> String {
   id.into_i64().to_string()
@@ -2059,7 +2072,7 @@ fn main() {
             }
             Ok(rocket)
         }))
-        .mount("/", routes![index, login_form, login, logout, create_link_form, create_post_form, create, get_comments, vote, signup, get_settings, create_invite, invite_tree, change_password, post_comment, vote_comment, get_admin_tags, admin_tags, get_tags, edit_post, get_edit_post, edit_comment, get_edit_comment, set_dark_mode, set_big_mode, mod_log, get_mod_queue, moderate_post, moderate_comment, get_public_signup, rebake, random, redirect_legacy_id, latest, rss, top, banner_post, robots_txt, search_comments, new, get_admin_domains, admin_domains, create_message_form, create_message, subscriptions, post_subscriptions, get_reply_comment, preview_comment, get_admin_customization, admin_customization, conv_legacy_id, get_tags_json, get_admin_flags, get_admin_comment_flags, faq])
+        .mount("/", routes![index, login_form, login, logout, create_link_form, create_post_form, create, get_comments, vote, signup, get_settings, create_invite, invite_tree, change_password, post_comment, vote_comment, get_admin_tags, admin_tags, get_tags, edit_post, get_edit_post, edit_comment, get_edit_comment, set_dark_mode, set_big_mode, mod_log, get_mod_queue, moderate_post, moderate_comment, get_public_signup, rebake, random, redirect_legacy_id, latest, rss, top, banner_post, robots_txt, search_comments, new, get_admin_domains, admin_domains, create_message_form, create_message, subscriptions, post_subscriptions, get_reply_comment, preview_comment, get_admin_customization, admin_customization, conv_legacy_id, get_tags_json, get_admin_flags, get_admin_comment_flags, faq, identicon])
         .mount("/assets", StaticFiles::from("assets"))
         .attach(Template::custom(|engines| {
             engines.handlebars.register_helper("count", Box::new(count_helper));
