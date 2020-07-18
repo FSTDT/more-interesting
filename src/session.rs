@@ -35,7 +35,7 @@ impl<'a, 'r> FromRequest<'a, 'r> for ReferrerString<'a> {
         if let Some(referrer) = referrer {
             Outcome::Success(ReferrerString { referrer })
         } else {
-            Outcome::Failure((Status::BadRequest, ()))
+            Outcome::Success(ReferrerString { referrer: "" })
         }
     }
 }

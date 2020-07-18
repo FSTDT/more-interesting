@@ -1861,7 +1861,7 @@ fn random(conn: MoreInterestingConn) -> Option<impl Responder<'static>> {
 #[get("/identicon/<id>")]
 fn identicon(id: Base32, referrer: ReferrerString, config: State<SiteConfig>) -> Option<impl Responder<'static>> {
     let referrer = Url::parse(referrer.referrer).ok();
-    if referrer.as_ref().and_then(|u| u.host()) != config.public_url.host() {
+    if referrer.is_some() && referrer.as_ref().and_then(|u| u.host()) != config.public_url.host() {
         return None;
     }
     let img = render_avatar(id.into_u64() as u32);

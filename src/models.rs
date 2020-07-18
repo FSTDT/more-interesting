@@ -109,6 +109,7 @@ pub struct User {
     pub invited_by: Option<i32>,
     pub dark_mode: bool,
     pub big_mode: bool,
+    pub identicon: i32,
 }
 
 #[derive(Queryable, Serialize)]
@@ -134,6 +135,7 @@ impl Default for User {
             invited_by: None,
             dark_mode: false,
             big_mode: false,
+            identicon: 0,
         }
     }
 }
@@ -260,6 +262,7 @@ pub struct CommentInfo {
     pub created_by: i32,
     pub created_by_username: String,
     pub created_by_username_urlencode: String,
+    pub created_by_identicon: Base32,
     pub starred_by_me: bool,
     pub flagged_by_me: bool,
     pub starred_by: Vec<String>,
@@ -276,6 +279,7 @@ pub struct CommentSearchResult {
     pub created_at_relative: String,
     pub created_by: i32,
     pub created_by_username: String,
+    pub created_by_identicon: Base32,
 }
 
 #[derive(Queryable)]
@@ -1119,13 +1123,15 @@ impl MoreInterestingConn {
             username: &'a str,
             password_hash: &'a [u8],
             invited_by: Option<i32>,
+            identicon: i32,
         }
         let password_hash = password_hash(new_user.password);
+        let identicon = rand::random();
         diesel::insert_into(users::table)
             .values(CreateUser {
                 username: new_user.username,
                 password_hash: &password_hash[..],
-                invited_by: new_user.invited_by,
+                invited_by: new_user.invited_by, identicon,
             })
             .get_result(&self.0)
     }
@@ -1213,10 +1219,11 @@ impl MoreInterestingConn {
                 self::comment_stars::dsl::comment_id.nullable(),
                 self::comment_flags::dsl::comment_id.nullable(),
                 self::users::dsl::username,
+                self::users::dsl::identicon,
             ))
             .filter(visible.eq(true))
             .filter(self::comments::dsl::id.eq(comment_id_value))
-            .get_result::<(i32, String, String, bool, i32, NaiveDateTime, i32, Option<i32>, Option<i32>, String)>(&self.0)
+            .get_result::<(i32, String, String, bool, i32, NaiveDateTime, i32, Option<i32>, Option<i32>, String, i32)>(&self.0)
             .map(|t| tuple_to_comment_info(self, t))
     }
     pub fn create_domain(&self, new_domain: NewDomain) -> Result<Domain, DieselError> {
@@ -1304,11 +1311,12 @@ impl MoreInterestingConn {
                 self::comment_stars::dsl::comment_id.nullable(),
                 self::comment_flags::dsl::comment_id.nullable(),
                 self::users::dsl::username,
+                self::users::dsl::identicon,
             ))
             .filter(visible.eq(true))
             .filter(self::comments::dsl::post_id.eq(post_id_param))
             .order_by(self::comments::dsl::created_at)
-            .get_results::<(i32, String, String, bool, i32, NaiveDateTime, i32, Option<i32>, Option<i32>, String)>(&self.0)?
+            .get_results::<(i32, String, String, bool, i32, NaiveDateTime, i32, Option<i32>, Option<i32>, String, i32)>(&self.0)?
             .into_iter()
             .map(|t| tuple_to_comment_info(self, t))
             .collect();
@@ -1330,6 +1338,7 @@ impl MoreInterestingConn {
                 self::comments::dsl::created_at,
                 self::comments::dsl::created_by,
                 self::users::dsl::username,
+                self::users::dsl::identicon,
             ))
             .filter(self::comments::dsl::visible.eq(true))
             .filter(self::posts::dsl::private.eq(false))
@@ -1337,7 +1346,7 @@ impl MoreInterestingConn {
             .filter(self::comments::dsl::created_by.eq(user_id_param))
             .order_by(self::comments::dsl::id.desc())
             .limit(50)
-            .get_results::<(i32, String, i32, Base32, String, NaiveDateTime, i32, String)>(&self.0)?
+            .get_results::<(i32, String, i32, Base32, String, NaiveDateTime, i32, String, i32)>(&self.0)?
             .into_iter()
             .map(|t| tuple_to_comment_search_results(t))
             .collect();
@@ -1359,6 +1368,7 @@ impl MoreInterestingConn {
                 self::comments::dsl::created_at,
                 self::comments::dsl::created_by,
                 self::users::dsl::username,
+                self::users::dsl::identicon,
             ))
             .filter(self::comments::dsl::visible.eq(true))
             .filter(self::posts::dsl::private.eq(false))
@@ -1367,7 +1377,7 @@ impl MoreInterestingConn {
             .filter(self::comments::dsl::id.lt(after_id_param))
             .order_by(self::comments::dsl::id.desc())
             .limit(50)
-            .get_results::<(i32, String, i32, Base32, String, NaiveDateTime, i32, String)>(&self.0)?
+            .get_results::<(i32, String, i32, Base32, String, NaiveDateTime, i32, String, i32)>(&self.0)?
             .into_iter()
             .map(|t| tuple_to_comment_search_results(t))
             .collect();
@@ -1781,13 +1791,14 @@ impl MoreInterestingConn {
                 self::comment_stars::dsl::comment_id.nullable(),
                 self::comment_flags::dsl::comment_id.nullable(),
                 self::users::dsl::username,
+                self::users::dsl::identicon,
             ))
             .filter(visible.eq(false))
             .filter(rejected.eq(false))
             .filter(self::users::dsl::trust_level.gt(-2))
             .order_by(self::comments::dsl::created_at.asc())
             .limit(50)
-            .get_results::<(i32, String, String, bool, i32, NaiveDateTime, i32, Option<i32>, Option<i32>, String)>(&self.0).ok()?
+            .get_results::<(i32, String, String, bool, i32, NaiveDateTime, i32, Option<i32>, Option<i32>, String, i32)>(&self.0).ok()?
             .into_iter()
             .map(|t| tuple_to_comment_info(self, t))
             .collect();
@@ -1966,24 +1977,27 @@ fn tuple_to_post_info(data: &mut PrettifyData, (id, uuid, title, url, visible, p
     }
 }
 
-fn tuple_to_comment_info(conn: &MoreInterestingConn, (id, text, html, visible, post_id, created_at, created_by, starred_comment_id, flagged_comment_id, created_by_username): (i32, String, String, bool, i32, NaiveDateTime, i32, Option<i32>, Option<i32>, String)) -> CommentInfo {
+fn tuple_to_comment_info(conn: &MoreInterestingConn, (id, text, html, visible, post_id, created_at, created_by, starred_comment_id, flagged_comment_id, created_by_username, created_by_identicon): (i32, String, String, bool, i32, NaiveDateTime, i32, Option<i32>, Option<i32>, String, i32)) -> CommentInfo {
     let created_at_relative = relative_date(&created_at);
     let created_by_username_urlencode = utf8_percent_encode(&created_by_username, NON_ALPHANUMERIC).to_string();
+    let created_by_identicon = Base32::from(created_by_identicon as i64);
     CommentInfo {
         id, text, html, visible, post_id, created_by, created_by_username,
         created_at, created_at_relative,
         created_by_username_urlencode,
+        created_by_identicon,
         starred_by: conn.get_comment_starred_by(id).unwrap_or(Vec::new()),
         starred_by_me: starred_comment_id.is_some(),
         flagged_by_me: flagged_comment_id.is_some(),
     }
 }
 
-fn tuple_to_comment_search_results((id, html, post_id, post_uuid, post_title, created_at, created_by, created_by_username): (i32, String, i32, Base32, String, NaiveDateTime, i32, String)) -> CommentSearchResult {
+fn tuple_to_comment_search_results((id, html, post_id, post_uuid, post_title, created_at, created_by, created_by_username,  created_by_identicon): (i32, String, i32, Base32, String, NaiveDateTime, i32, String, i32)) -> CommentSearchResult {
     let created_at_relative = relative_date(&created_at);
+    let created_by_identicon = Base32::from(created_by_identicon as i64);
     CommentSearchResult {
         id, html, post_id, post_uuid, post_title, created_by, created_by_username,
-        created_at, created_at_relative,
+        created_at, created_at_relative, created_by_identicon,
     }
 }
 

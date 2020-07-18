@@ -223,6 +223,7 @@ table! {
         invited_by -> Nullable<Int4>,
         dark_mode -> Bool,
         big_mode -> Bool,
+        identicon -> Int4,
     }
 }
 

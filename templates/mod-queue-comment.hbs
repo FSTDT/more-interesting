@@ -21,6 +21,7 @@
 {{/each}}
         <aside id="{{this.id}}">
             <header class=aside-header>
+                <img width=15 height=15 src=identicon/{{comments.0.created_by_identicon}}>
                 <a href="@{{comments.0.created_by_username_urlencode}}" class=top-header-link>{{comments.0.created_by_username}} commented</a>
                 <a is=local-date href="#{{this.id}}" class="top-header-link top-header-aside" title="{{comments.0.created_at}}+00:00">{{comments.0.created_at_relative}} #{{comments.0.id}}</a>
             </header>

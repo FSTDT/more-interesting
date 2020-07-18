@@ -1,12 +1,14 @@
 /*!
 Identicon renderer
+
+Copied almost line-for-line from https://github.com/PauloMigAlmeida/identicon/blob/master/core/src/main/java/com/docuverse/identicon/NineBlockIdenticonRenderer.java
 */
 
 include!("data.rs");
 include!(concat!(env!("OUT_DIR"), "/data.rs"));
 
 use std::io::Cursor;
-use image::{Rgb, RgbImage, SubImage, DynamicImage, ImageOutputFormat};
+use image::{GenericImage, Rgb, RgbImage, SubImage, DynamicImage, ImageOutputFormat};
 
 pub fn to_png(image: RgbImage) -> Vec<u8> {
   let mut ret_val = Vec::new();
@@ -16,7 +18,7 @@ pub fn to_png(image: RgbImage) -> Vec<u8> {
 }
 
 pub fn render(code: u32) -> RgbImage {
-  let size = 30;
+  let size = 45;
 
   // decode the code into parts
   // bit 0-1: middle patch type
@@ -56,10 +58,13 @@ pub fn render(code: u32) -> RgbImage {
     None
   };
 
-  let mut target_image = RgbImage::new(size, size);
+  let mut target_image = RgbImage::new(size + 8, size + 8);
 
   let block_size = size / 3;
-  let block_size_2 = size / 2;
+
+  // add two pixels between each patch
+  let block_pos = block_size + 4;
+  let block_pos_2 = (2 * block_size) + 6;
 
   // fill with white background
   for p in target_image.pixels_mut() {
@@ -67,34 +72,34 @@ pub fn render(code: u32) -> RgbImage {
   }
 
   // middle patch
-  draw_patch(&mut target_image, block_size, block_size, middle_type,
+  draw_patch(&mut target_image, block_pos, block_pos, middle_type,
       0, middle_invert, fill_color, stroke_color, background_color);
 
   // side patches, starting from top and moving clock-wise
-  draw_patch(&mut target_image, block_size, 0, side_type, side_turn, side_invert,
+  draw_patch(&mut target_image, block_pos, 2, side_type, side_turn, side_invert,
       fill_color, stroke_color, background_color);
   side_turn += 1;
-  draw_patch(&mut target_image, block_size_2, block_size, side_type, side_turn,
+  draw_patch(&mut target_image, block_pos_2, block_pos, side_type, side_turn,
       side_invert, fill_color, stroke_color, background_color);
   side_turn += 1;
-  draw_patch(&mut target_image, block_size, block_size_2, side_type, side_turn,
+  draw_patch(&mut target_image, block_pos, block_pos_2, side_type, side_turn,
       side_invert, fill_color, stroke_color, background_color);
   side_turn += 1;
-  draw_patch(&mut target_image, 0, block_size, side_type, side_turn, side_invert,
+  draw_patch(&mut target_image, 2, block_pos, side_type, side_turn, side_invert,
       fill_color, stroke_color, background_color);
 
   // corner patches, starting from top left and moving clock-wise
 
-  draw_patch(&mut target_image, 0, 0, corner_type, corner_turn, corner_invert,
+  draw_patch(&mut target_image, 2, 2, corner_type, corner_turn, corner_invert,
       fill_color, stroke_color, background_color);
   corner_turn += 1;
-  draw_patch(&mut target_image, block_size_2, 0, corner_type, corner_turn,
+  draw_patch(&mut target_image, block_pos_2, 2, corner_type, corner_turn,
       corner_invert, fill_color, stroke_color, background_color);
   corner_turn += 1;
-  draw_patch(&mut target_image, block_size_2, block_size_2, corner_type,
+  draw_patch(&mut target_image, block_pos_2, block_pos_2, corner_type,
       corner_turn, corner_invert, fill_color, stroke_color, background_color);
   corner_turn += 1;
-  draw_patch(&mut target_image, 0, block_size_2, corner_type, corner_turn,
+  draw_patch(&mut target_image, 2, block_pos_2, corner_type, corner_turn,
       corner_invert, fill_color, stroke_color, background_color);
 
   target_image
@@ -111,36 +116,37 @@ fn draw_patch(target_image: &mut RgbImage, x: u32, y: u32, patch: u32, turn: u32
 
   let shape = PATCH_SHAPES[patch as usize];
 
-  let rendered_shape = SubImage::new(target_image, x, y, 10, 10);
-  let mut rendered_shape = rendered_shape.to_image();
+  let mut rendered_shape = SubImage::new(target_image, x, y, 15, 15);
 
   let fill = if invert { background_color } else { fill_color };
   let background = if invert { fill_color } else { background_color };
-  for (x, y, pixel) in rendered_shape.enumerate_pixels_mut() {
-    let p = match turn {
-      0 => x + (y * 10),
-      1 => y + ((9 - x) * 10),
-      2 => (9 - x) + ((9 - y) * 10),
-      3 => (9 - y) + (x * 10),
+  for x in 0..15 { for y in 0..15 {
+    let pixel = rendered_shape.get_pixel_mut(x, y);
+    let (x, y) = match turn {
+      0 => (x, y),
+      1 => (y, 14 - x),
+      2 => (14 - x, 14 - y),
+      3 => (14 - y, x),
       _ => unreachable!(),
     };
-    let on = (1 << p) & shape != 0;
+    let on = shape.get(x, y);
     *pixel = if on { fill } else { background };
-  }
+  } }
 
   if let Some(stroke) = stroke_color {
     let outline = PATCH_OUTLINES[patch as usize];
-    for (x, y, pixel) in rendered_shape.enumerate_pixels_mut() {
-      let p = match turn {
-        0 => x + (y * 10),
-        1 => y + ((9 - x) * 10),
-        2 => (9 - x) + ((9 - y) * 10),
-        3 => (9 - y) + (x * 10),
+    for x in 0..15 { for y in 0..15 {
+      let pixel = rendered_shape.get_pixel_mut(x, y);
+      let (x, y) = match turn {
+        0 => (x, y),
+        1 => (y, 14 - x),
+        2 => (14 - x, 14 - y),
+        3 => (14 - y, x),
         _ => unreachable!(),
       };
-      let on = (1 << p) & outline != 0;
+      let on = outline.get(x, y);
       if on { *pixel = stroke; }
-    }
+    } }
   }
 }
 
