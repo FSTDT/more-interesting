@@ -160,7 +160,7 @@ fn get_color_distance(a: Rgb<u8>, b: Rgb<u8>) -> f64 {
   fn sq(x: f64) -> f64 {
     x*x
   }
-  (sq(r1+r2)+sq(g1+g2)+sq(b1+b2)).sqrt()
+  (sq(r1-r2)+sq(g1-g2)+sq(b1-b2)).sqrt()
 }
 
 fn get_complementary_color(color: Rgb<u8>) -> Rgb<u8> {
