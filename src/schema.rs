@@ -11,10 +11,9 @@ table! {
 table! {
     use crate::sql_types::*;
 
-    comment_stars (user_id, comment_id) {
-        user_id -> Int4,
+    comment_hides (comment_id, user_id) {
         comment_id -> Int4,
-        created_at -> Timestamp,
+        user_id -> Int4,
     }
 }
 
@@ -37,9 +36,10 @@ table! {
 table! {
     use crate::sql_types::*;
 
-    domain_synonyms (from_hostname) {
-        from_hostname -> Varchar,
-        to_domain_id -> Int4,
+    comment_stars (user_id, comment_id) {
+        user_id -> Int4,
+        comment_id -> Int4,
+        created_at -> Timestamp,
     }
 }
 
@@ -52,6 +52,15 @@ table! {
         hostname -> Varchar,
         is_www -> Bool,
         is_https -> Bool,
+    }
+}
+
+table! {
+    use crate::sql_types::*;
+
+    domain_synonyms (from_hostname) {
+        from_hostname -> Varchar,
+        to_domain_id -> Int4,
     }
 }
 
@@ -115,18 +124,9 @@ table! {
 table! {
     use crate::sql_types::*;
 
-    post_search_index (post_id) {
+    post_hides (post_id, user_id) {
         post_id -> Int4,
-        search_index -> Tsvector,
-    }
-}
-
-table! {
-    use crate::sql_types::*;
-
-    post_tagging (post_id, tag_id) {
-        post_id -> Int4,
-        tag_id -> Int4,
+        user_id -> Int4,
     }
 }
 
@@ -153,6 +153,24 @@ table! {
         banner_title -> Nullable<Varchar>,
         banner_desc -> Nullable<Varchar>,
         private -> Bool,
+    }
+}
+
+table! {
+    use crate::sql_types::*;
+
+    post_search_index (post_id) {
+        post_id -> Int4,
+        search_index -> Tsvector,
+    }
+}
+
+table! {
+    use crate::sql_types::*;
+
+    post_tagging (post_id, tag_id) {
+        post_id -> Int4,
+        tag_id -> Int4,
     }
 }
 
@@ -202,17 +220,6 @@ table! {
 table! {
     use crate::sql_types::*;
 
-    user_sessions (uuid) {
-        uuid -> Int8,
-        created_at -> Timestamp,
-        user_agent -> Text,
-        user_id -> Int4,
-    }
-}
-
-table! {
-    use crate::sql_types::*;
-
     users (id) {
         id -> Int4,
         banned -> Bool,
@@ -227,8 +234,21 @@ table! {
     }
 }
 
+table! {
+    use crate::sql_types::*;
+
+    user_sessions (uuid) {
+        uuid -> Int8,
+        created_at -> Timestamp,
+        user_agent -> Text,
+        user_id -> Int4,
+    }
+}
+
 joinable!(comment_flags -> comments (comment_id));
 joinable!(comment_flags -> users (user_id));
+joinable!(comment_hides -> comments (comment_id));
+joinable!(comment_hides -> users (user_id));
 joinable!(comment_stars -> comments (comment_id));
 joinable!(comment_stars -> users (user_id));
 joinable!(comments -> posts (post_id));
@@ -240,6 +260,8 @@ joinable!(invite_tokens -> users (invited_by));
 joinable!(legacy_comments -> posts (post_id));
 joinable!(moderation -> users (created_by));
 joinable!(notifications -> posts (post_id));
+joinable!(post_hides -> posts (post_id));
+joinable!(post_hides -> users (user_id));
 joinable!(post_search_index -> posts (post_id));
 joinable!(post_tagging -> posts (post_id));
 joinable!(post_tagging -> tags (tag_id));
@@ -252,22 +274,24 @@ joinable!(user_sessions -> users (user_id));
 
 allow_tables_to_appear_in_same_query!(
     comment_flags,
-    comment_stars,
+    comment_hides,
     comments,
-    domain_synonyms,
+    comment_stars,
     domains,
+    domain_synonyms,
     flags,
     invite_tokens,
     legacy_comments,
     moderation,
     notifications,
+    post_hides,
+    posts,
     post_search_index,
     post_tagging,
-    posts,
     site_customization,
     stars,
     subscriptions,
     tags,
-    user_sessions,
     users,
+    user_sessions,
 );

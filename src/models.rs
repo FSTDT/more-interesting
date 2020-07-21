@@ -2,7 +2,7 @@ use rocket_contrib::databases::diesel::PgConnection;
 use diesel::prelude::*;
 use diesel::result::Error as DieselError;
 use chrono::{NaiveDate, NaiveDateTime, NaiveTime, Utc, Duration};
-use crate::schema::{site_customization, users, user_sessions, posts, stars, invite_tokens, comments, comment_stars, tags, post_tagging, moderation, flags, comment_flags, domains, legacy_comments, domain_synonyms, notifications, subscriptions};
+use crate::schema::{site_customization, users, user_sessions, posts, stars, invite_tokens, comments, comment_stars, tags, post_tagging, moderation, flags, comment_flags, domains, legacy_comments, domain_synonyms, notifications, subscriptions, post_hides, comment_hides};
 use crate::password::{password_hash, password_verify, PasswordResult};
 use serde::Serialize;
 use more_interesting_base32::Base32;
@@ -304,6 +304,13 @@ pub struct NewFlag {
 }
 
 #[derive(Insertable)]
+#[table_name="post_hides"]
+pub struct NewHide {
+    pub user_id: i32,
+    pub post_id: i32,
+}
+
+#[derive(Insertable)]
 #[table_name="comment_stars"]
 pub struct NewStarComment {
     pub user_id: i32,
@@ -313,6 +320,13 @@ pub struct NewStarComment {
 #[derive(Insertable)]
 #[table_name="comment_flags"]
 pub struct NewFlagComment {
+    pub user_id: i32,
+    pub comment_id: i32,
+}
+
+#[derive(Insertable)]
+#[table_name="comment_hides"]
+pub struct NewHideComment {
     pub user_id: i32,
     pub comment_id: i32,
 }
@@ -1017,6 +1031,26 @@ impl MoreInterestingConn {
         self.update_score_on_post(new_star.post_id, -(affected_rows as i32));
         affected_rows == 1
     }
+    pub fn add_hide(&self, new_hide: &NewHide) -> bool {
+        let affected_rows = diesel::insert_into(post_hides::table)
+            .values(new_hide)
+            .execute(&self.0)
+            .unwrap_or(0);
+        // affected rows will be 1 if inserted, or 0 otherwise
+        affected_rows == 1
+    }
+    pub fn rm_hide(&self, new_hide: &NewHide) -> bool {
+        use self::post_hides::dsl::*;
+        let affected_rows = diesel::delete(
+            post_hides
+                .filter(user_id.eq(new_hide.user_id))
+                .filter(post_id.eq(new_hide.post_id))
+        )
+            .execute(&self.0)
+            .unwrap_or(0);
+        // affected rows will be 1 if deleted, or 0 otherwise
+        affected_rows == 1
+    }
     pub fn add_star_comment(&self, new_star: &NewStarComment) -> bool {
         let affected_rows = diesel::insert_into(comment_stars::table)
             .values(new_star)
@@ -1035,18 +1069,36 @@ impl MoreInterestingConn {
             .unwrap_or(0);
         affected_rows == 1
     }
-    fn maybe_hide_post(&self, post_id_param: i32) {
+    pub fn add_hide_comment(&self, new_hide: &NewHideComment) -> bool {
+        let affected_rows = diesel::insert_into(comment_hides::table)
+            .values(new_hide)
+            .execute(&self.0)
+            .unwrap_or(0);
+        affected_rows == 1
+    }
+    pub fn rm_hide_comment(&self, new_hide: &NewHideComment) -> bool {
+        use self::comment_hides::dsl::*;
+        let affected_rows = diesel::delete(
+            comment_hides
+                .filter(user_id.eq(new_hide.user_id))
+                .filter(comment_id.eq(new_hide.comment_id))
+        )
+            .execute(&self.0)
+            .unwrap_or(0);
+        affected_rows == 1
+    }
+    fn maybe_invisible_post(&self, post_id_param: i32) {
         use self::flags::dsl::*;
         let flag_count: i64 = flags.filter(post_id.eq(post_id_param)).count().get_result(&self.0).expect("if flagging worked, then so should counting");
         if flag_count == FLAG_HIDE_THRESHOLD {
-            self.hide_post(post_id_param).expect("if flagging worked, then so should hiding the post");
+            self.invisible_post(post_id_param).expect("if flagging worked, then so should hiding the post");
         }
     }
-    fn maybe_hide_comment(&self, comment_id_param: i32) {
+    fn maybe_invisible_comment(&self, comment_id_param: i32) {
         use self::comment_flags::dsl::*;
         let flag_count: i64 = comment_flags.filter(comment_id.eq(comment_id_param)).count().get_result(&self.0).expect("if flagging worked, then so should counting");
         if flag_count == FLAG_HIDE_THRESHOLD {
-            self.hide_comment(comment_id_param).expect("if flagging worked, then so should hiding the post");
+            self.invisible_comment(comment_id_param).expect("if flagging worked, then so should hiding the post");
         }
     }
     pub fn add_flag(&self, new_flag: &NewFlag) -> bool {
@@ -1055,7 +1107,7 @@ impl MoreInterestingConn {
             .execute(&self.0)
             .unwrap_or(0);
         if affected_rows == 1 {
-            self.maybe_hide_post(new_flag.post_id);
+            self.maybe_invisible_post(new_flag.post_id);
         }
         affected_rows == 1
     }
@@ -1076,7 +1128,7 @@ impl MoreInterestingConn {
             .execute(&self.0)
             .unwrap_or(0);
         if affected_rows == 1 {
-            self.maybe_hide_comment(new_flag.comment_id);
+            self.maybe_invisible_comment(new_flag.comment_id);
         }
         affected_rows == 1
     }
@@ -1833,7 +1885,7 @@ impl MoreInterestingConn {
             .execute(&self.0)?;
         Ok(())
     }
-    pub fn hide_post(&self, post_id_value: i32) -> Result<(), DieselError> {
+    pub fn invisible_post(&self, post_id_value: i32) -> Result<(), DieselError> {
         use self::posts::dsl::*;
         diesel::update(posts.find(post_id_value))
             .set((
@@ -1842,7 +1894,7 @@ impl MoreInterestingConn {
             .execute(&self.0)?;
         Ok(())
     }
-    pub fn hide_comment(&self, comment_id_value: i32) -> Result<(), DieselError> {
+    pub fn invisible_comment(&self, comment_id_value: i32) -> Result<(), DieselError> {
         use self::comments::dsl::*;
         diesel::update(comments.find(comment_id_value))
             .set((

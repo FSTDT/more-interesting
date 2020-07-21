@@ -32,7 +32,7 @@ use rocket_contrib::serve::StaticFiles;
 use rocket_contrib::templates::{Template, handlebars};
 use serde::{Serialize, Serializer};
 use std::borrow::Cow;
-use crate::models::{SiteCustomization, NotificationInfo, NewNotification, NewSubscription, PostSearch, PostSearchOrderBy, UserSession, PostInfo, NewStar, NewUser, CommentInfo, NewPost, NewComment, NewStarComment, NewTag, Tag, Comment, ModerationInfo, NewFlag, NewFlagComment, LegacyComment, CommentSearchResult, DomainSynonym, DomainSynonymInfo, NewDomain};
+use crate::models::{SiteCustomization, NotificationInfo, NewNotification, NewSubscription, PostSearch, PostSearchOrderBy, UserSession, PostInfo, NewStar, NewHide, NewHideComment, NewUser, CommentInfo, NewPost, NewComment, NewStarComment, NewTag, Tag, Comment, ModerationInfo, NewFlag, NewFlagComment, LegacyComment, CommentSearchResult, DomainSynonym, DomainSynonymInfo, NewDomain};
 use more_interesting_base32::Base32;
 use url::Url;
 use std::collections::HashMap;
@@ -222,13 +222,15 @@ struct VoteForm {
     add_star: Option<Base32>,
     rm_flag: Option<Base32>,
     add_flag: Option<Base32>,
+    rm_hide: Option<Base32>,
+    add_hide: Option<Base32>,
 }
 
 #[post("/vote?<redirect..>", data = "<p>")]
 fn vote(conn: MoreInterestingConn, login: LoginSession, redirect: LenientForm<MaybeRedirect>, p: Form<VoteForm>, customization: Customization) -> VoteResponse {
     let user = login.user;
-    let (id, result) = match (p.add_star, p.rm_star, p.add_flag, p.rm_flag) {
-        (Some(u), None, None, None) => {
+    let (id, result) = match (p.add_star, p.rm_star, p.add_flag, p.rm_flag, p.add_hide, p.rm_hide) {
+        (Some(u), None, None, None, None, None) => {
             let post = match conn.get_post_info_by_uuid(user.id, u) {
                 Ok(post) => post,
                 Err(_) => return VoteResponse::C(Status::NotFound),
@@ -238,7 +240,7 @@ fn vote(conn: MoreInterestingConn, login: LoginSession, redirect: LenientForm<Ma
                 post_id: post.id,
             }))
         }
-        (None, Some(u), None, None) => {
+        (None, Some(u), None, None, None, None) => {
             let post = match conn.get_post_info_by_uuid(user.id, u) {
                 Ok(post) => post,
                 Err(_) => return VoteResponse::C(Status::NotFound),
@@ -248,7 +250,7 @@ fn vote(conn: MoreInterestingConn, login: LoginSession, redirect: LenientForm<Ma
                 post_id: post.id,
             }))
         }
-        (None, None, Some(u), None) => {
+        (None, None, Some(u), None, None, None) => {
             let post = match conn.get_post_info_by_uuid(user.id, u) {
                 Ok(post) => post,
                 Err(_) => return VoteResponse::C(Status::NotFound),
@@ -258,12 +260,32 @@ fn vote(conn: MoreInterestingConn, login: LoginSession, redirect: LenientForm<Ma
                 post_id: post.id,
             }))
         }
-        (None, None, None, Some(u)) => {
+        (None, None, None, Some(u), None, None) => {
             let post = match conn.get_post_info_by_uuid(user.id, u) {
                 Ok(post) => post,
                 Err(_) => return VoteResponse::C(Status::NotFound),
             };
             (post.id, conn.rm_flag(&NewFlag {
+                user_id: user.id,
+                post_id: post.id,
+            }))
+        }
+        (None, None, None, None, Some(u), None) => {
+            let post = match conn.get_post_info_by_uuid(user.id, u) {
+                Ok(post) => post,
+                Err(_) => return VoteResponse::C(Status::NotFound),
+            };
+            (post.id, conn.add_hide(&NewHide {
+                user_id: user.id,
+                post_id: post.id,
+            }))
+        }
+        (None, None, None, None, None, Some(u)) => {
+            let post = match conn.get_post_info_by_uuid(user.id, u) {
+                Ok(post) => post,
+                Err(_) => return VoteResponse::C(Status::NotFound),
+            };
+            (post.id, conn.rm_hide(&NewHide {
                 user_id: user.id,
                 post_id: post.id,
             }))
@@ -295,25 +317,35 @@ struct VoteCommentForm {
     rm_star_comment: Option<i32>,
     add_flag_comment: Option<i32>,
     rm_flag_comment: Option<i32>,
+    add_hide_comment: Option<i32>,
+    rm_hide_comment: Option<i32>,
 }
 
 #[post("/vote-comment?<redirect..>", data = "<c>")]
 fn vote_comment(conn: MoreInterestingConn, login: LoginSession, redirect: LenientForm<MaybeRedirect>, c: Form<VoteCommentForm>, customization: Customization) -> VoteResponse {
     let user = login.user;
-    let (id, result) = match (c.add_star_comment, c.rm_star_comment, c.add_flag_comment, c.rm_flag_comment) {
-        (Some(i), None, None, None) => (i, conn.add_star_comment(&NewStarComment{
+    let (id, result) = match (c.add_star_comment, c.rm_star_comment, c.add_flag_comment, c.rm_flag_comment, c.add_hide_comment, c.rm_hide_comment) {
+        (Some(i), None, None, None, None, None) => (i, conn.add_star_comment(&NewStarComment{
             user_id: user.id,
             comment_id: i,
         })),
-        (None, Some(i), None, None) => (i, conn.rm_star_comment(&NewStarComment{
+        (None, Some(i), None, None, None, None) => (i, conn.rm_star_comment(&NewStarComment{
             user_id: user.id,
             comment_id: i,
         })),
-        (None, None, Some(i), None) if user.trust_level >= 1 => (i, conn.add_flag_comment(&NewFlagComment{
+        (None, None, Some(i), None, None, None) if user.trust_level >= 1 => (i, conn.add_flag_comment(&NewFlagComment{
             user_id: user.id,
             comment_id: i,
         })),
-        (None, None, None, Some(i)) => (i, conn.rm_flag_comment(&NewFlagComment{
+        (None, None, None, Some(i), None, None) => (i, conn.rm_flag_comment(&NewFlagComment{
+            user_id: user.id,
+            comment_id: i,
+        })),
+        (None, None, None, None, Some(i), None) if user.trust_level >= 1 => (i, conn.add_hide_comment(&NewHideComment{
+            user_id: user.id,
+            comment_id: i,
+        })),
+        (None, None, None, None, None, Some(i)) => (i, conn.rm_hide_comment(&NewHideComment{
             user_id: user.id,
             comment_id: i,
         })),
