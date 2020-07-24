@@ -598,7 +598,7 @@ impl MoreInterestingConn {
             PostSearchOrderBy::Hottest if search.keywords == "" => query.order_by((initial_stellar_time.desc(), self::posts::dsl::created_at.desc())).into_boxed(),
             PostSearchOrderBy::Hottest => query.into_boxed(),
             PostSearchOrderBy::Top => query.order_by((score.desc(), self::posts::dsl::created_at.desc())).into_boxed(),
-            PostSearchOrderBy::Newest => query.order_by(self::posts::dsl::id.desc()).into_boxed(),
+            PostSearchOrderBy::Newest => query.order_by((initial_stellar_time.desc(), self::posts::dsl::created_at.desc())).into_boxed(),
             PostSearchOrderBy::Latest => query.order_by(self::posts::dsl::updated_at.desc()).into_boxed(),
         };
         if !search.or_domains.is_empty() {
