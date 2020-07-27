@@ -38,7 +38,8 @@ textarea:focus,
     position: relative;
 }
 .details-menu-summary:focus,
-aside:target {
+aside:target,
+article:target {
     box-shadow: 0 0 0 2px #0a84ff, 0 0 0 6px #b1d6fc;
     box-shadow: 0 0 0 2px #0a84ff, 0 0 0 6px rgba(10, 132, 255, 0.3);
     position: relative;
@@ -742,61 +743,6 @@ html.dark article, html.dark aside {
     margin: -0.5em calc(-0.25em + 1px);
 }
 
-details[open] > .module-summary {
-    position: absolute;
-    top: 0;
-    bottom: 0;
-    right: 100%;
-    width: 1.5em;
-    white-space: nowrap;
-    overflow: hidden;
-    margin-left: 0;
-    list-style-type: none;
-    padding-right: 0;
-}
-
-details[open] > .module-summary:before {
-    content: "-";
-    margin-right: 1em;
-}
-
-.module-summary:before {
-    margin-right: 0.5em;
-    margin-left: -1px;
-    width: 1em;
-    height: 1em;
-    display: inline-block;
-    content: "+";
-    font-size: 1.25em;
-    border: solid 2px transparent;
-    opacity: 0.5;
-    line-height: 0.75;
-    text-align: center;
-}
-
-.module-summary:focus:before {
-    outline: none;
-}
-
-.module-summary:hover:before {
-    border: solid 2px #eee;
-    border-bottom-color: #0c0c0d;
-    border-right-color: #0c0c0d;
-    border-image: url("data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAgAAAAICAYAAADED76LAAAABHNCSVQICAgIfAhkiAAAAAlwSFlzAAAOxAAADsQBlSsOGwAAABl0RVh0U29mdHdhcmUAd3d3Lmlua3NjYXBlLm9yZ5vuPBoAAABBSURBVBhXY/hPADCAiLdvP+DEcAUMaKC4uPi4sLDIW0IK3lNBQWlp6X8QBgr8QcP/pKSkPzDw8fH/x4V5eHj/AwAIl4WCOETMYgAAAABJRU5ErkJggg==") 2;
-    outline: none;
-}
-
-.module-summary {
-    margin-left: -1.5em;
-    list-style-type: none;
-    cursor: default;
-    padding-right: 0.5em;
-}
-
-article .module-summary {
-    margin-left: -1.75em;
-}
-
 details-dialog, .details-menu-inner, .inner-banner, .typeahead-inner {
     box-shadow: 0.25em 0.25em 0 #0c0c0d;
     border: solid 2px #fff;
@@ -1093,4 +1039,16 @@ details[open] > .img-lightbox:before {
     align-items: flex-end;
     margin-top: -0.75em;
     padding-top: 0.5em;
+}
+
+button.hide-button {
+    position: absolute;
+    right: 100%;
+    right: calc(100% + 2px);
+    left: auto;
+    top: 0;
+    bottom: 0;
+    border: none;
+    background: none;
+    display: flex;
 }

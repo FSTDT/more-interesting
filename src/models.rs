@@ -2,7 +2,7 @@ use rocket_contrib::databases::diesel::PgConnection;
 use diesel::prelude::*;
 use diesel::result::Error as DieselError;
 use chrono::{NaiveDate, NaiveDateTime, NaiveTime, Utc, Duration};
-use crate::schema::{site_customization, users, user_sessions, posts, stars, invite_tokens, comments, comment_stars, tags, post_tagging, moderation, flags, comment_flags, domains, legacy_comments, domain_synonyms, notifications, subscriptions};
+use crate::schema::{site_customization, users, user_sessions, posts, stars, invite_tokens, comments, comment_stars, tags, post_tagging, moderation, flags, comment_flags, domains, legacy_comments, domain_synonyms, notifications, subscriptions, post_hides, comment_hides};
 use crate::password::{password_hash, password_verify, PasswordResult};
 use serde::Serialize;
 use more_interesting_base32::Base32;
@@ -16,7 +16,7 @@ use serde_json::{self as json, json};
 use url::Url;
 use percent_encoding::{utf8_percent_encode, NON_ALPHANUMERIC};
 
-const FLAG_HIDE_THRESHOLD: i64 = 3;
+const FLAG_INVISIBLE_THRESHOLD: i64 = 3;
 
 #[derive(Debug)]
 pub enum CreateCommentError {
@@ -187,6 +187,7 @@ pub struct PostInfo {
     pub submitted_by_username_urlencode: String,
     pub starred_by_me: bool,
     pub flagged_by_me: bool,
+    pub hidden_by_me: bool,
     pub excerpt_html: Option<String>,
     pub banner_title: Option<String>,
     pub banner_desc: Option<String>,
@@ -265,6 +266,7 @@ pub struct CommentInfo {
     pub created_by_identicon: Base32,
     pub starred_by_me: bool,
     pub flagged_by_me: bool,
+    pub hidden_by_me: bool,
     pub starred_by: Vec<String>,
 }
 
@@ -304,6 +306,13 @@ pub struct NewFlag {
 }
 
 #[derive(Insertable)]
+#[table_name="post_hides"]
+pub struct NewHide {
+    pub user_id: i32,
+    pub post_id: i32,
+}
+
+#[derive(Insertable)]
 #[table_name="comment_stars"]
 pub struct NewStarComment {
     pub user_id: i32,
@@ -313,6 +322,13 @@ pub struct NewStarComment {
 #[derive(Insertable)]
 #[table_name="comment_flags"]
 pub struct NewFlagComment {
+    pub user_id: i32,
+    pub comment_id: i32,
+}
+
+#[derive(Insertable)]
+#[table_name="comment_hides"]
+pub struct NewHideComment {
     pub user_id: i32,
     pub comment_id: i32,
 }
@@ -588,6 +604,7 @@ impl MoreInterestingConn {
         use self::posts::dsl::*;
         use self::stars::dsl::*;
         use self::flags::dsl::*;
+        use self::post_hides::dsl::*;
         use self::users::dsl::*;
         use self::subscriptions::dsl::*;
         use self::post_tagging::dsl::*;
@@ -655,6 +672,7 @@ impl MoreInterestingConn {
             query
                 .left_outer_join(stars.on(self::stars::dsl::post_id.eq(self::posts::dsl::id).and(self::stars::dsl::user_id.eq(search.my_user_id))))
                 .left_outer_join(flags.on(self::flags::dsl::post_id.eq(self::posts::dsl::id).and(self::flags::dsl::user_id.eq(search.my_user_id))))
+                .left_outer_join(post_hides.on(self::post_hides::dsl::post_id.eq(self::posts::dsl::id).and(self::post_hides::dsl::user_id.eq(search.my_user_id))))
                 .inner_join(users)
                 .inner_join(post_search_index)
                 .select((
@@ -673,6 +691,7 @@ impl MoreInterestingConn {
                     self::posts::dsl::excerpt_html,
                     self::stars::dsl::post_id.nullable(),
                     self::flags::dsl::post_id.nullable(),
+                    self::post_hides::dsl::post_id.nullable(),
                     self::users::dsl::username,
                     self::posts::dsl::banner_title,
                     self::posts::dsl::banner_desc,
@@ -681,7 +700,7 @@ impl MoreInterestingConn {
                 .filter(ts_rank_cd(search_index, plainto_tsquery(&search.keywords)).lt(max_r))
                 .order_by(ts_rank_cd(search_index, plainto_tsquery(&search.keywords)).desc())
                 .limit(75)
-                .get_results::<(i32, Base32, String, Option<String>, bool, bool, i32, i32, i32, bool, NaiveDateTime, i32, Option<String>, Option<i32>, Option<i32>, String, Option<String>, Option<String>)>(&self.0)?
+                .get_results::<(i32, Base32, String, Option<String>, bool, bool, i32, i32, i32, bool, NaiveDateTime, i32, Option<String>, Option<i32>, Option<i32>, Option<i32>, String, Option<String>, Option<String>)>(&self.0)?
                 .into_iter()
                 .map(|t| tuple_to_post_info(&mut data, t, self.get_current_stellar_time()))
                 .collect()
@@ -698,6 +717,7 @@ impl MoreInterestingConn {
             query
                 .left_outer_join(stars.on(self::stars::dsl::post_id.eq(self::posts::dsl::id).and(self::stars::dsl::user_id.eq(search.my_user_id))))
                 .left_outer_join(flags.on(self::flags::dsl::post_id.eq(self::posts::dsl::id).and(self::flags::dsl::user_id.eq(search.my_user_id))))
+                .left_outer_join(post_hides.on(self::post_hides::dsl::post_id.eq(self::posts::dsl::id).and(self::post_hides::dsl::user_id.eq(search.my_user_id))))
                 .inner_join(users)
                 .select((
                     self::posts::dsl::id,
@@ -715,12 +735,13 @@ impl MoreInterestingConn {
                     self::posts::dsl::excerpt_html,
                     self::stars::dsl::post_id.nullable(),
                     self::flags::dsl::post_id.nullable(),
+                    self::post_hides::dsl::post_id.nullable(),
                     self::users::dsl::username,
                     self::posts::dsl::banner_title,
                     self::posts::dsl::banner_desc,
                 ))
                 .limit(75)
-                .get_results::<(i32, Base32, String, Option<String>, bool, bool, i32, i32, i32, bool, NaiveDateTime, i32, Option<String>, Option<i32>, Option<i32>, String, Option<String>, Option<String>)>(&self.0)?
+                .get_results::<(i32, Base32, String, Option<String>, bool, bool, i32, i32, i32, bool, NaiveDateTime, i32, Option<String>, Option<i32>, Option<i32>, Option<i32>, String, Option<String>, Option<String>)>(&self.0)?
                 .into_iter()
                 .map(|t| tuple_to_post_info(&mut data, t, self.get_current_stellar_time()))
                 .collect()
@@ -735,11 +756,13 @@ impl MoreInterestingConn {
         use self::posts::dsl::*;
         use self::stars::dsl::*;
         use self::flags::dsl::*;
+        use self::post_hides::dsl::*;
         use self::users::dsl::*;
         let mut data = PrettifyData::new(self, 0);
         let mut all: Vec<PostInfo> = posts
             .left_outer_join(stars.on(self::stars::dsl::post_id.eq(self::posts::dsl::id).and(self::stars::dsl::user_id.eq(user_id_param))))
             .left_outer_join(flags.on(self::flags::dsl::post_id.eq(self::posts::dsl::id).and(self::flags::dsl::user_id.eq(user_id_param))))
+            .left_outer_join(post_hides.on(self::post_hides::dsl::post_id.eq(self::posts::dsl::id).and(self::post_hides::dsl::user_id.eq(user_id_param))))
             .inner_join(users)
             .select((
                 self::posts::dsl::id,
@@ -757,6 +780,7 @@ impl MoreInterestingConn {
                 self::posts::dsl::excerpt_html,
                 self::stars::dsl::post_id.nullable(),
                 self::flags::dsl::post_id.nullable(),
+                self::post_hides::dsl::post_id.nullable(),
                 self::users::dsl::username,
                 self::posts::dsl::banner_title,
                 self::posts::dsl::banner_desc,
@@ -766,7 +790,7 @@ impl MoreInterestingConn {
             .filter(self::posts::dsl::submitted_by.eq(user_info_id_param))
             .order_by((initial_stellar_time.desc(), self::posts::dsl::created_at.desc()))
             .limit(75)
-            .get_results::<(i32, Base32, String, Option<String>, bool, bool, i32, i32, i32, bool, NaiveDateTime, i32, Option<String>, Option<i32>, Option<i32>, String, Option<String>, Option<String>)>(&self.0)?
+            .get_results::<(i32, Base32, String, Option<String>, bool, bool, i32, i32, i32, bool, NaiveDateTime, i32, Option<String>, Option<i32>, Option<i32>, Option<i32>, String, Option<String>, Option<String>)>(&self.0)?
             .into_iter()
             .map(|t| tuple_to_post_info(&mut data, t, self.get_current_stellar_time()))
             .collect();
@@ -778,12 +802,14 @@ impl MoreInterestingConn {
         use self::posts::dsl::*;
         use self::stars::dsl::*;
         use self::flags::dsl::*;
+        use self::post_hides::dsl::*;
         use self::users::dsl::*;
         // This is a bunch of duplicate code.
         let mut data = PrettifyData::new(self, 0);
         Ok(tuple_to_post_info(&mut data, posts
             .left_outer_join(stars.on(self::stars::dsl::post_id.eq(self::posts::dsl::id).and(self::stars::dsl::user_id.eq(user_id_param))))
             .left_outer_join(flags.on(self::flags::dsl::post_id.eq(self::posts::dsl::id).and(self::flags::dsl::user_id.eq(user_id_param))))
+            .left_outer_join(post_hides.on(self::post_hides::dsl::post_id.eq(self::posts::dsl::id).and(self::post_hides::dsl::user_id.eq(user_id_param))))
             .inner_join(users)
             .select((
                 self::posts::dsl::id,
@@ -801,13 +827,14 @@ impl MoreInterestingConn {
                 self::posts::dsl::excerpt_html,
                 self::stars::dsl::post_id.nullable(),
                 self::flags::dsl::post_id.nullable(),
+                self::post_hides::dsl::post_id.nullable(),
                 self::users::dsl::username,
                 self::posts::dsl::banner_title,
                 self::posts::dsl::banner_desc,
             ))
             .filter(rejected.eq(false))
             .filter(uuid.eq(uuid_param.into_i64()))
-            .first::<(i32, Base32, String, Option<String>, bool, bool, i32, i32, i32, bool, NaiveDateTime, i32, Option<String>, Option<i32>, Option<i32>, String, Option<String>, Option<String>)>(&self.0)?, self.get_current_stellar_time()))
+            .first::<(i32, Base32, String, Option<String>, bool, bool, i32, i32, i32, bool, NaiveDateTime, i32, Option<String>, Option<i32>, Option<i32>, Option<i32>, String, Option<String>, Option<String>)>(&self.0)?, self.get_current_stellar_time()))
     }
     pub fn get_user_comments_count_today(&self, user_id_value: i32) -> i32 {
         use self::comments::dsl::*;
@@ -1017,6 +1044,26 @@ impl MoreInterestingConn {
         self.update_score_on_post(new_star.post_id, -(affected_rows as i32));
         affected_rows == 1
     }
+    pub fn add_hide(&self, new_hide: &NewHide) -> bool {
+        let affected_rows = diesel::insert_into(post_hides::table)
+            .values(new_hide)
+            .execute(&self.0)
+            .unwrap_or(0);
+        // affected rows will be 1 if inserted, or 0 otherwise
+        affected_rows == 1
+    }
+    pub fn rm_hide(&self, new_hide: &NewHide) -> bool {
+        use self::post_hides::dsl::*;
+        let affected_rows = diesel::delete(
+            post_hides
+                .filter(user_id.eq(new_hide.user_id))
+                .filter(post_id.eq(new_hide.post_id))
+        )
+            .execute(&self.0)
+            .unwrap_or(0);
+        // affected rows will be 1 if deleted, or 0 otherwise
+        affected_rows == 1
+    }
     pub fn add_star_comment(&self, new_star: &NewStarComment) -> bool {
         let affected_rows = diesel::insert_into(comment_stars::table)
             .values(new_star)
@@ -1035,18 +1082,36 @@ impl MoreInterestingConn {
             .unwrap_or(0);
         affected_rows == 1
     }
-    fn maybe_hide_post(&self, post_id_param: i32) {
+    pub fn add_hide_comment(&self, new_hide: &NewHideComment) -> bool {
+        let affected_rows = diesel::insert_into(comment_hides::table)
+            .values(new_hide)
+            .execute(&self.0)
+            .unwrap_or(0);
+        affected_rows == 1
+    }
+    pub fn rm_hide_comment(&self, new_hide: &NewHideComment) -> bool {
+        use self::comment_hides::dsl::*;
+        let affected_rows = diesel::delete(
+            comment_hides
+                .filter(user_id.eq(new_hide.user_id))
+                .filter(comment_id.eq(new_hide.comment_id))
+        )
+            .execute(&self.0)
+            .unwrap_or(0);
+        affected_rows == 1
+    }
+    fn maybe_invisible_post(&self, post_id_param: i32) {
         use self::flags::dsl::*;
         let flag_count: i64 = flags.filter(post_id.eq(post_id_param)).count().get_result(&self.0).expect("if flagging worked, then so should counting");
-        if flag_count == FLAG_HIDE_THRESHOLD {
-            self.hide_post(post_id_param).expect("if flagging worked, then so should hiding the post");
+        if flag_count == FLAG_INVISIBLE_THRESHOLD {
+            self.invisible_post(post_id_param).expect("if flagging worked, then so should hiding the post");
         }
     }
-    fn maybe_hide_comment(&self, comment_id_param: i32) {
+    fn maybe_invisible_comment(&self, comment_id_param: i32) {
         use self::comment_flags::dsl::*;
         let flag_count: i64 = comment_flags.filter(comment_id.eq(comment_id_param)).count().get_result(&self.0).expect("if flagging worked, then so should counting");
-        if flag_count == FLAG_HIDE_THRESHOLD {
-            self.hide_comment(comment_id_param).expect("if flagging worked, then so should hiding the post");
+        if flag_count == FLAG_INVISIBLE_THRESHOLD {
+            self.invisible_comment(comment_id_param).expect("if flagging worked, then so should hiding the post");
         }
     }
     pub fn add_flag(&self, new_flag: &NewFlag) -> bool {
@@ -1055,7 +1120,7 @@ impl MoreInterestingConn {
             .execute(&self.0)
             .unwrap_or(0);
         if affected_rows == 1 {
-            self.maybe_hide_post(new_flag.post_id);
+            self.maybe_invisible_post(new_flag.post_id);
         }
         affected_rows == 1
     }
@@ -1076,7 +1141,7 @@ impl MoreInterestingConn {
             .execute(&self.0)
             .unwrap_or(0);
         if affected_rows == 1 {
-            self.maybe_hide_comment(new_flag.comment_id);
+            self.maybe_invisible_comment(new_flag.comment_id);
         }
         affected_rows == 1
     }
@@ -1203,10 +1268,12 @@ impl MoreInterestingConn {
         use self::comments::dsl::*;
         use self::comment_stars::dsl::*;
         use self::comment_flags::dsl::*;
+        use self::comment_hides::dsl::*;
         use self::users::dsl::*;
         comments
             .left_outer_join(comment_stars.on(self::comment_stars::dsl::comment_id.eq(self::comments::dsl::id).and(self::comment_stars::dsl::user_id.eq(user_id_param))))
             .left_outer_join(comment_flags.on(self::comment_flags::dsl::comment_id.eq(self::comments::dsl::id).and(self::comment_flags::dsl::user_id.eq(user_id_param))))
+            .left_outer_join(comment_hides.on(self::comment_hides::dsl::comment_id.eq(self::comments::dsl::id).and(self::comment_hides::dsl::user_id.eq(user_id_param))))
             .inner_join(users)
             .select((
                 self::comments::dsl::id,
@@ -1218,12 +1285,13 @@ impl MoreInterestingConn {
                 self::comments::dsl::created_by,
                 self::comment_stars::dsl::comment_id.nullable(),
                 self::comment_flags::dsl::comment_id.nullable(),
+                self::comment_hides::dsl::comment_id.nullable(),
                 self::users::dsl::username,
                 self::users::dsl::identicon,
             ))
             .filter(visible.eq(true))
             .filter(self::comments::dsl::id.eq(comment_id_value))
-            .get_result::<(i32, String, String, bool, i32, NaiveDateTime, i32, Option<i32>, Option<i32>, String, i32)>(&self.0)
+            .get_result::<(i32, String, String, bool, i32, NaiveDateTime, i32, Option<i32>, Option<i32>, Option<i32>, String, i32)>(&self.0)
             .map(|t| tuple_to_comment_info(self, t))
     }
     pub fn create_domain(&self, new_domain: NewDomain) -> Result<Domain, DieselError> {
@@ -1295,10 +1363,12 @@ impl MoreInterestingConn {
         use self::comments::dsl::*;
         use self::comment_stars::dsl::*;
         use self::comment_flags::dsl::*;
+        use self::comment_hides::dsl::*;
         use self::users::dsl::*;
         let all: Vec<CommentInfo> = comments
             .left_outer_join(comment_stars.on(self::comment_stars::dsl::comment_id.eq(self::comments::dsl::id).and(self::comment_stars::dsl::user_id.eq(user_id_param))))
             .left_outer_join(comment_flags.on(self::comment_flags::dsl::comment_id.eq(self::comments::dsl::id).and(self::comment_flags::dsl::user_id.eq(user_id_param))))
+            .left_outer_join(comment_hides.on(self::comment_hides::dsl::comment_id.eq(self::comments::dsl::id).and(self::comment_hides::dsl::user_id.eq(user_id_param))))
             .inner_join(users)
             .select((
                 self::comments::dsl::id,
@@ -1310,13 +1380,14 @@ impl MoreInterestingConn {
                 self::comments::dsl::created_by,
                 self::comment_stars::dsl::comment_id.nullable(),
                 self::comment_flags::dsl::comment_id.nullable(),
+                self::comment_hides::dsl::comment_id.nullable(),
                 self::users::dsl::username,
                 self::users::dsl::identicon,
             ))
             .filter(visible.eq(true))
             .filter(self::comments::dsl::post_id.eq(post_id_param))
             .order_by(self::comments::dsl::created_at)
-            .get_results::<(i32, String, String, bool, i32, NaiveDateTime, i32, Option<i32>, Option<i32>, String, i32)>(&self.0)?
+            .get_results::<(i32, String, String, bool, i32, NaiveDateTime, i32, Option<i32>, Option<i32>, Option<i32>, String, i32)>(&self.0)?
             .into_iter()
             .map(|t| tuple_to_comment_info(self, t))
             .collect();
@@ -1387,6 +1458,7 @@ impl MoreInterestingConn {
         use self::posts::dsl::*;
         use self::stars::dsl::*;
         use self::flags::dsl::*;
+        use self::post_hides::dsl::*;
         use self::users::dsl::*;
         use self::comments::dsl::*;
         // This is a bunch of duplicate code.
@@ -1394,6 +1466,7 @@ impl MoreInterestingConn {
         Ok(tuple_to_post_info(&mut data, posts
             .left_outer_join(stars.on(self::stars::dsl::post_id.eq(self::posts::dsl::id).and(self::stars::dsl::user_id.eq(user_id_param))))
             .left_outer_join(flags.on(self::flags::dsl::post_id.eq(self::posts::dsl::id).and(self::flags::dsl::user_id.eq(user_id_param))))
+            .left_outer_join(post_hides.on(self::post_hides::dsl::post_id.eq(self::posts::dsl::id).and(self::post_hides::dsl::user_id.eq(user_id_param))))
             .inner_join(users)
             .inner_join(comments)
             .select((
@@ -1412,12 +1485,13 @@ impl MoreInterestingConn {
                 self::posts::dsl::excerpt_html,
                 self::stars::dsl::post_id.nullable(),
                 self::flags::dsl::post_id.nullable(),
+                self::post_hides::dsl::post_id.nullable(),
                 self::users::dsl::username,
                 self::posts::dsl::banner_title,
                 self::posts::dsl::banner_desc,
             ))
             .filter(self::comments::dsl::id.eq(comment_id_param))
-            .first::<(i32, Base32, String, Option<String>, bool, bool, i32, i32, i32, bool, NaiveDateTime, i32, Option<String>, Option<i32>, Option<i32>, String, Option<String>, Option<String>)>(&self.0)?, self.get_current_stellar_time()))
+            .first::<(i32, Base32, String, Option<String>, bool, bool, i32, i32, i32, bool, NaiveDateTime, i32, Option<String>, Option<i32>, Option<i32>, Option<i32>, String, Option<String>, Option<String>)>(&self.0)?, self.get_current_stellar_time()))
     }
     pub fn get_post_starred_by(&self, post_id_param: i32) -> Result<Vec<String>, DieselError> {
         use self::stars::dsl::*;
@@ -1733,11 +1807,13 @@ impl MoreInterestingConn {
         use self::posts::dsl::*;
         use self::stars::dsl::*;
         use self::flags::dsl::*;
+        use self::post_hides::dsl::*;
         use self::users::dsl::*;
         let mut data = PrettifyData::new(self, 0);
         let mut all: Vec<PostInfo> = posts
             .left_outer_join(stars.on(self::stars::dsl::post_id.eq(self::posts::dsl::id).and(self::stars::dsl::user_id.eq(user_id_param))))
             .left_outer_join(flags.on(self::flags::dsl::post_id.eq(self::posts::dsl::id).and(self::flags::dsl::user_id.eq(user_id_param))))
+            .left_outer_join(post_hides.on(self::post_hides::dsl::post_id.eq(self::posts::dsl::id).and(self::post_hides::dsl::user_id.eq(user_id_param))))
             .inner_join(users)
             .select((
                 self::posts::dsl::id,
@@ -1755,6 +1831,7 @@ impl MoreInterestingConn {
                 self::posts::dsl::excerpt_html,
                 self::stars::dsl::post_id.nullable(),
                 self::flags::dsl::post_id.nullable(),
+                self::post_hides::dsl::post_id.nullable(),
                 self::users::dsl::username,
                 self::posts::dsl::banner_title,
                 self::posts::dsl::banner_desc,
@@ -1764,7 +1841,7 @@ impl MoreInterestingConn {
             .filter(self::users::dsl::trust_level.gt(-2))
             .order_by(self::posts::dsl::created_at.asc())
             .limit(50)
-            .get_results::<(i32, Base32, String, Option<String>, bool, bool, i32, i32, i32, bool, NaiveDateTime, i32, Option<String>, Option<i32>, Option<i32>, String, Option<String>, Option<String>)>(&self.0).ok()?
+            .get_results::<(i32, Base32, String, Option<String>, bool, bool, i32, i32, i32, bool, NaiveDateTime, i32, Option<String>, Option<i32>, Option<i32>, Option<i32>, String, Option<String>, Option<String>)>(&self.0).ok()?
             .into_iter()
             .map(|t| tuple_to_post_info(&mut data, t, self.get_current_stellar_time()))
             .collect();
@@ -1775,10 +1852,12 @@ impl MoreInterestingConn {
         use self::comments::dsl::*;
         use self::comment_stars::dsl::*;
         use self::comment_flags::dsl::*;
+        use self::comment_hides::dsl::*;
         use self::users::dsl::*;
         let mut all: Vec<CommentInfo> = comments
             .left_outer_join(comment_stars.on(self::comment_stars::dsl::comment_id.eq(self::comments::dsl::id).and(self::comment_stars::dsl::user_id.eq(user_id_param))))
-            .left_outer_join(comment_flags.on(self::comment_stars::dsl::comment_id.eq(self::comments::dsl::id).and(self::comment_flags::dsl::user_id.eq(user_id_param))))
+            .left_outer_join(comment_flags.on(self::comment_flags::dsl::comment_id.eq(self::comments::dsl::id).and(self::comment_flags::dsl::user_id.eq(user_id_param))))
+            .left_outer_join(comment_hides.on(self::comment_hides::dsl::comment_id.eq(self::comments::dsl::id).and(self::comment_hides::dsl::user_id.eq(user_id_param))))
             .inner_join(users)
             .select((
                 self::comments::dsl::id,
@@ -1790,6 +1869,7 @@ impl MoreInterestingConn {
                 self::comments::dsl::created_by,
                 self::comment_stars::dsl::comment_id.nullable(),
                 self::comment_flags::dsl::comment_id.nullable(),
+                self::comment_hides::dsl::comment_id.nullable(),
                 self::users::dsl::username,
                 self::users::dsl::identicon,
             ))
@@ -1798,7 +1878,7 @@ impl MoreInterestingConn {
             .filter(self::users::dsl::trust_level.gt(-2))
             .order_by(self::comments::dsl::created_at.asc())
             .limit(50)
-            .get_results::<(i32, String, String, bool, i32, NaiveDateTime, i32, Option<i32>, Option<i32>, String, i32)>(&self.0).ok()?
+            .get_results::<(i32, String, String, bool, i32, NaiveDateTime, i32, Option<i32>, Option<i32>, Option<i32>, String, i32)>(&self.0).ok()?
             .into_iter()
             .map(|t| tuple_to_comment_info(self, t))
             .collect();
@@ -1833,7 +1913,7 @@ impl MoreInterestingConn {
             .execute(&self.0)?;
         Ok(())
     }
-    pub fn hide_post(&self, post_id_value: i32) -> Result<(), DieselError> {
+    pub fn invisible_post(&self, post_id_value: i32) -> Result<(), DieselError> {
         use self::posts::dsl::*;
         diesel::update(posts.find(post_id_value))
             .set((
@@ -1842,7 +1922,7 @@ impl MoreInterestingConn {
             .execute(&self.0)?;
         Ok(())
     }
-    pub fn hide_comment(&self, comment_id_value: i32) -> Result<(), DieselError> {
+    pub fn invisible_comment(&self, comment_id_value: i32) -> Result<(), DieselError> {
         use self::comments::dsl::*;
         diesel::update(comments.find(comment_id_value))
             .set((
@@ -1955,7 +2035,7 @@ fn tuple_to_notification_info((post_uuid, post_title, comment_count, from_userna
     }
 }
 
-fn tuple_to_post_info(data: &mut PrettifyData, (id, uuid, title, url, visible, private, initial_stellar_time, score, comment_count, authored_by_submitter, created_at, submitted_by, excerpt_html, starred_post_id, flagged_post_id, submitted_by_username, banner_title, banner_desc): (i32, Base32, String, Option<String>, bool, bool, i32, i32, i32, bool, NaiveDateTime, i32, Option<String>, Option<i32>, Option<i32>, String, Option<String>, Option<String>), current_stellar_time: i32) -> PostInfo {
+fn tuple_to_post_info(data: &mut PrettifyData, (id, uuid, title, url, visible, private, initial_stellar_time, score, comment_count, authored_by_submitter, created_at, submitted_by, excerpt_html, starred_post_id, flagged_post_id, hidden_post_id, submitted_by_username, banner_title, banner_desc): (i32, Base32, String, Option<String>, bool, bool, i32, i32, i32, bool, NaiveDateTime, i32, Option<String>, Option<i32>, Option<i32>, Option<i32>, String, Option<String>, Option<String>), current_stellar_time: i32) -> PostInfo {
     let link_url = if let Some(ref url) = url {
         url.clone()
     } else {
@@ -1972,12 +2052,13 @@ fn tuple_to_post_info(data: &mut PrettifyData, (id, uuid, title, url, visible, p
         created_at, created_at_relative,
         starred_by_me: starred_post_id.is_some(),
         flagged_by_me: flagged_post_id.is_some(),
+        hidden_by_me: hidden_post_id.is_some(),
         submitted_by_username_urlencode,
         hotness: compute_hotness(initial_stellar_time, current_stellar_time, score, authored_by_submitter)
     }
 }
 
-fn tuple_to_comment_info(conn: &MoreInterestingConn, (id, text, html, visible, post_id, created_at, created_by, starred_comment_id, flagged_comment_id, created_by_username, created_by_identicon): (i32, String, String, bool, i32, NaiveDateTime, i32, Option<i32>, Option<i32>, String, i32)) -> CommentInfo {
+fn tuple_to_comment_info(conn: &MoreInterestingConn, (id, text, html, visible, post_id, created_at, created_by, starred_comment_id, flagged_comment_id, hidden_comment_id, created_by_username, created_by_identicon): (i32, String, String, bool, i32, NaiveDateTime, i32, Option<i32>, Option<i32>, Option<i32>, String, i32)) -> CommentInfo {
     let created_at_relative = relative_date(&created_at);
     let created_by_username_urlencode = utf8_percent_encode(&created_by_username, NON_ALPHANUMERIC).to_string();
     let created_by_identicon = Base32::from(created_by_identicon as i64);
@@ -1989,6 +2070,7 @@ fn tuple_to_comment_info(conn: &MoreInterestingConn, (id, text, html, visible, p
         starred_by: conn.get_comment_starred_by(id).unwrap_or(Vec::new()),
         starred_by_me: starred_comment_id.is_some(),
         flagged_by_me: flagged_comment_id.is_some(),
+        hidden_by_me: hidden_comment_id.is_some(),
     }
 }
 

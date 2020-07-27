@@ -19,6 +19,7 @@ mod prettify;
 mod pid_file_fairing;
 mod sql_types;
 
+use rocket::response::content::Html;
 use rocket::request::{Form, FlashMessage, LenientForm};
 use rocket::response::{Responder, Redirect, Flash, Content};
 use rocket::http::{Cookies, Cookie, ContentType};
@@ -32,7 +33,7 @@ use rocket_contrib::serve::StaticFiles;
 use rocket_contrib::templates::{Template, handlebars};
 use serde::{Serialize, Serializer};
 use std::borrow::Cow;
-use crate::models::{SiteCustomization, NotificationInfo, NewNotification, NewSubscription, PostSearch, PostSearchOrderBy, UserSession, PostInfo, NewStar, NewUser, CommentInfo, NewPost, NewComment, NewStarComment, NewTag, Tag, Comment, ModerationInfo, NewFlag, NewFlagComment, LegacyComment, CommentSearchResult, DomainSynonym, DomainSynonymInfo, NewDomain};
+use crate::models::{SiteCustomization, NotificationInfo, NewNotification, NewSubscription, PostSearch, PostSearchOrderBy, UserSession, PostInfo, NewStar, NewHide, NewHideComment, NewUser, CommentInfo, NewPost, NewComment, NewStarComment, NewTag, Tag, Comment, ModerationInfo, NewFlag, NewFlagComment, LegacyComment, CommentSearchResult, DomainSynonym, DomainSynonymInfo, NewDomain};
 use more_interesting_base32::Base32;
 use url::Url;
 use std::collections::HashMap;
@@ -190,19 +191,20 @@ impl MaybeRedirect {
             None => Err(Status::Created)
         }
     }
-    pub fn maybe_redirect_vote(self) -> VoteResponse {
-        match self.redirect {
-            Some(b) if b == Base32::zero() => VoteResponse::B(Redirect::to(".")),
-            Some(b) => VoteResponse::B(Redirect::to(b.to_string())),
-            None => VoteResponse::C(Status::Created)
-        }
+    pub fn maybe_redirect_vote<T: FnOnce() -> String>(self, hash: T) -> VoteResponse {
+        let p = match self.redirect {
+            Some(b) if b == Base32::zero() => String::from("."),
+            Some(b) => b.to_string(),
+            None => return VoteResponse::C(Status::Created),
+        };
+        VoteResponse::B(Html(format!("<!DOCTYPE html><meta name=viewport content=width=device-width><h1><a href={}#{}>Redirect OK</a></h1><script>window.location = document.getElementsByTagName('a')[0].href</script>", escape(&p), escape(&hash()))))
     }
 }
 
 #[derive(Responder)]
 enum VoteResponse {
     A(Template),
-    B(Redirect),
+    B(Html<String>),
     C(Status)
 }
 
@@ -222,53 +224,81 @@ struct VoteForm {
     add_star: Option<Base32>,
     rm_flag: Option<Base32>,
     add_flag: Option<Base32>,
+    rm_hide: Option<Base32>,
+    add_hide: Option<Base32>,
 }
 
 #[post("/vote?<redirect..>", data = "<p>")]
 fn vote(conn: MoreInterestingConn, login: LoginSession, redirect: LenientForm<MaybeRedirect>, p: Form<VoteForm>, customization: Customization) -> VoteResponse {
     let user = login.user;
-    let (id, result) = match (p.add_star, p.rm_star, p.add_flag, p.rm_flag) {
-        (Some(u), None, None, None) => {
+    let (post, result) = match (p.add_star, p.rm_star, p.add_flag, p.rm_flag, p.add_hide, p.rm_hide) {
+        (Some(u), None, None, None, None, None) => {
             let post = match conn.get_post_info_by_uuid(user.id, u) {
                 Ok(post) => post,
                 Err(_) => return VoteResponse::C(Status::NotFound),
             };
-            (post.id, conn.add_star(&NewStar {
+            let id = post.id;
+            (post, conn.add_star(&NewStar {
                 user_id: user.id,
-                post_id: post.id,
+                post_id: id,
             }))
         }
-        (None, Some(u), None, None) => {
+        (None, Some(u), None, None, None, None) => {
             let post = match conn.get_post_info_by_uuid(user.id, u) {
                 Ok(post) => post,
                 Err(_) => return VoteResponse::C(Status::NotFound),
             };
-            (post.id, conn.rm_star(&NewStar {
+            let id = post.id;
+            (post, conn.rm_star(&NewStar {
                 user_id: user.id,
-                post_id: post.id,
+                post_id: id,
             }))
         }
-        (None, None, Some(u), None) => {
+        (None, None, Some(u), None, None, None) => {
             let post = match conn.get_post_info_by_uuid(user.id, u) {
                 Ok(post) => post,
                 Err(_) => return VoteResponse::C(Status::NotFound),
             };
-            (post.id, conn.add_flag(&NewFlag {
+            let id = post.id;
+            (post, conn.add_flag(&NewFlag {
                 user_id: user.id,
-                post_id: post.id,
+                post_id: id,
             }))
         }
-        (None, None, None, Some(u)) => {
+        (None, None, None, Some(u), None, None) => {
             let post = match conn.get_post_info_by_uuid(user.id, u) {
                 Ok(post) => post,
                 Err(_) => return VoteResponse::C(Status::NotFound),
             };
-            (post.id, conn.rm_flag(&NewFlag {
+            let id = post.id;
+            (post, conn.rm_flag(&NewFlag {
                 user_id: user.id,
-                post_id: post.id,
+                post_id: id,
             }))
         }
-        _ => (0, false),
+        (None, None, None, None, Some(u), None) => {
+            let post = match conn.get_post_info_by_uuid(user.id, u) {
+                Ok(post) => post,
+                Err(_) => return VoteResponse::C(Status::NotFound),
+            };
+            let id = post.id;
+            (post, conn.add_hide(&NewHide {
+                user_id: user.id,
+                post_id: id,
+            }))
+        }
+        (None, None, None, None, None, Some(u)) => {
+            let post = match conn.get_post_info_by_uuid(user.id, u) {
+                Ok(post) => post,
+                Err(_) => return VoteResponse::C(Status::NotFound),
+            };
+            let id = post.id;
+            (post, conn.rm_hide(&NewHide {
+                user_id: user.id,
+                post_id: id,
+            }))
+        }
+        _ => return VoteResponse::C(Status::BadRequest),
     };
     if result {
         if user.trust_level == 0 &&
@@ -277,9 +307,9 @@ fn vote(conn: MoreInterestingConn, login: LoginSession, redirect: LenientForm<Ma
             conn.change_user_trust_level(user.id, 1).expect("if voting works, then so should switching trust level")
         }
         if redirect.redirect.is_some() {
-            redirect.maybe_redirect_vote()
+            redirect.maybe_redirect_vote(|| format!("{}", post.uuid))
         } else {
-            let starred_by = conn.get_post_starred_by(id).unwrap_or(Vec::new());
+            let starred_by = conn.get_post_starred_by(post.id).unwrap_or(Vec::new());
             VoteResponse::A(Template::render("view-star", &StarTemplateContext {
                 starred_by, customization
             }))
@@ -295,25 +325,35 @@ struct VoteCommentForm {
     rm_star_comment: Option<i32>,
     add_flag_comment: Option<i32>,
     rm_flag_comment: Option<i32>,
+    add_hide_comment: Option<i32>,
+    rm_hide_comment: Option<i32>,
 }
 
 #[post("/vote-comment?<redirect..>", data = "<c>")]
 fn vote_comment(conn: MoreInterestingConn, login: LoginSession, redirect: LenientForm<MaybeRedirect>, c: Form<VoteCommentForm>, customization: Customization) -> VoteResponse {
     let user = login.user;
-    let (id, result) = match (c.add_star_comment, c.rm_star_comment, c.add_flag_comment, c.rm_flag_comment) {
-        (Some(i), None, None, None) => (i, conn.add_star_comment(&NewStarComment{
+    let (id, result) = match (c.add_star_comment, c.rm_star_comment, c.add_flag_comment, c.rm_flag_comment, c.add_hide_comment, c.rm_hide_comment) {
+        (Some(i), None, None, None, None, None) => (i, conn.add_star_comment(&NewStarComment{
             user_id: user.id,
             comment_id: i,
         })),
-        (None, Some(i), None, None) => (i, conn.rm_star_comment(&NewStarComment{
+        (None, Some(i), None, None, None, None) => (i, conn.rm_star_comment(&NewStarComment{
             user_id: user.id,
             comment_id: i,
         })),
-        (None, None, Some(i), None) if user.trust_level >= 1 => (i, conn.add_flag_comment(&NewFlagComment{
+        (None, None, Some(i), None, None, None) if user.trust_level >= 1 => (i, conn.add_flag_comment(&NewFlagComment{
             user_id: user.id,
             comment_id: i,
         })),
-        (None, None, None, Some(i)) => (i, conn.rm_flag_comment(&NewFlagComment{
+        (None, None, None, Some(i), None, None) => (i, conn.rm_flag_comment(&NewFlagComment{
+            user_id: user.id,
+            comment_id: i,
+        })),
+        (None, None, None, None, Some(i), None) if user.trust_level >= 1 => (i, conn.add_hide_comment(&NewHideComment{
+            user_id: user.id,
+            comment_id: i,
+        })),
+        (None, None, None, None, None, Some(i)) => (i, conn.rm_hide_comment(&NewHideComment{
             user_id: user.id,
             comment_id: i,
         })),
@@ -326,7 +366,7 @@ fn vote_comment(conn: MoreInterestingConn, login: LoginSession, redirect: Lenien
             conn.change_user_trust_level(user.id, 1).expect("if voting works, then so should switching trust level")
         }
         if redirect.redirect.is_some() {
-            redirect.maybe_redirect_vote()
+            redirect.maybe_redirect_vote(|| format!("{}", id))
         } else {
             let starred_by = conn.get_comment_starred_by(id).unwrap_or(Vec::new());
             VoteResponse::A(Template::render("view-star-comment", &StarTemplateContext {
@@ -2028,6 +2068,21 @@ fn replace_helper(
     Ok(())
 }
 
+fn last_helper(
+    h: &Helper,
+    _: &Handlebars,
+    _: &Context,
+    _: &mut RenderContext,
+    out: &mut dyn Output
+) -> HelperResult {
+    if let Some(template) = h.param(0) {
+        if let Some(serde_json::Value::String(uuid)) = template.value().as_array().and_then(|a| a.last()).and_then(|v| v.get("uuid")) {
+            out.write(&uuid) ?;
+        }
+    }
+    Ok(())
+}
+
 fn main() {
     //env_logger::init();
     rocket::ignite()
@@ -2080,6 +2135,7 @@ fn main() {
             engines.handlebars.register_helper("usernamewrap", Box::new(usernamewrap_helper));
             engines.handlebars.register_helper("docs", Box::new(docs_helper));
             engines.handlebars.register_helper("replace", Box::new(replace_helper));
+            engines.handlebars.register_helper("last", Box::new(last_helper));
         }))
         .attach(PidFileFairing)
         .launch();

@@ -7,7 +7,7 @@
     {{#if this.banner_desc}}
         <p class=post-banner-desc>{{{this.banner_desc}}}</p>
     {{/if}}
-    <article><details><summary title="Hide post" class=module-summary>{{this.title}}</summary>
+    <details><summary>Post</summary><article>
         <header class=article-header>{{{this.title_html}}}</header>
         {{#if this.excerpt_html}}
             <main>{{{this.excerpt_html}}}</main>
@@ -17,7 +17,7 @@
         <a is=local-date href={{this.uuid}} title="{{this.created_at}}+00:00">{{this.created_at_relative}}</a> and got
         <a href="{{this.uuid}}#comments">{{this.comment_count}} comments</a>
         </footer>
-    </details></article>
+    </article></details>
 {{/each}}
         <aside id="{{this.id}}">
             <header class=aside-header>
