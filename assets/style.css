@@ -793,7 +793,8 @@ details[open] > details-dialog {
     display: inline;
 }
 .details-menu-summary::before,
-.details-dialog-summary::before {
+.details-dialog-summary::before,
+.inline-summary::before {
     display: none;
 }
 .details-menu-summary {
