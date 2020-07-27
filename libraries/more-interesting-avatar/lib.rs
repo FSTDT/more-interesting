@@ -52,7 +52,7 @@ pub fn render(code: u32) -> RgbImage {
   // outline shapes with a noticeable color (complementary will do) if
   // shape color and background color are too similar (measured by color
   // distance)
-  let stroke_color = if get_color_distance(fill_color, background_color) < 32.0 {
+  let stroke_color = if get_color_distance(fill_color, background_color) < 64.0 {
     Some(get_complementary_color(fill_color))
   } else {
     None

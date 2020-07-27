@@ -24,14 +24,14 @@ fn generate_outlines() -> [BitImage; 16] {
         if x > 0 && !is_point_in_path(x - 1, y, &patch_type) {
           patch_shape.set(x, y, true);
           patch_shape.set(x - 1, y, true);
-        } else if x < 10 && !is_point_in_path(x + 1, y, &patch_type) {
+        } else if x < 15 && !is_point_in_path(x + 1, y, &patch_type) {
           patch_shape.set(x, y, true);
           patch_shape.set(x + 1, y, true);
         }
         if y > 0 && !is_point_in_path(x, y - 1, &patch_type) {
           patch_shape.set(x, y, true);
           patch_shape.set(x, y - 1, true);
-        } else if y < 10 && !is_point_in_path(x, y + 1, &patch_type) {
+        } else if y < 15 && !is_point_in_path(x, y + 1, &patch_type) {
           patch_shape.set(x, y, true);
           patch_shape.set(x, y + 1, true);
         }
