@@ -38,7 +38,8 @@ textarea:focus,
     position: relative;
 }
 .details-menu-summary:focus,
-aside:target {
+aside:target,
+article:target {
     box-shadow: 0 0 0 2px #0a84ff, 0 0 0 6px #b1d6fc;
     box-shadow: 0 0 0 2px #0a84ff, 0 0 0 6px rgba(10, 132, 255, 0.3);
     position: relative;
@@ -1038,4 +1039,16 @@ details[open] > .img-lightbox:before {
     align-items: flex-end;
     margin-top: -0.75em;
     padding-top: 0.5em;
+}
+
+button.hide-button {
+    position: absolute;
+    right: 100%;
+    right: calc(100% + 2px);
+    left: auto;
+    top: 0;
+    bottom: 0;
+    border: none;
+    background: none;
+    display: flex;
 }

@@ -75,14 +75,14 @@
             </aside>
         {{/each}}
         {{#each comments}}
-            <aside id="{{this.id}}">
+            {{#if this.hidden_by_me}}<aside id="{{this.id}}"><form action="vote-comment?redirect={{../posts.0.uuid}}&U={{../session.uuid}}" method=POST><button class=hide-button title=Show name=rm_hide_comment value={{this.id}}><b>+</b></button> {{this.created_by_username}}</form></aside>{{else}}<aside id="{{this.id}}">
                 <header class=aside-header>
                     <img width=15 height=15 class=identicon src=identicon/{{this.created_by_identicon}}>
                     <a href="@{{this.created_by_username_urlencode}}" class=top-header-link>{{this.created_by_username}}</a>
                     <span class="top-header-link top-header-aside"><a class=top-header-link is=local-date href="#{{this.id}}" title="{{this.created_at}}+00:00">{{this.created_at_relative}} #{{this.id}}</a></span>
                 </header>
                 <main>{{{this.html}}}</main>
-                <form action="vote-comment?redirect={{../posts.0.uuid}}&U={{../session.uuid}}" method=POST>
+                <form action="vote-comment?redirect={{../posts.0.uuid}}&U={{../session.uuid}}" method=POST><button class=hide-button title=Show name=add_hide_comment value={{this.id}}><b>-</b></button>
                 <footer class=footer-container>
                     <div class=footer-main>
                     <button{{#if ../user.id}} title="{{#if this.starred_by_me}}Remove star{{else}}Add star{{/if}}"{{else}} disabled title="Log in to vote"{{/if}} name="{{#if this.starred_by_me}}rm_star_comment{{else}}add_star_comment{{/if}}" value={{this.id}}>
@@ -109,7 +109,7 @@
                     </details-menu-bar>
                 </footer>
                 </form>
-            </aside>
+            </aside>{{/if}}
         {{/each}}
     </ajax-form>
     {{#if user.id}}
