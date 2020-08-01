@@ -6,3 +6,4 @@ node_modules
 # The root package.json has no real dependencies,
 # so the lockfile is not needed.
 /package-lock.json
+*.swp

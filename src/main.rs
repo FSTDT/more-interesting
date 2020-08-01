@@ -85,6 +85,7 @@ struct StarTemplateContext {
 
 #[derive(Serialize, Default)]
 struct TemplateContext {
+    next_search_page: i32,
     title: Cow<'static, str>,
     posts: Vec<PostInfo>,
     starred_by: Vec<String>,
@@ -384,6 +385,7 @@ struct IndexParams {
     domain: Option<String>,
     q: Option<String>,
     after: Option<Base32>,
+    page: Option<i32>,
     subscriptions: bool,
     before_date: Option<String>,
     after_date: Option<String>,
@@ -396,6 +398,9 @@ fn parse_index_params(conn: &MoreInterestingConn, user: &User, params: Option<Fo
     if let Some(after_uuid) = params.as_ref().and_then(|params| params.after.as_ref()) {
         let after = conn.get_post_info_by_uuid(user.id, *after_uuid).ok()?;
         search.after_post_id = after.id;
+    }
+    if let Some(page) = params.as_ref().and_then(|params| params.page) {
+        search.search_page = page;
     }
     if let Some(tag_names) = params.as_ref().and_then(|params| params.tag.as_ref()) {
         if tag_names.contains("|") {
@@ -460,11 +465,12 @@ fn index(conn: MoreInterestingConn, login: Option<LoginSession>, flash: Option<F
     let after_date_param = search.after_date;
     let posts = conn.search_posts(&search).ok()?;
     let notifications = conn.list_notifications(user.id).unwrap_or(Vec::new());
-    let is_private = keywords_param.is_some() && search.after_post_id != 0;
+    let is_private = keywords_param.is_some() && (search.after_post_id != 0 || search.search_page != 0);
     let title = Cow::Owned(customization.title.clone());
     Some(Template::render("index", &TemplateContext {
         alert: flash.map(|f| f.msg().to_owned()),
         config: config.clone(),
+        next_search_page: search.search_page + 1,
         customization, before_date_param, after_date_param,
         title, user, posts, is_home,
         tags, session, tag_param, domain, keywords_param,
@@ -522,9 +528,10 @@ fn top(conn: MoreInterestingConn, login: Option<LoginSession>, flash: Option<Fla
     };
     let posts = conn.search_posts(&search).ok()?;
     let notifications = conn.list_notifications(user.id).unwrap_or(Vec::new());
-    let is_private = keywords_param.is_some() && search.after_post_id != 0;
+    let is_private = keywords_param.is_some() && (search.after_post_id != 0 || search.search_page != 0);
     Some(Template::render("index-top", &TemplateContext {
         title: Cow::Borrowed("top"),
+        next_search_page: search.search_page + 1,
         alert: flash.map(|f| f.msg().to_owned()),
         config: config.clone(),
         customization, before_date_param, after_date_param,
@@ -611,9 +618,10 @@ fn new(conn: MoreInterestingConn, login: Option<LoginSession>, flash: Option<Fla
     };
     let posts = conn.search_posts(&search).ok()?;
     let notifications = conn.list_notifications(user.id).unwrap_or(Vec::new());
-    let is_private = (keywords_param.is_some() || tags.len() > 0 || domain.is_some()) && search.after_post_id != 0;
+    let is_private = (keywords_param.is_some() || tags.len() > 0 || domain.is_some()) && (search.after_post_id != 0 || search.search_page != 0);
     Some(Template::render("index-new", &TemplateContext {
         title: Cow::Borrowed("new"),
+        next_search_page: search.search_page + 1,
         alert: flash.map(|f| f.msg().to_owned()),
         config: config.clone(),
         customization, before_date_param, after_date_param,
@@ -640,9 +648,10 @@ fn latest(conn: MoreInterestingConn, login: Option<LoginSession>, params: Option
     };
     let posts = conn.search_posts(&search).ok()?;
     let notifications = conn.list_notifications(user.id).unwrap_or(Vec::new());
-    let is_private = keywords_param.is_some() && search.after_post_id != 0;
+    let is_private = keywords_param.is_some() && (search.after_post_id != 0 || search.search_page != 0);
     Some(Template::render("index-latest", &TemplateContext {
         title: Cow::Borrowed("latest"),
+        next_search_page: search.search_page + 1,
         alert: flash.map(|f| f.msg().to_owned()),
         config: config.clone(),
         customization, before_date_param, after_date_param,
@@ -931,7 +940,7 @@ fn logout(mut cookies: Cookies) -> impl Responder<'static> {
 #[get("/<uuid>", rank = 1)]
 fn get_comments(conn: MoreInterestingConn, login: Option<LoginSession>, uuid: String, config: State<SiteConfig>, flash: Option<FlashMessage>, customization: Customization) -> Result<impl Responder<'static>, Status> {
     let (user, session) = login.map(|l| (l.user, l.session)).unwrap_or((User::default(), UserSession::default()));
-    if uuid.len() > 0 && &uuid[..1] == "@" {
+    if uuid.len() > 0 && uuid.as_bytes()[0] == b'@' {
         let username = &uuid[1..];
         let user_info = if let Ok(user_info) = conn.get_user_by_username(username) {
             user_info
@@ -950,6 +959,35 @@ fn get_comments(conn: MoreInterestingConn, login: Option<LoginSession>, uuid: St
             config: config.clone(),
             customization,
             is_me: user_info.id == user.id,
+            posts, user, session,
+            notifications,
+            ..default()
+        }));
+    }
+    if uuid.len() > 0 && uuid.as_bytes()[0] == b'+' {
+        let uuid = &uuid[1..];
+        let uuid = if let Ok(uuid) = Base32::from_str(uuid) {
+            uuid
+        } else {
+            return Err(Status::NotFound);
+        };
+        let post_info = if let Ok(post_info) = conn.get_post_by_uuid(uuid) {
+            post_info
+        } else {
+            return Err(Status::NotFound);
+        };
+        let posts = if let Ok(posts) = conn.get_post_info_similar(user.id, &post_info) {
+            posts
+        } else {
+            return Err(Status::InternalServerError);
+        };
+        let notifications = conn.list_notifications(user.id).unwrap_or(Vec::new());
+        return Ok(Template::render("similar", &TemplateContext {
+            title: Cow::Owned(format!("Similar to {}", &post_info.title)),
+            alert: flash.map(|f| f.msg().to_owned()),
+            config: config.clone(),
+            customization,
+            is_private: true,
             posts, user, session,
             notifications,
             ..default()

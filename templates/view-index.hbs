@@ -44,6 +44,7 @@
                 {{#if this.flagged_by_me}}Remove flag{{else}}Add flag{{/if}}
             </button>
         {{/if}}
+            <a href="+{{this.uuid}}" class=details-menu-item>Similar</a>
         </div>
         </details>
     </details-menu-bar>
@@ -75,6 +76,7 @@
         <summary class="details-menu-summary backwards" aria-haspopup=menu>More</summary>
         <div class="details-menu-inner backwards" role=menu>
             <a href="{{this.uuid}}" class=details-menu-item>Permalink</a>
+            <a href="+{{this.uuid}}" class=details-menu-item>Similar</a>
         </div>
         </details>
     </details-menu-bar>

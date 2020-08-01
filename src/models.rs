@@ -1,8 +1,9 @@
 use rocket_contrib::databases::diesel::PgConnection;
 use diesel::prelude::*;
+use diesel::sql_types;
 use diesel::result::Error as DieselError;
 use chrono::{NaiveDate, NaiveDateTime, NaiveTime, Utc, Duration};
-use crate::schema::{site_customization, users, user_sessions, posts, stars, invite_tokens, comments, comment_stars, tags, post_tagging, moderation, flags, comment_flags, domains, legacy_comments, domain_synonyms, notifications, subscriptions, post_hides, comment_hides};
+use crate::schema::{site_customization, users, user_sessions, posts, stars, invite_tokens, comments, comment_stars, tags, post_tagging, moderation, flags, comment_flags, domains, legacy_comments, domain_synonyms, notifications, subscriptions, post_hides, comment_hides, post_word_freq};
 use crate::password::{password_hash, password_verify, PasswordResult};
 use serde::Serialize;
 use more_interesting_base32::Base32;
@@ -15,6 +16,8 @@ use crate::prettify::{self, prettify_title};
 use serde_json::{self as json, json};
 use url::Url;
 use percent_encoding::{utf8_percent_encode, NON_ALPHANUMERIC};
+
+sql_function!(fn coalesce(x: sql_types::Nullable<sql_types::VarChar>, y: sql_types::VarChar) -> sql_types::VarChar);
 
 const FLAG_INVISIBLE_THRESHOLD: i64 = 3;
 
@@ -425,6 +428,7 @@ pub struct PostSearch {
     pub and_tags: Vec<i32>,
     pub or_domains: Vec<i32>,
     pub after_post_id: i32,
+    pub search_page: i32,
     pub subscriptions: bool,
     pub before_date: Option<NaiveDate>,
     pub after_date: Option<NaiveDate>,
@@ -456,6 +460,7 @@ impl PostSearch {
             and_tags: Vec::new(),
             or_domains: Vec::new(),
             after_post_id: 0,
+            search_page: 0,
             subscriptions: false,
             before_date: None,
             after_date: None,
@@ -661,14 +666,6 @@ impl MoreInterestingConn {
         }
         let mut data = PrettifyData::new(self, 0);
         let mut all: Vec<PostInfo> = if search.keywords != "" && search.order_by == PostSearchOrderBy::Hottest {
-            let max_r = if search.after_post_id != 0 {
-                post_search_index
-                    .filter(crate::schema::post_search_index::dsl::post_id.eq(search.after_post_id))
-                    .select(ts_rank_cd(search_index, plainto_tsquery(&search.keywords)))
-                    .get_result(&self.0)?
-            } else {
-                1_000_000.0
-            };
             query
                 .left_outer_join(stars.on(self::stars::dsl::post_id.eq(self::posts::dsl::id).and(self::stars::dsl::user_id.eq(search.my_user_id))))
                 .left_outer_join(flags.on(self::flags::dsl::post_id.eq(self::posts::dsl::id).and(self::flags::dsl::user_id.eq(search.my_user_id))))
@@ -697,8 +694,8 @@ impl MoreInterestingConn {
                     self::posts::dsl::banner_desc,
                 ))
                 .filter(search_index.matches(plainto_tsquery(&search.keywords)))
-                .filter(ts_rank_cd(search_index, plainto_tsquery(&search.keywords)).lt(max_r))
                 .order_by(ts_rank_cd(search_index, plainto_tsquery(&search.keywords)).desc())
+                .offset(search.search_page as i64 * 75)
                 .limit(75)
                 .get_results::<(i32, Base32, String, Option<String>, bool, bool, i32, i32, i32, bool, NaiveDateTime, i32, Option<String>, Option<i32>, Option<i32>, Option<i32>, String, Option<String>, Option<String>)>(&self.0)?
                 .into_iter()
@@ -710,10 +707,14 @@ impl MoreInterestingConn {
                     .filter(search_index.matches(plainto_tsquery(&search.keywords)))
                     .select(crate::schema::post_search_index::dsl::post_id);
                 query = query.filter(self::posts::dsl::id.eq_any(ids));
-            }
-            if search.after_post_id != 0 {
+            } else if search.after_post_id != 0 {
                 query = query.filter(self::posts::dsl::id.lt(search.after_post_id));
             }
+            let search_page = if search.keywords == "" {
+                0
+            } else {
+                search.search_page
+            };
             query
                 .left_outer_join(stars.on(self::stars::dsl::post_id.eq(self::posts::dsl::id).and(self::stars::dsl::user_id.eq(search.my_user_id))))
                 .left_outer_join(flags.on(self::flags::dsl::post_id.eq(self::posts::dsl::id).and(self::flags::dsl::user_id.eq(search.my_user_id))))
@@ -740,6 +741,7 @@ impl MoreInterestingConn {
                     self::posts::dsl::banner_title,
                     self::posts::dsl::banner_desc,
                 ))
+                .offset(search_page as i64 * 75)
                 .limit(75)
                 .get_results::<(i32, Base32, String, Option<String>, bool, bool, i32, i32, i32, bool, NaiveDateTime, i32, Option<String>, Option<i32>, Option<i32>, Option<i32>, String, Option<String>, Option<String>)>(&self.0)?
                 .into_iter()
@@ -752,6 +754,71 @@ impl MoreInterestingConn {
         }
         Ok(all)
     }
+    pub fn get_post_info_similar(&self, user_id_param: i32, post_info: &Post) -> Result<Vec<PostInfo>, DieselError> {
+        use self::posts::dsl::{self as p, *};
+        use self::stars::dsl::{self as s, *};
+        use self::flags::dsl::{self as f, *};
+        use self::post_hides::dsl::{self as ph, *};
+        use self::users::dsl::{self as u, *};
+        use crate::schema::post_search_index::dsl::{self as psi, *};
+        use diesel_full_text_search::{to_tsquery, ts_rank, TsVectorExtensions};
+        // Find the 10 least frequent words in this post.
+        // This is used as the outermost filter, because otherwise this would take forever.
+        #[derive(QueryableByName)]
+        #[table_name="post_word_freq"]
+        struct Word { word: String }
+        let words: Vec<Word> = diesel::sql_query(format!("
+          SELECT
+            PWF.word AS word
+          FROM post_word_freq AS PWF
+          INNER JOIN (SELECT word FROM TS_STAT(CONCAT('SELECT to_tsvector(excerpt) FROM posts WHERE id = {}'))) AS TS ON (TS.word = PWF.word)
+          ORDER BY PWF.num ASC
+          LIMIT 20
+        ", post_info.id)).get_results::<Word>(&self.0)?;
+        let word_list_short = words.iter().take(10).map(|word| &word.word[..]).collect::<Vec<&str>>().join("|");
+        let word_list = words.iter().map(|word| &word.word[..]).collect::<Vec<&str>>().join("&");
+        // Now actually find the "similar" posts.
+        let mut data = PrettifyData::new(self, 0);
+        let all: Vec<PostInfo> = posts
+            .left_outer_join(stars.on(s::post_id.eq(self::posts::dsl::id).and(s::user_id.eq(user_id_param))))
+            .left_outer_join(flags.on(f::post_id.eq(p::id).and(f::user_id.eq(user_id_param))))
+            .left_outer_join(post_hides.on(ph::post_id.eq(p::id).and(ph::user_id.eq(user_id_param))))
+            .inner_join(users)
+            .inner_join(post_search_index)
+            .select((
+                p::id,
+                p::uuid,
+                p::title,
+                p::url,
+                p::visible,
+                p::private,
+                p::initial_stellar_time,
+                p::score,
+                p::comment_count,
+                p::authored_by_submitter,
+                p::created_at,
+                p::submitted_by,
+                p::excerpt_html,
+                s::post_id.nullable(),
+                f::post_id.nullable(),
+                ph::post_id.nullable(),
+                u::username,
+                p::banner_title,
+                p::banner_desc,
+            ))
+            .filter(visible.eq(true))
+            .filter(private.eq(false))
+            .filter(p::id.ne(post_info.id))
+            .filter(psi::search_index.matches(to_tsquery(&word_list_short)))
+            .order_by(ts_rank(psi::search_index, to_tsquery(&word_list)).desc())
+            .limit(100)
+            .get_results::<(i32, Base32, String, Option<String>, bool, bool, i32, i32, i32, bool, NaiveDateTime, i32, Option<String>, Option<i32>, Option<i32>, Option<i32>, String, Option<String>, Option<String>)>(&self.0)?
+            .into_iter()
+            .map(|t| tuple_to_post_info(&mut data, t, self.get_current_stellar_time()))
+            .collect();
+        Ok(all)
+    }
+
     pub fn get_post_info_recent_by_user(&self, user_id_param: i32, user_info_id_param: i32) -> Result<Vec<PostInfo>, DieselError> {
         use self::posts::dsl::*;
         use self::stars::dsl::*;
@@ -1981,6 +2048,10 @@ impl MoreInterestingConn {
     pub fn get_post_by_id(&self, post_id_value: i32) -> Result<Post, DieselError> {
         use self::posts::dsl::*;
         posts.find(post_id_value).get_result::<Post>(&self.0)
+    }
+    pub fn get_post_by_uuid(&self, post_id_value: Base32) -> Result<Post, DieselError> {
+        use self::posts::dsl::*;
+        posts.filter(uuid.eq(post_id_value.into_i64())).get_result::<Post>(&self.0)
     }
     pub fn get_legacy_comments_from_post(&self, post_id_param: i32, _user_id_param: i32) -> Result<Vec<LegacyComment>, DieselError> {
         use self::legacy_comments::dsl::*;

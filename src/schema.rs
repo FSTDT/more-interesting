@@ -177,6 +177,15 @@ table! {
 table! {
     use crate::sql_types::*;
 
+    post_word_freq (word) {
+        word -> Varchar,
+        num -> Nullable<Int4>,
+    }
+}
+
+table! {
+    use crate::sql_types::*;
+
     site_customization (name) {
         name -> Varchar,
         value -> Varchar,
@@ -288,6 +297,7 @@ allow_tables_to_appear_in_same_query!(
     posts,
     post_search_index,
     post_tagging,
+    post_word_freq,
     site_customization,
     stars,
     subscriptions,
