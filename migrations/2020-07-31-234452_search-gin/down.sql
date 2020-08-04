@@ -4,4 +4,5 @@ DROP TABLE post_word_freq;
 
 DROP TRIGGER add_post_word_freq_insert ON posts;
 
-DROP FUNCTION add_post_word_freq;
+DROP FUNCTION add_post_word_freq();
+

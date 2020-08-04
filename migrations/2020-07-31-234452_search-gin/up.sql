@@ -6,18 +6,18 @@ CREATE TABLE post_word_freq
   num INTEGER
 );
 
-CREATE FUNCTION add_post_word_freq() RETURNS trigger AS $emp_stamp$
-BEGIN
-  INSERT INTO post_word_freq (word, num)
-  SELECT 
-    word, ndoc AS num
-  FROM TS_STAT(CONCAT('SELECT to_tsvector(excerpt) FROM posts WHERE id = ', NEW.id))
-  ON CONFLICT DO UPDATE SET
-    num = num + 1
-  ;
-  RETURN NEW;
-END;
-$emp_stamp$ LANGUAGE plpgsql;
+ CREATE FUNCTION add_post_word_freq() RETURNS trigger AS $emp_stamp$
+ BEGIN
+   INSERT INTO post_word_freq (word, num)
+   SELECT 
+     word, ndoc
+   FROM TS_STAT(CONCAT('SELECT to_tsvector(excerpt) FROM posts WHERE id = ', NEW.id))
+   ON CONFLICT (word) DO UPDATE SET
+     num = post_word_freq.num + 1
+   ;
+   RETURN NEW;
+ END;
+ $emp_stamp$ LANGUAGE plpgsql;
 
 CREATE TRIGGER add_post_word_freq_insert BEFORE INSERT ON posts FOR EACH ROW EXECUTE PROCEDURE add_post_word_freq();
 
