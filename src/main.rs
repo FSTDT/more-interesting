@@ -1980,6 +1980,7 @@ Disallow: /signup
 Disallow: /vote
 Disallow: /vote-comment
 Disallow: /submit
+Disallow: /identicon
 Crawl-delay: {}
 
 User-agent: seo spider
