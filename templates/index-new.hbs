@@ -6,9 +6,9 @@
         <a class=top-header-link href="top{{#if before_date_param}}?before_date={{before_date_param}}{{#if after_date_param}}&after_date={{after_date_param}}{{else}}{{/if}}{{else}}{{/if}}">Top</a> &bull;
         <b>New</b> &bull;
         <details class=details-dialog-outer>
-            <summary class=inline-summary>
+            <summary class=inline-summary><u>
                 {{#if before_date_param}}{{before_date_param}}{{else}}Date{{/if}}…
-            </summary>
+            </u></summary>
             <details-dialog>
                 <form action=new method=GET>
                     <label>Find posts before
@@ -38,9 +38,9 @@
     <a href="top?tag={{this.name}}{{#if before_date_param}}&before_date={{before_date_param}}{{#if after_date_param}}&after_date={{after_date_param}}{{else}}{{/if}}{{else}}{{/if}}">Top</a> &bull;
     <b>New</b> &bull;
     <details class=details-dialog-outer>
-        <summary class=inline-summary>
+        <summary class=inline-summary><u>
             {{#if ../before_date_param}}{{../before_date_param}}{{else}}Date{{/if}}…
-        </summary>
+        </u></summary>
         <details-dialog>
             <form action=new method=GET>
                 <label>Find posts before
@@ -69,9 +69,9 @@
     <a href="top?domain={{this.domain}}{{#if before_date_param}}&before_date={{before_date_param}}{{#if after_date_param}}&after_date={{after_date_param}}{{else}}{{/if}}{{else}}{{/if}}">Top</a> &bull;
     <b>New</b> &bull;
     <details class=details-dialog-outer>
-        <summary class=inline-summary>
+        <summary class=inline-summary><u>
             {{#if before_date_param}}{{before_date_param}}{{else}}Date{{/if}}…
-        </summary>
+        </u></summary>
         <details-dialog>
             <form action=new method=GET>
                 <label>Find posts before
@@ -101,9 +101,9 @@
     <a href="top?q={{keywords_param}}{{#if before_date_param}}&before_date={{before_date_param}}{{#if after_date_param}}&after_date={{after_date_param}}{{else}}{{/if}}{{else}}{{/if}}">Top</a> &bull;
     <b>New</b> &bull;
     <details class=details-dialog-outer>
-        <summary class=inline-summary>
+        <summary class=inline-summary><u>
             {{#if before_date_param}}{{before_date_param}}{{else}}Date{{/if}}…
-        </summary>
+        </u></summary>
         <details-dialog>
             <form action=new method=GET>
                 <label>Find posts before

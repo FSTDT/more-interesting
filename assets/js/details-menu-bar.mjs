@@ -53,7 +53,7 @@ export class DetailsMenuBarElement extends HTMLElement {
                 break;
             case "arrowdown":
             case "down":
-                if (e.target.className.indexOf("details-menu-summary") !== -1 && !this.open) {
+                if (e.target.className.indexOf("menu-summary") !== -1 && !this.open) {
                     // Arrow down when a menu button is selected: open the menu.
                     // WAI does this, GitHub does not.
                     // The most likely scenario where a user expecting GitHub's behavior would accidentally
@@ -76,7 +76,7 @@ export class DetailsMenuBarElement extends HTMLElement {
                 break;
             case "arrowup":
             case "up":
-                if (e.target.className.indexOf("details-menu-summary") !== -1 && !this.open) {
+                if (e.target.className.indexOf("menu-summary") !== -1 && !this.open) {
                     // Arrow up when a menu button is selected: open the menu.
                     // WAI does this, GitHub does not.
                     // The most likely scenario where a user expecting GitHub's behavior would accidentally

@@ -45,7 +45,7 @@ article:target {
     position: relative;
 }
 
-:link, :visited, .inline-summary {
+:link, :visited, u {
     background-image: -webkit-gradient(linear,left top,left bottom,color-stop(50%,transparent),color-stop(50%,#b1b1b3));
     background-image: -webkit-linear-gradient(top,transparent 50%,#b1b1b3 50%);
     background-image: linear-gradient(to bottom,transparent 50%,#b1b1b3 50%);
@@ -59,7 +59,7 @@ article:target {
     outline: none;
 }
 
-html.dark :link, html.dark :visited, html.dark .inline-summary {
+html.dark :link, html.dark :visited, html.dark u {
     background-image: -webkit-gradient(linear,left top,left bottom,color-stop(50%,transparent),color-stop(50%,#737373));
     background-image: -webkit-linear-gradient(top,transparent 50%,#737373 50%);
     background-image: linear-gradient(to bottom,transparent 50%,#737373 50%);
@@ -459,6 +459,7 @@ html input[type="button"],
 input[type="reset"],
 input[type="submit"],
 .details-menu-summary,
+.inline-menu-summary,
 .details-dialog-summary {
     -webkit-appearance: none;
     -webkit-border-radius: 0;
@@ -783,17 +784,19 @@ details[open] > details-dialog {
 
 .details-menu-summary::-webkit-details-marker,
 .details-dialog-summary::-webkit-details-marker,
+.inline-menu-summary::-webkit-details-marker,
 .inline-summary::-webkit-details-marker,
 .img-lightbox::-webkit-details-marker {
     display: none;
 }
-.inline-summary {
+.inline-summary, .inline-menu-summary {
     list-style-type: none;
     cursor: pointer;
     display: inline;
 }
 .details-menu-summary::before,
 .details-dialog-summary::before,
+.inline-menu-summary::before,
 .inline-summary::before {
     display: none;
 }
@@ -803,12 +806,14 @@ details[open] > details-dialog {
     z-index: 200;
     position: relative;
 }
-.details-menu-summary::after {
+.details-menu-summary::after, inline-menu-summary::after {
     content: " ▾";
 }
+.js details[open] > .inline-menu-summary,
 .js details[open] > .details-menu-summary {
     z-index: 100;
 }
+details[open] > .inline-menu-summary::before,
 details[open] > .details-menu-summary::before {
     display: block;
     position: fixed;
