@@ -96,9 +96,9 @@
 <h2>Search results</h2>
 <code>{{keywords_param}}</code>
 <nav>
-    <a href=".?q={{keywords_param}}{{#if before_date_param}}&before_date={{before_date_param}}{{#if after_date_param}}&after_date={{after_date_param}}{{else}}{{/if}}{{else}}{{/if}}">Relevance</a> &bull;
-    <a href="latest?q={{keywords_param}}{{#if before_date_param}}&before_date={{before_date_param}}{{#if after_date_param}}&after_date={{after_date_param}}{{else}}{{/if}}{{else}}{{/if}}">Latest</a> &bull;
-    <a href="top?q={{keywords_param}}{{#if before_date_param}}&before_date={{before_date_param}}{{#if after_date_param}}&after_date={{after_date_param}}{{else}}{{/if}}{{else}}{{/if}}">Top</a> &bull;
+    <a href=".?q={{urlencode keywords_param}}{{#if title_param}}&title={{urlencode title_param}}{{/if}}{{#if before_date_param}}&before_date={{before_date_param}}{{#if after_date_param}}&after_date={{after_date_param}}{{else}}{{/if}}{{else}}{{/if}}">Relevance</a> &bull;
+    <a href="latest?q={{urlencode keywords_param}}{{#if title_param}}&title={{urlencode title_param}}{{/if}}{{#if before_date_param}}&before_date={{before_date_param}}{{#if after_date_param}}&after_date={{after_date_param}}{{else}}{{/if}}{{else}}{{/if}}">Latest</a> &bull;
+    <a href="top?q={{urlencode keywords_param}}{{#if title_param}}&title={{urlencode title_param}}{{/if}}{{#if before_date_param}}&before_date={{before_date_param}}{{#if after_date_param}}&after_date={{after_date_param}}{{else}}{{/if}}{{else}}{{/if}}">Top</a> &bull;
     <b>New</b> &bull;
     <details class=details-dialog-outer>
         <summary class=inline-summary><u>
@@ -113,6 +113,7 @@
                     <input type=date name=after_date {{#if after_date_param}}value="{{after_date_param}}"{{/if}}>
                 </label>
                 <input type=hidden name=q value="{{keywords_param}}">
+                <input type=hidden name=title value="{{title_param}}">
                 <div class=form-footer>
                     <button class=button-default>Search</button>
                     <a href="" onclick="return !window.DetailsDialogElement" class=button data-close-dialog>Cancel</a>
@@ -124,7 +125,7 @@
 </header>
 {{/if}}
 {{~> view-index}}{{#if (last posts)~}}
-<p><a href="new?after={{last posts}}{{#if keywords_param}}&q={{keywords_param}}{{/if}}{{#if tag_param}}&tag={{tag_param}}{{/if}}{{#if domain}}&domain={{domain}}{{/if}}{{#if user_param}}&user={{user_param}}{{/if}}">Next page</a></p>
+<p><a href="new?after={{last posts}}{{#if title_param}}&title={{urlencode title_param}}{{/if}}{{#if keywords_param}}&q={{urlencode keywords_param}}{{/if}}{{#if tag_param}}&tag={{tag_param}}{{/if}}{{#if domain}}&domain={{domain}}{{/if}}{{#if user_param}}&user={{user_param}}{{/if}}">Next page</a></p>
 {{~/if~}}
 {{/inline}}
 {{~> layout~}}
