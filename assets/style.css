@@ -740,11 +740,12 @@ html.dark article, html.dark aside {
 .article-header-inner {
     padding: 0.5em;
     padding: calc(0.5em - 1px);
+    padding-top: 0;
     outline: none;
     display: inline-block;
     overflow: hidden;
-    margin: -0.5em -0.25em;
-    margin: -0.5em calc(-0.25em + 1px);
+    margin: 0 -0.25em -0.5em;
+    margin: 0 calc(-0.25em + 1px) -0.5em;
 }
 
 details-dialog, .details-menu-inner, .inner-banner, .typeahead-inner {
