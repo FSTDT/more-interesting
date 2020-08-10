@@ -265,7 +265,12 @@ fn encode(mut number: u64) -> String {
     let mut encoded = String::new();
     while number != 0 {
         let digit = (number & 0b_11_111) as usize;
-        encoded.push(DIGITS[digit]);
+        let digit = DIGITS[digit];
+        if digit == '.' && encoded.bytes().last() == Some(b'.') {
+          encoded.push('0');
+        } else {
+          encoded.push(digit);
+        }
         number = number >> 5;
     }
     if encoded == "" || encoded == "RSS" || encoded.ends_with('.') {
@@ -292,6 +297,9 @@ fn equiv_chars(c: char) -> char {
         '-' => '_',
         ' ' => '_',
         ',' => '.',
+        '0' => '.',
+        'O' => '.',
+        'o' => '.',
         _ => c,
     }
 }
@@ -332,11 +340,13 @@ mod tests {
     #[test]
     fn special_urls() {
         assert_eq!("RSS2", &encode(decode("RSS").expect("RSS is valid base32")));
+        assert_eq!("R.0R", &encode(decode("R..R").expect("avoid double-dot for linkification purposes")));
         assert_eq!("2", &encode(0));
     }
     #[test]
     fn special_urls_roundtrip() {
         assert_eq!(decode("RSS2").expect("RSS2 is valid base32"), decode("RSS").expect("RSS is valid base32"));
+        assert_eq!("R.0R", &encode(decode("R..R").expect("replace . with 0 is still valid base32")));
     }
     #[test]
     fn equiv_chars() {
@@ -346,11 +356,6 @@ mod tests {
     quickcheck!{
         fn prop_round_trip(num: u64) -> bool {
             num == decode(&encode(num)).unwrap()
-        }
-        fn does_not_percent_encode(num: u64) -> bool {
-            use url::percent_encoding::{utf8_percent_encode, DEFAULT_ENCODE_SET};
-            let s = utf8_percent_encode(&encode(num), DEFAULT_ENCODE_SET).to_string();
-            !s.contains('%')
         }
     }
 }
