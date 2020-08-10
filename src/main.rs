@@ -103,6 +103,7 @@ struct TemplateContext {
     user_param: Option<String>,
     domain: Option<String>,
     keywords_param: Option<String>,
+    title_param: Option<String>,
     before_date_param: Option<NaiveDate>,
     after_date_param: Option<NaiveDate>,
     config: SiteConfig,
@@ -384,6 +385,7 @@ struct IndexParams {
     tag: Option<String>,
     domain: Option<String>,
     q: Option<String>,
+    title: Option<String>,
     after: Option<Base32>,
     page: Option<i32>,
     subscriptions: bool,
@@ -426,6 +428,12 @@ fn parse_index_params(conn: &MoreInterestingConn, user: &User, params: Option<Fo
     if let Some(query) = params.as_ref().and_then(|params| params.q.as_ref()) {
         search.keywords = query.to_string();
     }
+    if let Some(query) = params.as_ref().and_then(|params| params.title.as_ref()) {
+        search.title = query.to_string();
+        if search.keywords == "" {
+            search.keywords = query.to_string();
+        }
+    }
     if let Some(domain_names) = params.as_ref().and_then(|params| params.domain.as_ref()) {
         for domain_name in domain_names.split("|") {
             if let Ok(domain) = conn.get_domain_by_hostname(domain_name) {
@@ -458,9 +466,10 @@ fn index(conn: MoreInterestingConn, login: Option<LoginSession>, flash: Option<F
 
     let tag_param = params.as_ref().and_then(|params| Some(params.tag.as_ref()?.to_string()));
     let domain = params.as_ref().and_then(|params| Some(params.domain.as_ref()?.to_string()));
-    let keywords_param = params.as_ref().and_then(|params| Some(params.q.as_ref()?.to_string()));
-    let is_home = tag_param.is_none() && domain.is_none() && keywords_param.is_none();
     let (search, tags) = parse_index_params(&conn, &user, params)?;
+    let keywords_param = if search.keywords == "" { None } else { Some(search.keywords.clone()) };
+    let title_param = if search.title == "" { None } else { Some(search.title.clone()) };
+    let is_home = tag_param.is_none() && domain.is_none() && keywords_param.is_none();
     let before_date_param = search.before_date;
     let after_date_param = search.after_date;
     let posts = conn.search_posts(&search).ok()?;
@@ -474,6 +483,7 @@ fn index(conn: MoreInterestingConn, login: Option<LoginSession>, flash: Option<F
         customization, before_date_param, after_date_param,
         title, user, posts, is_home,
         tags, session, tag_param, domain, keywords_param,
+        title_param,
         notifications, is_private,
         ..default()
     }))
@@ -517,8 +527,6 @@ fn top(conn: MoreInterestingConn, login: Option<LoginSession>, flash: Option<Fla
     let (user, session) = login.map(|l| (l.user, l.session)).unwrap_or((User::default(), UserSession::default()));
     let tag_param = params.as_ref().and_then(|params| Some(params.tag.as_ref()?.to_string()));
     let domain = params.as_ref().and_then(|params| Some(params.domain.as_ref()?.to_string()));
-    let keywords_param = params.as_ref().and_then(|params| Some(params.q.as_ref()?.to_string()));
-    let is_home = tag_param.is_none() && domain.is_none() && keywords_param.is_none();
     let (search, tags) = parse_index_params(&conn, &user, params)?;
     let before_date_param = search.before_date;
     let after_date_param = search.after_date;
@@ -526,6 +534,9 @@ fn top(conn: MoreInterestingConn, login: Option<LoginSession>, flash: Option<Fla
         order_by: PostSearchOrderBy::Top,
         .. search
     };
+    let keywords_param = if search.keywords == "" { None } else { Some(search.keywords.clone()) };
+    let title_param = if search.title == "" { None } else { Some(search.title.clone()) };
+    let is_home = tag_param.is_none() && domain.is_none() && keywords_param.is_none();
     let posts = conn.search_posts(&search).ok()?;
     let notifications = conn.list_notifications(user.id).unwrap_or(Vec::new());
     let is_private = keywords_param.is_some() && (search.after_post_id != 0 || search.search_page != 0);
@@ -535,7 +546,7 @@ fn top(conn: MoreInterestingConn, login: Option<LoginSession>, flash: Option<Fla
         alert: flash.map(|f| f.msg().to_owned()),
         config: config.clone(),
         customization, before_date_param, after_date_param,
-        is_home, keywords_param,
+        is_home, keywords_param, title_param,
         user, posts, session, tags, tag_param, domain,
         notifications, is_private,
         ..default()
@@ -547,8 +558,6 @@ fn subscriptions(conn: MoreInterestingConn, login: Option<LoginSession>, flash: 
     let (user, session) = login.map(|l| (l.user, l.session)).unwrap_or((User::default(), UserSession::default()));
     let tag_param = params.as_ref().and_then(|params| Some(params.tag.as_ref()?.to_string()));
     let domain = params.as_ref().and_then(|params| Some(params.domain.as_ref()?.to_string()));
-    let keywords_param = params.as_ref().and_then(|params| Some(params.q.as_ref()?.to_string()));
-    let is_home = tag_param.is_none() && domain.is_none() && keywords_param.is_none();
     let (search, tags) = parse_index_params(&conn, &user, params)?;
     let before_date_param = search.before_date;
     let after_date_param = search.after_date;
@@ -557,6 +566,9 @@ fn subscriptions(conn: MoreInterestingConn, login: Option<LoginSession>, flash: 
         subscriptions: true,
         .. search
     };
+    let keywords_param = if search.keywords == "" { None } else { Some(search.keywords.clone()) };
+    let title_param = if search.title == "" { None } else { Some(search.title.clone()) };
+    let is_home = tag_param.is_none() && domain.is_none() && keywords_param.is_none();
     let posts = conn.search_posts(&search).ok()?;
     let notifications = conn.list_notifications(user.id).unwrap_or(Vec::new());
     Some(Template::render("subscriptions", &TemplateContext {
@@ -564,7 +576,7 @@ fn subscriptions(conn: MoreInterestingConn, login: Option<LoginSession>, flash: 
         alert: flash.map(|f| f.msg().to_owned()),
         config: config.clone(),
         customization, before_date_param, after_date_param,
-        is_home, keywords_param,
+        is_home, keywords_param, title_param,
         user, posts, session, tags, tag_param, domain,
         notifications,
         ..default()
@@ -607,8 +619,6 @@ fn new(conn: MoreInterestingConn, login: Option<LoginSession>, flash: Option<Fla
     let tag_param = params.as_ref().and_then(|params| Some(params.tag.as_ref()?.to_string()));
     let user_param = params.as_ref().and_then(|params| Some(params.user.as_ref()?.to_string()));
     let domain = params.as_ref().and_then(|params| Some(params.domain.as_ref()?.to_string()));
-    let keywords_param = params.as_ref().and_then(|params| Some(params.q.as_ref()?.to_string()));
-    let is_home = tag_param.is_none() && domain.is_none() && keywords_param.is_none();
     let (search, tags) = parse_index_params(&conn, &user, params)?;
     let before_date_param = search.before_date;
     let after_date_param = search.after_date;
@@ -616,6 +626,9 @@ fn new(conn: MoreInterestingConn, login: Option<LoginSession>, flash: Option<Fla
         order_by: PostSearchOrderBy::Newest,
         .. search
     };
+    let keywords_param = if search.keywords == "" { None } else { Some(search.keywords.clone()) };
+    let title_param = if search.title == "" { None } else { Some(search.title.clone()) };
+    let is_home = tag_param.is_none() && domain.is_none() && keywords_param.is_none();
     let posts = conn.search_posts(&search).ok()?;
     let notifications = conn.list_notifications(user.id).unwrap_or(Vec::new());
     let is_private = (keywords_param.is_some() || tags.len() > 0 || domain.is_some()) && (search.after_post_id != 0 || search.search_page != 0);
@@ -625,7 +638,7 @@ fn new(conn: MoreInterestingConn, login: Option<LoginSession>, flash: Option<Fla
         alert: flash.map(|f| f.msg().to_owned()),
         config: config.clone(),
         customization, before_date_param, after_date_param,
-        is_home, keywords_param,
+        is_home, keywords_param, title_param,
         user, posts, session, tags, tag_param, domain, user_param,
         notifications, is_private,
         ..default()
@@ -637,8 +650,6 @@ fn latest(conn: MoreInterestingConn, login: Option<LoginSession>, params: Option
     let (user, session) = login.map(|l| (l.user, l.session)).unwrap_or((User::default(), UserSession::default()));
     let tag_param = params.as_ref().and_then(|params| Some(params.tag.as_ref()?.to_string()));
     let domain = params.as_ref().and_then(|params| Some(params.domain.as_ref()?.to_string()));
-    let keywords_param = params.as_ref().and_then(|params| Some(params.q.as_ref()?.to_string()));
-    let is_home = tag_param.is_none() && domain.is_none() && keywords_param.is_none();
     let (search, tags) = parse_index_params(&conn, &user, params)?;
     let before_date_param = search.before_date;
     let after_date_param = search.after_date;
@@ -646,6 +657,9 @@ fn latest(conn: MoreInterestingConn, login: Option<LoginSession>, params: Option
         order_by: PostSearchOrderBy::Latest,
         .. search
     };
+    let keywords_param = if search.keywords == "" { None } else { Some(search.keywords.clone()) };
+    let title_param = if search.title == "" { None } else { Some(search.title.clone()) };
+    let is_home = tag_param.is_none() && domain.is_none() && keywords_param.is_none();
     let posts = conn.search_posts(&search).ok()?;
     let notifications = conn.list_notifications(user.id).unwrap_or(Vec::new());
     let is_private = keywords_param.is_some() && (search.after_post_id != 0 || search.search_page != 0);
@@ -655,7 +669,7 @@ fn latest(conn: MoreInterestingConn, login: Option<LoginSession>, params: Option
         alert: flash.map(|f| f.msg().to_owned()),
         config: config.clone(),
         customization, before_date_param, after_date_param,
-        is_home, keywords_param,
+        is_home, keywords_param, title_param,
         user, posts, session, tags, tag_param, domain,
         notifications, is_private,
         ..default()

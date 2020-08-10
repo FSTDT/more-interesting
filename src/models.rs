@@ -424,6 +424,7 @@ pub struct PostSearch {
     pub for_user_id: i32,
     pub order_by: PostSearchOrderBy,
     pub keywords: String,
+    pub title: String,
     pub or_tags: Vec<i32>,
     pub and_tags: Vec<i32>,
     pub or_domains: Vec<i32>,
@@ -456,6 +457,7 @@ impl PostSearch {
             for_user_id: 0,
             order_by: PostSearchOrderBy::Hottest,
             keywords: String::new(),
+            title: String::new(),
             or_tags: Vec::new(),
             and_tags: Vec::new(),
             or_domains: Vec::new(),
@@ -663,6 +665,9 @@ impl MoreInterestingConn {
         }
 	if search.for_user_id != 0 {
             query = query.filter(self::posts::dsl::submitted_by.eq(search.for_user_id));
+        }
+        if search.title != "" {
+            query = query.filter(self::posts::dsl::title.like(format!("%{}%", &search.title)));
         }
         let mut data = PrettifyData::new(self, 0);
         let mut all: Vec<PostInfo> = if search.keywords != "" && search.order_by == PostSearchOrderBy::Hottest {

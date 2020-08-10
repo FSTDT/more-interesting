@@ -20,6 +20,9 @@
     <details-dialog>
         <form action='./' method=GET>
             <label>Search <input {{#if keywords_param}}value="{{keywords_param}}"{{/if}} name=q autofocus type=search required></label>
+            <details><summary>Advanced</summary>
+            <label>{{#if customization.title_label}}{{customization.title_label}}{{else}}Title{{/if}} <input name=title type=search></label>
+            </details>
             <div class=form-footer>
                 <button class=button-default>Search</button>
                 <a href="" onclick="return !window.DetailsDialogElement" class=button data-close-dialog>Cancel</a>
