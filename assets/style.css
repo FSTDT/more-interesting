@@ -220,7 +220,7 @@ pre {
     white-space: pre-wrap;
 }
 
-a {
+a, u {
     background-color: transparent; /* 1 */
     -webkit-text-decoration-skip: objects; /* 2 */
 }
@@ -637,6 +637,9 @@ html.dark :visited {
 }
 html.dark :link:active, html.dark :visited:active {
     color: #ff0039;
+}
+u {
+    text-decoration: none;
 }
 
 .inner-link:link {
