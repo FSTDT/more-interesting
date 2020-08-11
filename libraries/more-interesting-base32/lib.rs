@@ -268,6 +268,8 @@ fn encode(mut number: u64) -> String {
         let digit = DIGITS[digit];
         if digit == '.' && encoded.bytes().last() == Some(b'.') {
           encoded.push('0');
+        } else if digit == '$' && encoded.bytes().last() == Some(b'$') {
+          encoded.push('E');
         } else {
           encoded.push(digit);
         }
@@ -300,6 +302,8 @@ fn equiv_chars(c: char) -> char {
         '0' => '.',
         'O' => '.',
         'o' => '.',
+        'E' => '$',
+        'e' => '$',
         _ => c,
     }
 }
@@ -341,12 +345,14 @@ mod tests {
     fn special_urls() {
         assert_eq!("RSS2", &encode(decode("RSS").expect("RSS is valid base32")));
         assert_eq!("R.0R", &encode(decode("R..R").expect("avoid double-dot for linkification purposes")));
+        assert_eq!("R$ER", &encode(decode("R$$R").expect("avoid double-dollar for linkification purposes")));
         assert_eq!("2", &encode(0));
     }
     #[test]
     fn special_urls_roundtrip() {
         assert_eq!(decode("RSS2").expect("RSS2 is valid base32"), decode("RSS").expect("RSS is valid base32"));
         assert_eq!("R.0R", &encode(decode("R..R").expect("replace . with 0 is still valid base32")));
+        assert_eq!("R$ER", &encode(decode("R$$R").expect("replace $ with E is still valid base32")));
     }
     #[test]
     fn equiv_chars() {
