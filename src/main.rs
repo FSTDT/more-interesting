@@ -816,6 +816,9 @@ fn create(login: Option<LoginSession>, conn: MoreInterestingConn, post: Form<New
         title, excerpt
     }, config.body_format, user.username != "anonymous") {
         Ok(post) => Ok(Flash::success(Redirect::to(post.uuid.to_string()), "Post created")),
+        Err(CreatePostError::TooLong) => {
+            Ok(Flash::error(Redirect::to("submit".to_string()), "Too long; please find a shorter excerpt"))
+        }
         Err(CreatePostError::TooManyPosts) => {
             Ok(Flash::error(Redirect::to("submit".to_string()), "You have exceeded the post limit for today; try again tomorrow"))
         }
