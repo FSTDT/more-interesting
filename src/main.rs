@@ -18,7 +18,9 @@ mod session;
 mod prettify;
 mod pid_file_fairing;
 mod sql_types;
+mod forever;
 
+use forever::CacheForever;
 use rocket::response::content::Html;
 use rocket::request::{Form, FlashMessage, LenientForm};
 use rocket::response::{Responder, Redirect, Flash, Content};
@@ -1961,7 +1963,7 @@ fn identicon(id: Base32, referrer: ReferrerString, config: State<SiteConfig>) ->
     }
     let img = render_avatar(id.into_u64() as u32);
     let png = to_png(img);
-    Some(Content(ContentType::from_str("image/png").unwrap(), png))
+    Some(CacheForever(Content(ContentType::from_str("image/png").unwrap(), png)))
 }
 
 #[get("/conv/<id>")]
