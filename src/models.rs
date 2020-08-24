@@ -1009,10 +1009,10 @@ impl MoreInterestingConn {
         if self.get_user_posts_count_today(new_post.submitted_by) > 5 && enforce_rate_limit {
             return Err(CreatePostError::TooManyPosts);
         }
-        if new_post.title.chars().count() > 500 {
+        if new_post.title.chars().filter(|c| c != ' ' && c != '\n').count() > 500 {
             return Err(CreatePostError::TooLong);
         }
-        if new_post.excerpt.unwrap_or("").chars().count() > 1750 {
+        if new_post.excerpt.unwrap_or("").chars().filter(|c| c != ' ' && c != '\n').count() > 1750 {
             return Err(CreatePostError::TooLong);
         }
         let excerpt_html_and_stuff = if let Some(excerpt) = new_post.excerpt {
