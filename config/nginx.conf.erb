@@ -39,7 +39,7 @@ http {
 
 	map $http_user_agent $isbot_ua {
 		default 0;
-		~*(omgili|BLEXBot|GoogleBot|bingbot|YandexBot|mj12bot|PaperLiBot|DotBot|AppleBot|MBCrawler|Buck\b|Java\/|curl|wget|Nutch|CCBot|AppEngine|moreover|python-requests) 1;
+		~*(BLEXBot|GoogleBot|bingbot|YandexBot|mj12bot|PaperLiBot|DotBot|AppleBot|Crawl|Buck\b|Java\/|curl|wget|Nutch|CCBot|AppEngine|moreover|python-requests|omgili|SEOkicks) 1;
 	}
 	map $isbot_ua $limit_bot {
 		0 "";
@@ -59,7 +59,7 @@ http {
 		if ($request_uri = /robots.txt) {
 			set $botck "{botck}txt";
 		}
-		if ($http_user_agent ~* "(ahrefsbot|semrushbot|mauibot|moreover|megaindex|360Spider|Facebot Twitterbot)") {
+		if ($http_user_agent ~* "(ahrefsbot|mauibot|megaindex|360Spider|serpstatbot|semrush|seekport|Facebot Twitterbot|blexbot|seoscanners.net|UnChaos)") {
 			set $botck "${botck}bad";
 		}
 		# Unconditionally block UAs that are sending no UA string, or just a '-'.
@@ -67,6 +67,9 @@ http {
 			set $botck "${botck}bad";
 		}
 		if ($botck = "startbad") {
+			return 404;
+		}
+		if ($botck = "startbadbad") {
 			return 404;
 		}
 
@@ -80,16 +83,6 @@ http {
 		if ($http_user_agent ~* "Mozilla/5.0\(") {
 			return 404;
 		}
-
-        	# Humans do not use single-digit firefoxes any more.
-	        if ($http_user_agent ~* "Firefox/[0-9]\.") {
-	                return 404;
-        	}
-
-        	# They also don't use old as heck versions of Internet Explorer.
-		if ($http_user_agent ~* "MSIE [0-6].0") {
-                	return 404;
-        	}
 
 		# Proper browsers use "https://google.com/" with a trailing slash as a referer.
 		# They also don't send the empty string as their referer.
