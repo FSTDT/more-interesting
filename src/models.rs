@@ -919,6 +919,16 @@ impl MoreInterestingConn {
             .get_result(&self.0)
             .unwrap_or(0) as i32
     }
+    pub fn get_domain_posts_count_today(&self, domain_id_value: i32) -> i32 {
+        use self::posts::dsl::*;
+        let yesterday = Utc::now().naive_utc() - Duration::days(1);
+        posts
+            .filter(domain_id.eq(domain_id_value))
+            .filter(created_at.gt(yesterday))
+            .count()
+            .get_result(&self.0)
+            .unwrap_or(0) as i32
+    }
     pub fn get_user_posts_count_today(&self, user_id_value: i32) -> i32 {
         use self::posts::dsl::*;
         let yesterday = Utc::now().naive_utc() - Duration::days(1);
@@ -1009,6 +1019,9 @@ impl MoreInterestingConn {
         if self.get_user_posts_count_today(new_post.submitted_by) > 5 && enforce_rate_limit {
             return Err(CreatePostError::TooManyPosts);
         }
+        if self.get_domain_posts_count_today(new_post.submitted_by) > 5 && enforce_rate_limit {
+            return Err(CreatePostError::TooManyPosts);
+        }
         if new_post.title.chars().filter(|&c| c != ' ' && c != '\n').count() > 500 {
             return Err(CreatePostError::TooLong);
         }
@@ -1025,6 +1038,11 @@ impl MoreInterestingConn {
             None
         };
         let (url, domain) = self.get_post_domain_url(new_post.url);
+        if let Some(domain) = domain {
+            if self.get_domain_posts_count_today(domain.id) > 4 && enforce_rate_limit {
+                return Err(CreatePostError::TooManyPosts);
+            }
+        }
         let result = diesel::insert_into(posts::table)
             .values(CreatePost {
                 title: new_post.title,
