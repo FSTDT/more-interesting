@@ -1016,10 +1016,10 @@ impl MoreInterestingConn {
             return Err(CreatePostError::RequireTag);
         }
         // TODO: make this configurable
-        if self.get_user_posts_count_today(new_post.submitted_by) > 5 && enforce_rate_limit {
+        if self.get_user_posts_count_today(new_post.submitted_by) >= 5 && enforce_rate_limit {
             return Err(CreatePostError::TooManyPosts);
         }
-        if self.get_domain_posts_count_today(new_post.submitted_by) > 5 && enforce_rate_limit {
+        if self.get_domain_posts_count_today(new_post.submitted_by) >= 4 && enforce_rate_limit {
             return Err(CreatePostError::TooManyPosts);
         }
         if new_post.title.chars().filter(|&c| c != ' ' && c != '\n').count() > 500 {
