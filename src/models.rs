@@ -651,8 +651,8 @@ impl MoreInterestingConn {
         } else {
             query = query.filter(private.eq(false));
         }
-	let mut before_date = search.before_date;
-	let mut after_date = search.after_date;
+        let mut before_date = search.before_date;
+        let mut after_date = search.after_date;
         if before_date < after_date {
             mem::swap(&mut after_date, &mut before_date);
         }
@@ -664,7 +664,7 @@ impl MoreInterestingConn {
             let midnight = NaiveTime::from_hms(0, 0, 0);
             query = query.filter(self::posts::dsl::created_at.gt(after_date.and_time(midnight)));
         }
-	if search.for_user_id != 0 {
+        if search.for_user_id != 0 {
             query = query.filter(self::posts::dsl::submitted_by.eq(search.for_user_id));
         }
         if search.title != "" {
@@ -672,41 +672,73 @@ impl MoreInterestingConn {
         }
         let mut data = PrettifyData::new(self, 0);
         let mut all: Vec<PostInfo> = if search.keywords != "" && search.order_by == PostSearchOrderBy::Hottest {
-            query
-                .left_outer_join(stars.on(self::stars::dsl::post_id.eq(self::posts::dsl::id).and(self::stars::dsl::user_id.eq(search.my_user_id))))
-                .left_outer_join(flags.on(self::flags::dsl::post_id.eq(self::posts::dsl::id).and(self::flags::dsl::user_id.eq(search.my_user_id))))
-                .left_outer_join(post_hides.on(self::post_hides::dsl::post_id.eq(self::posts::dsl::id).and(self::post_hides::dsl::user_id.eq(search.my_user_id))))
-                .inner_join(users)
-                .inner_join(post_search_index)
-                .select((
-                    self::posts::dsl::id,
-                    self::posts::dsl::uuid,
-                    self::posts::dsl::title,
-                    self::posts::dsl::url,
-                    self::posts::dsl::visible,
-                    self::posts::dsl::private,
-                    self::posts::dsl::initial_stellar_time,
-                    self::posts::dsl::score,
-                    self::posts::dsl::comment_count,
-                    self::posts::dsl::authored_by_submitter,
-                    self::posts::dsl::created_at,
-                    self::posts::dsl::submitted_by,
-                    self::posts::dsl::excerpt_html,
-                    self::stars::dsl::post_id.nullable(),
-                    self::flags::dsl::post_id.nullable(),
-                    self::post_hides::dsl::post_id.nullable(),
-                    self::users::dsl::username,
-                    self::posts::dsl::banner_title,
-                    self::posts::dsl::banner_desc,
-                ))
-                .filter(search_index.matches(plainto_tsquery(&search.keywords)))
-                .order_by(ts_rank_cd(search_index, plainto_tsquery(&search.keywords)).desc())
-                .offset(search.search_page as i64 * 75)
-                .limit(75)
-                .get_results::<(i32, Base32, String, Option<String>, bool, bool, i32, i32, i32, bool, NaiveDateTime, i32, Option<String>, Option<i32>, Option<i32>, Option<i32>, String, Option<String>, Option<String>)>(&self.0)?
-                .into_iter()
-                .map(|t| tuple_to_post_info(&mut data, t, self.get_current_stellar_time()))
-                .collect()
+            if search.my_user_id != 0 {
+                query
+                    .left_outer_join(stars.on(self::stars::dsl::post_id.eq(self::posts::dsl::id).and(self::stars::dsl::user_id.eq(search.my_user_id))))
+                    .left_outer_join(flags.on(self::flags::dsl::post_id.eq(self::posts::dsl::id).and(self::flags::dsl::user_id.eq(search.my_user_id))))
+                    .left_outer_join(post_hides.on(self::post_hides::dsl::post_id.eq(self::posts::dsl::id).and(self::post_hides::dsl::user_id.eq(search.my_user_id))))
+                    .inner_join(users)
+                    .inner_join(post_search_index)
+                    .select((
+                        self::posts::dsl::id,
+                        self::posts::dsl::uuid,
+                        self::posts::dsl::title,
+                        self::posts::dsl::url,
+                        self::posts::dsl::visible,
+                        self::posts::dsl::private,
+                        self::posts::dsl::initial_stellar_time,
+                        self::posts::dsl::score,
+                        self::posts::dsl::comment_count,
+                        self::posts::dsl::authored_by_submitter,
+                        self::posts::dsl::created_at,
+                        self::posts::dsl::submitted_by,
+                        self::posts::dsl::excerpt_html,
+                        self::stars::dsl::post_id.nullable(),
+                        self::flags::dsl::post_id.nullable(),
+                        self::post_hides::dsl::post_id.nullable(),
+                        self::users::dsl::username,
+                        self::posts::dsl::banner_title,
+                        self::posts::dsl::banner_desc,
+                    ))
+                    .filter(search_index.matches(plainto_tsquery(&search.keywords)))
+                    .order_by(ts_rank_cd(search_index, plainto_tsquery(&search.keywords)).desc())
+                    .offset(search.search_page as i64 * 75)
+                    .limit(75)
+                    .get_results::<(i32, Base32, String, Option<String>, bool, bool, i32, i32, i32, bool, NaiveDateTime, i32, Option<String>, Option<i32>, Option<i32>, Option<i32>, String, Option<String>, Option<String>)>(&self.0)?
+                    .into_iter()
+                    .map(|t| tuple_to_post_info(&mut data, t, self.get_current_stellar_time()))
+                    .collect()
+            } else {
+                query
+                    .inner_join(users)
+                    .inner_join(post_search_index)
+                    .select((
+                        self::posts::dsl::id,
+                        self::posts::dsl::uuid,
+                        self::posts::dsl::title,
+                        self::posts::dsl::url,
+                        self::posts::dsl::visible,
+                        self::posts::dsl::private,
+                        self::posts::dsl::initial_stellar_time,
+                        self::posts::dsl::score,
+                        self::posts::dsl::comment_count,
+                        self::posts::dsl::authored_by_submitter,
+                        self::posts::dsl::created_at,
+                        self::posts::dsl::submitted_by,
+                        self::posts::dsl::excerpt_html,
+                        self::users::dsl::username,
+                        self::posts::dsl::banner_title,
+                        self::posts::dsl::banner_desc,
+                    ))
+                    .filter(search_index.matches(plainto_tsquery(&search.keywords)))
+                    .order_by(ts_rank_cd(search_index, plainto_tsquery(&search.keywords)).desc())
+                    .offset(search.search_page as i64 * 75)
+                    .limit(75)
+                    .get_results::<(i32, Base32, String, Option<String>, bool, bool, i32, i32, i32, bool, NaiveDateTime, i32, Option<String>, String, Option<String>, Option<String>)>(&self.0)?
+                    .into_iter()
+                    .map(|t| tuple_to_post_info_logged_out(&mut data, t, self.get_current_stellar_time()))
+                    .collect()
+            }
         } else {
             if search.keywords != "" {
                 let ids = post_search_index
@@ -2134,6 +2166,10 @@ fn tuple_to_notification_info((post_uuid, post_title, comment_count, from_userna
     NotificationInfo {
         post_uuid, post_title, comment_count, from_username,
     }
+}
+
+fn tuple_to_post_info_logged_out(data: &mut PrettifyData, (id, uuid, title, url, visible, private, initial_stellar_time, score, comment_count, authored_by_submitter, created_at, submitted_by, excerpt_html, submitted_by_username, banner_title, banner_desc): (i32, Base32, String, Option<String>, bool, bool, i32, i32, i32, bool, NaiveDateTime, i32, Option<String>, String, Option<String>, Option<String>), current_stellar_time: i32) -> PostInfo {
+    tuple_to_post_info(data, (id, uuid, title, url, visible, private, initial_stellar_time, score, comment_count, authored_by_submitter, created_at, submitted_by, excerpt_html, None, None, None, submitted_by_username, banner_title, banner_desc), current_stellar_time)
 }
 
 fn tuple_to_post_info(data: &mut PrettifyData, (id, uuid, title, url, visible, private, initial_stellar_time, score, comment_count, authored_by_submitter, created_at, submitted_by, excerpt_html, starred_post_id, flagged_post_id, hidden_post_id, submitted_by_username, banner_title, banner_desc): (i32, Base32, String, Option<String>, bool, bool, i32, i32, i32, bool, NaiveDateTime, i32, Option<String>, Option<i32>, Option<i32>, Option<i32>, String, Option<String>, Option<String>), current_stellar_time: i32) -> PostInfo {
