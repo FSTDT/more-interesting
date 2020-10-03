@@ -2256,15 +2256,20 @@ fn relative_date(dt: &NaiveDateTime) -> String {
 pub struct PrettifyData<'a> {
     conn: &'a MoreInterestingConn,
     post_id: i32,
-    has_tag_cache: HashSet<String>,
+    tag_cache: HashSet<String>,
     has_user_cache: HashSet<String>,
     domain_map_cache: HashMap<String, String>,
 }
 impl<'a> PrettifyData<'a> {
     pub fn new(conn: &'a MoreInterestingConn, post_id: i32) -> PrettifyData<'a> {
+        let mut tag_cache: HashSet<String> = conn
+            .get_all_tags()
+            .unwrap_or(Vec::new())
+            .into_iter()
+            .map(|t| t.name)
+            .collect();
         PrettifyData {
-            conn, post_id,
-            has_tag_cache: HashSet::new(),
+            conn, post_id, tag_cache,
             has_user_cache: HashSet::new(),
             domain_map_cache: HashMap::new(),
         }
@@ -2283,14 +2288,8 @@ impl<'a> prettify::Data for PrettifyData<'a> {
         }
     }
     fn check_hash_tag(&mut self, tag: &str) -> bool {
-        if self.has_tag_cache.contains(tag) {
+        if self.tag_cache.contains(tag) {
             true
-        } else {
-            let has_tag = self.conn.get_tag_by_name(tag).is_ok();
-            if has_tag {
-                self.has_tag_cache.insert(tag.to_string());
-            }
-            has_tag
         }
     }
     fn check_username(&mut self, username: &str) -> bool {
