@@ -2288,9 +2288,7 @@ impl<'a> prettify::Data for PrettifyData<'a> {
         }
     }
     fn check_hash_tag(&mut self, tag: &str) -> bool {
-        if self.tag_cache.contains(tag) {
-            true
-        }
+        self.tag_cache.contains(tag)
     }
     fn check_username(&mut self, username: &str) -> bool {
         if self.has_user_cache.contains(username) {
