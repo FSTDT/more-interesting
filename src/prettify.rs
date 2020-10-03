@@ -804,7 +804,6 @@ pub fn prettify_title<D: Data>(text: &str, url: &str, data: &mut D) -> Output {
             ret_val.push_str("</a></span>");
         }
     }
-    ret_val.string = CLEANER.clean(&ret_val.string).to_string();
     ret_val
 }
 

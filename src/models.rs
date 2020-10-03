@@ -562,6 +562,9 @@ impl MoreInterestingConn {
         use self::posts::dsl::*;
         use self::users::dsl::*;
         use self::notifications::dsl::*;
+        if user_id_value == 0 {
+            return Ok(Vec::new());
+        }
         let all: Vec<NotificationInfo> = notifications
             .inner_join(users.on(self::users::dsl::id.eq(self::notifications::dsl::created_by)))
             .inner_join(posts)
@@ -584,6 +587,9 @@ impl MoreInterestingConn {
     pub fn is_subscribed(&self, post_id_value: i32, user_id_value: i32) -> Result<bool, DieselError> {
         use self::subscriptions::dsl::*;
         use diesel::{select, dsl::exists};
+        if user_id_value == 0 {
+            return Ok(false);
+        }
         Ok(select(exists(subscriptions
             .filter(post_id.eq(post_id_value))
             .filter(user_id.eq(user_id_value))))
