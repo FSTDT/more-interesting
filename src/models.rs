@@ -2262,7 +2262,7 @@ pub struct PrettifyData<'a> {
 }
 impl<'a> PrettifyData<'a> {
     pub fn new(conn: &'a MoreInterestingConn, post_id: i32) -> PrettifyData<'a> {
-        let mut tag_cache: HashSet<String> = conn
+        let tag_cache: HashSet<String> = conn
             .get_all_tags()
             .unwrap_or(Vec::new())
             .into_iter()
