@@ -328,6 +328,8 @@ textarea,
     font-family: SFMono-Regular,Consolas,Liberation Mono,Menlo,Courier,monospace;
     padding: 0.25em;
     font-size: 1.1em;
+    /* workaround iOS auto-zoom */
+    font-size: max(1.1em, 16px);
     line-height: 1.62;
 }
 
@@ -963,6 +965,7 @@ details-dialog {
 main, .main {
     font-family: Georgia, "Times New Roman", serif;
     font-size: 1.1em;
+    font-size: max(1.1em, 16px);
     line-height: 1.62;
     display: block;
     overflow: hidden;
