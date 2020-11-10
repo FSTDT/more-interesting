@@ -6,7 +6,7 @@ CREATE FUNCTION add_post_index() RETURNS trigger AS $emp_stamp$
 BEGIN
   DELETE FROM post_search_index WHERE post_id = NEW.id;
   INSERT INTO post_search_index (post_id, search_index)
-    VALUES (NEW.id, setweight(to_tsvector(title), 'A') || setweight(to_tsvector(excerpt), 'D'));
+    VALUES (NEW.id, setweight(to_tsvector(coalesce(NEW.title,'')), 'A') || setweight(to_tsvector(coalesce(NEW.excerpt,'')), 'D'));
   RETURN NEW;
 END;
 $emp_stamp$ LANGUAGE plpgsql;
