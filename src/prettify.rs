@@ -727,7 +727,7 @@ pub fn prettify_title<D: Data>(text: &str, url: &str, data: &mut D) -> Output {
     let text = SPACES.replace_all(text, " ");
     let mut text = &text[..];
     let mut ret_val = Output::with_capacity(text.len());
-    let link = format!("</span><span class=article-header-inner><a href=\"{}\">", url);
+    let link = format!("</span><span class=article-header-inner><a href=\"{}\">", &escape(&url).to_string());
     ret_val.push_str(&link);
     while let Some(c) = text.as_bytes().get(0) {
         match c {
@@ -797,6 +797,7 @@ pub fn prettify_title<D: Data>(text: &str, url: &str, data: &mut D) -> Output {
     ret_val.string = ret_val.string.replace(&empty_link, " </span>");
     if let Ok(url) = Url::parse(url) {
         if let Some(host) = url.host_str().map(|hostname| data.get_domain_canonical(hostname)) {
+            let host = escape(&host).to_string();
             ret_val.push_str("</span> <span class=article-header-inner><a class=domain-link href=\"./?domain=");
             ret_val.push_str(&host);
             ret_val.push_str("\">");

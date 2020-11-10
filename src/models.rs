@@ -811,14 +811,23 @@ impl MoreInterestingConn {
         #[derive(QueryableByName)]
         #[table_name="post_word_freq"]
         struct Word { word: String }
-        let words: Vec<Word> = diesel::sql_query(format!("
+        let mut words: Vec<Word> = diesel::sql_query(format!(r##"
           SELECT
             PWF.word AS word
           FROM post_word_freq AS PWF
-          INNER JOIN (SELECT word FROM TS_STAT(CONCAT('SELECT to_tsvector(excerpt) FROM posts WHERE id = {}'))) AS TS ON (TS.word = PWF.word)
+          INNER JOIN (SELECT word FROM TS_STAT(CONCAT('SELECT to_tsvector(regexp_replace(regexp_replace(regexp_replace(excerpt, ''\[[uU][rR][lL]=(.*)\](.*?)\[\/[uU][rR][lL]\]'', ''\2''), ''\[[bB]\](.*?)\[/[bB]\]'', ''\1''), ''\[[iI]\](.*?)\[/[iI]\]'', ''\1'')) FROM posts WHERE id = {}'))) AS TS ON (TS.word = PWF.word)
           ORDER BY PWF.num ASC
           LIMIT 20
-        ", post_info.id)).get_results::<Word>(&self.0)?;
+        "##, post_info.id)).get_results::<Word>(&self.0)?;
+        let mut     words_title: Vec<Word> = diesel::sql_query(format!(r##"
+          SELECT
+            PWF.word AS word
+          FROM post_word_freq AS PWF
+          INNER JOIN (SELECT word FROM TS_STAT(CONCAT('SELECT to_tsvector(title) FROM posts WHERE id = {}'))) AS TS ON (TS.word = PWF.word)
+          ORDER BY PWF.num ASC
+          LIMIT 20
+        "##, post_info.id)).get_results::<Word>(&self.0)?;
+        words.append(&mut words_title);
         let word_list_short = words.iter().take(10).map(|word| &word.word[..]).collect::<Vec<&str>>().join("|");
         let word_list = words.iter().map(|word| &word.word[..]).collect::<Vec<&str>>().join("&");
         // Now actually find the "similar" posts.
