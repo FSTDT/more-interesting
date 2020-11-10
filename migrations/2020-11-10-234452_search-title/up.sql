@@ -1,6 +1,6 @@
 DROP TRIGGER add_post_index_insert on posts;
 DROP TRIGGER add_post_index_update on posts;
-DROP FUNCTION add_post_index;
+DROP FUNCTION add_post_index();
 
 CREATE FUNCTION add_post_index() RETURNS trigger AS $emp_stamp$
 BEGIN
@@ -22,7 +22,7 @@ FROM posts;
 
 
 DROP TRIGGER add_post_word_freq_insert ON posts;
-DROP FUNCTION add_post_word_freq;
+DROP FUNCTION add_post_word_freq();
 
 CREATE FUNCTION add_post_word_freq() RETURNS trigger AS $emp_stamp$
 BEGIN
