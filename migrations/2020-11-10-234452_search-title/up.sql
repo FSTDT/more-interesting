@@ -17,7 +17,7 @@ CREATE TRIGGER add_post_index_update BEFORE UPDATE OF excerpt ON posts FOR EACH 
 TRUNCATE TABLE post_search_index;
 
 INSERT INTO post_search_index (post_id, search_index)
-SELECT id, setweight(to_tsvector(title), 'A') || setweight(to_tsvector(excerpt), 'D')
+SELECT id, setweight(to_tsvector(coalesce(title,'')), 'A') || setweight(to_tsvector(coalesce(excerpt,'')), 'D')
 FROM posts;
 
 
@@ -29,7 +29,7 @@ BEGIN
   INSERT INTO post_word_freq (word, num)
   SELECT 
     word, ndoc
-  FROM TS_STAT(CONCAT('SELECT setweight(to_tsvector(title), \'A\') || setweight(to_tsvector(excerpt), \'D\') FROM posts WHERE id = ', NEW.id))
+  FROM TS_STAT(CONCAT('SELECT setweight(to_tsvector(coalesce(title,'''')), ''A'') || setweight(to_tsvector(coalesce(excerpt,'''')), ''D'') FROM posts WHERE id = ', NEW.id))
   ON CONFLICT (word) DO UPDATE SET
     num = post_word_freq.num + 1
   ;
@@ -43,5 +43,5 @@ TRUNCATE TABLE post_word_freq;
 INSERT INTO post_word_freq (word, num)
 SELECT 
   word, ndoc AS num
-FROM TS_STAT(CONCAT('SELECT setweight(to_tsvector(title), \'A\') || setweight(to_tsvector(excerpt), \'D\') FROM posts WHERE visible AND NOT private'))
+FROM TS_STAT(CONCAT('SELECT setweight(to_tsvector(coalesce(title,'''')), ''A'') || setweight(to_tsvector(coalesce(excerpt,'''')), ''D'') FROM posts WHERE visible AND NOT private'))
 ;
