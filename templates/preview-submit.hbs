@@ -1,0 +1,39 @@
+{{#*inline "page"}}
+{{#if customization.link_submit_notice_html}}
+<div class=inner-banner>{{{customization.link_submit_notice_html}}}</div>
+{{/if}}
+<form class=tab-bar action="preview-submit?U={{session.uuid}}#submit-form" method=POST>
+    <button class=tab>Edit</button><label for=preview class=active-tab>Preview</label>
+    <input type=hidden name=no_preview value=true>
+    <input type=hidden name=title value="{{posts.0.title}}">
+    <input type=hidden name=url value="{{posts.0.url}}">
+    <input type=hidden name=excerpt value="{{excerpt}}">
+</form>
+<div class=tab-box>
+{{#each posts~}}
+<article id=preview>
+    <h2 class=article-header>{{{this.title_html}}}</h2>
+    {{#if this.excerpt_html}}
+        <main>{{{this.excerpt_html}}}</main>
+    {{/if}}
+    <footer class=footer-container>
+    <div class=footer-main>
+    <button disabled title="Cannot add star to preview" name="add_star">
+        <img width=12 height=12 class=good-img src=assets/star.svg alt="Cannot add star to preview">
+    </button>
+    <a href="@{{this.submitted_by_username_urlencode}}">{{this.submitted_by_username}}</a>
+    submitted
+    <span is=local-date title="{{this.created_at}}+00:00">{{this.created_at_relative}}</span>
+    </div>
+    <details-menu-bar class=footer-aside>
+        <details class="details-menu-outer backwards">
+        <summary class="details-menu-summary backwards" aria-haspopup=menu>More</summary>
+        <div class="details-menu-inner backwards" role=menu>
+            <a href="#" class=details-menu-item>N/A</a>
+        </div>
+        </details>
+    </details-menu-bar>
+    </footer>
+</article>{{/each}}</div>
+{{/inline}}
+{{~> layout~}}

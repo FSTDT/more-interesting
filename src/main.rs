@@ -27,6 +27,7 @@ use rocket::response::{Responder, Redirect, Flash, Content};
 use rocket::http::{Cookies, Cookie, ContentType};
 pub use models::MoreInterestingConn;
 use models::{CreatePostError, CreateCommentError};
+use models::{relative_date, PrettifyData, BodyFormat};
 use crate::customization::Customization;
 use models::User;
 use models::UserAuth;
@@ -755,6 +756,131 @@ struct NewPostForm {
     tags: Option<String>,
     url: Option<String>,
     excerpt: Option<String>,
+    no_preview: Option<bool>,
+}
+
+#[post("/preview-submit", data = "<post>")]
+fn submit_preview(login: Option<LoginSession>, customization: Customization, conn: MoreInterestingConn, post: Form<NewPostForm>, config: State<SiteConfig>) -> Result<impl Responder<'static>, Status> {
+    lazy_static!{
+        static ref TAGS_SPLIT: Regex = Regex::new(r"[#, \t]+").unwrap();
+    }
+    let (user, session) = login.map(|l| (Some(l.user), l.session)).unwrap_or((None, UserSession::default()));
+    let user = if let Some(user) = user {
+        if user.banned {
+            return Err(Status::InternalServerError);
+        }
+        user
+    } else if config.enable_anonymous_submissions {
+        conn.get_user_by_username("anonymous").or_else(|_| {
+            let p: [char; 16] = rand::random();
+            let mut password = String::new();
+            password.extend(p.iter());
+            let user = conn.register_user(&NewUser{
+                username: "anonymous",
+                password: &password,
+                invited_by: None,
+            })?;
+            conn.change_user_trust_level(user.id, -1)?;
+            conn.change_user_banned(user.id, true)?;
+            Ok(user)
+        }).map_err(|_: diesel::result::Error| Status::InternalServerError)?
+    } else {
+        return Err(Status::BadRequest);
+    };
+    if user.trust_level == 1 &&
+        (Utc::now().naive_utc() - user.created_at) > Duration::seconds(60 * 60 * 24 * 7) {
+        conn.change_user_trust_level(user.id, 2).expect("if voting works, then so should switching trust level")
+    }
+    let NewPostForm { title, url, excerpt, tags, no_preview } = &*post;
+    let mut title = title.clone();
+    for tag in TAGS_SPLIT.split(tags.as_ref().map(|x| &x[..]).unwrap_or("")) {
+        if tag == "" { continue }
+        if conn.get_tag_by_name(tag).is_err() {
+            continue;
+        }
+        title += " #";
+        title += tag;
+    }
+    let title = &title[..];
+    let url = url.as_ref().and_then(|u| {
+        if u == "" {
+            None
+        } else if !u.contains(":") && !u.starts_with("//") {
+            Some(format!("https://{}", u))
+        } else {
+            Some(u.to_owned())
+        }
+    });
+    let excerpt = excerpt.as_ref().and_then(|k| if k == "" { None } else { Some(&k[..]) });
+    let excerpt_html_and_stuff = if let Some(excerpt) = excerpt {
+        let body = match config.body_format {
+            BodyFormat::Plain => crate::prettify::prettify_body(excerpt, &mut PrettifyData::new(&conn, 0)),
+            BodyFormat::BBCode => crate::prettify::prettify_body_bbcode(excerpt, &mut PrettifyData::new(&conn, 0)),
+        };
+        Some(body)
+    } else {
+        None
+    };
+    let title_html_and_stuff = crate::prettify::prettify_title(title, &url.as_ref().unwrap_or(&String::new())[..], &mut PrettifyData::new(&conn, 0));
+    let submitted_by_username_urlencode = utf8_percent_encode(&user.username, NON_ALPHANUMERIC).to_string();
+    let submitted_by_username = user.username.clone();
+    let mut post_info = PostInfo {
+        title: title.to_owned(),
+        url,
+        title_html: title_html_and_stuff.string,
+        excerpt_html: excerpt_html_and_stuff.map(|e| e.string),
+        uuid: Base32::from(0i64),
+        id: 0,
+        visible: true,
+        private: false,
+        hotness: 0.0,
+        score: 0,
+        comment_count: 0,
+        authored_by_submitter: false,
+        created_at: Utc::now().naive_utc(),
+        created_at_relative: relative_date(&Utc::now().naive_utc()),
+        submitted_by: user.id,
+        submitted_by_username,
+        submitted_by_username_urlencode,
+        starred_by_me: false,
+        flagged_by_me: false,
+        hidden_by_me: false,
+        banner_title: Some("Preview".to_string()),
+        banner_desc: None,
+    };
+    if no_preview.is_some() {
+        let mut title = String::new();
+        let mut tags = String::new();
+        let mut first = true;
+        for part in post_info.title.split('#') {
+            if first {
+                title = part.to_owned();
+                first = false;
+            } else {
+                tags = tags + &part;
+            }
+        }
+        post_info.title = title;
+        post_info.title_html = tags;
+        return Ok(Template::render("submit", &TemplateContext {
+            posts: vec![post_info],
+            title: Cow::Borrowed("submit"),
+            config: config.clone(),
+            excerpt: excerpt.map(ToOwned::to_owned),
+            customization,
+            user, session,
+            ..default()
+        }))
+    }
+    Ok(Template::render("preview-submit", &TemplateContext {
+        posts: vec![post_info],
+        config: config.clone(),
+        title: Cow::Borrowed("submit"),
+        excerpt: excerpt.map(ToOwned::to_owned),
+        customization,
+        user, session,
+        ..default()
+    }))
 }
 
 #[post("/submit", data = "<post>")]
@@ -789,7 +915,7 @@ fn create(login: Option<LoginSession>, conn: MoreInterestingConn, post: Form<New
         (Utc::now().naive_utc() - user.created_at) > Duration::seconds(60 * 60 * 24 * 7) {
         conn.change_user_trust_level(user.id, 2).expect("if voting works, then so should switching trust level")
     }
-    let NewPostForm { title, url, excerpt, tags } = &*post;
+    let NewPostForm { title, url, excerpt, tags, .. } = &*post;
     let mut title = title.clone();
     for tag in TAGS_SPLIT.split(tags.as_ref().map(|x| &x[..]).unwrap_or("")) {
         if tag == "" { continue }
@@ -2185,7 +2311,7 @@ fn main() {
             }
             Ok(rocket)
         }))
-        .mount("/", routes![index, login_form, login, logout, create_link_form, create_post_form, create, get_comments, vote, signup, get_settings, create_invite, invite_tree, change_password, post_comment, vote_comment, get_admin_tags, admin_tags, get_tags, edit_post, get_edit_post, edit_comment, get_edit_comment, set_dark_mode, set_big_mode, mod_log, get_mod_queue, moderate_post, moderate_comment, get_public_signup, rebake, random, redirect_legacy_id, latest, rss, top, banner_post, robots_txt, search_comments, new, get_admin_domains, admin_domains, create_message_form, create_message, subscriptions, post_subscriptions, get_reply_comment, preview_comment, get_admin_customization, admin_customization, conv_legacy_id, get_tags_json, get_admin_flags, get_admin_comment_flags, faq, identicon])
+        .mount("/", routes![index, login_form, login, logout, create_link_form, create_post_form, create, submit_preview, get_comments, vote, signup, get_settings, create_invite, invite_tree, change_password, post_comment, vote_comment, get_admin_tags, admin_tags, get_tags, edit_post, get_edit_post, edit_comment, get_edit_comment, set_dark_mode, set_big_mode, mod_log, get_mod_queue, moderate_post, moderate_comment, get_public_signup, rebake, random, redirect_legacy_id, latest, rss, top, banner_post, robots_txt, search_comments, new, get_admin_domains, admin_domains, create_message_form, create_message, subscriptions, post_subscriptions, get_reply_comment, preview_comment, get_admin_customization, admin_customization, conv_legacy_id, get_tags_json, get_admin_flags, get_admin_comment_flags, faq, identicon])
         .mount("/assets", StaticFiles::from("assets"))
         .attach(Template::custom(|engines| {
             engines.handlebars.register_helper("count", Box::new(count_helper));

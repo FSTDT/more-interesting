@@ -2252,7 +2252,7 @@ fn compute_hotness(initial_stellar_time: i32, current_stellar_time: i32, score: 
     (boost + (score as f64) + 1.0) / (stellar_age + 1.0).powf(gravity)
 }
 
-fn relative_date(dt: &NaiveDateTime) -> String {
+pub fn relative_date(dt: &NaiveDateTime) -> String {
     // Design rationale:
     //
     // - NaiveDateTime is used for timestamps because they're always in the past,
