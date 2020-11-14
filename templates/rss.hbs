@@ -10,8 +10,8 @@
             <item>
                 <title>{{this.title}}</title>
                 <description>{{this.excerpt_html}}</description>
-                <link>{{../config.public_url}}/{{this.uuid}}</link>
-                <guid isPermaLink="true">{{../config.public_url}}/{{this.uuid}}</guid>
+                <link>{{../config.public_url}}{{#if (gt this.id 151694)}}/{{else}}/{{/if}}{{this.uuid}}</link>
+                <guid isPermaLink="true">{{../config.public_url}}{{#if (gt this.id 151694)}}{{else}}/{{/if}}{{this.uuid}}</guid>
                 <pubDate>{{this.created_at}}</pubDate>
             </item>
         {{/each}}
