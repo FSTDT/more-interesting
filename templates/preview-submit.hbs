@@ -2,7 +2,7 @@
 {{#if customization.link_submit_notice_html}}
 <div class=inner-banner>{{{customization.link_submit_notice_html}}}</div>
 {{/if}}
-<form class=tab-bar action="preview-submit?U={{session.uuid}}#submit-form" method=POST>
+<form class=tab-bar action="preview-submit?U={{session.uuid}}#submit-form" method=POST id=submit-form>
     <button class=tab>Edit</button><label for=preview class=active-tab>Preview</label>
     <input type=hidden name=no_preview value=true>
     <input type=hidden name=title value="{{posts.0.title}}">
