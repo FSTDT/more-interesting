@@ -42,6 +42,7 @@ export class TagsTypeaheadElement extends HTMLInputElement {
         }
         setTimeout(() => {
             if (this === document.activeElement) {
+                this._menu.style.opacity = "1";
                 return;
             }
             if (this._menu) {
@@ -80,6 +81,29 @@ export class TagsTypeaheadElement extends HTMLInputElement {
                 this._change();
                 e.preventDefault();
                 e.stopPropagation();
+                break;
+            case "pgdb":
+            case "pagedown":
+                this._index += 4;
+                var availableTags = Object.keys(this._tags).filter(tag => {
+                    return !currentTag || tag.indexOf(currentTag) !== -1;
+                });
+                if (this._index >= availableTags.length) {
+                    this._index = availableTags.length - 1;
+                }
+                e.preventDefault();
+                e.stopPropagation();
+                this._change();
+                break;
+            case "pgup":
+            case "pageup":
+                this._index -= 4;
+                if (this._index <= 0) {
+                    this._index = 0;
+                }
+                e.preventDefault();
+                e.stopPropagation();
+                this._change();
                 break;
             case "arrowup":
             case "up":
@@ -192,13 +216,21 @@ export class TagsTypeaheadElement extends HTMLInputElement {
                     self.setAttribute("aria-activedescendant", "tags-typeahead-" + this._index);
                 }
             };
-            menuItem.onclick = function() {
-                if (tag_split_last.test(self.value)) {
+            menuItem.ontouchstart = function() {
+                delete this.onmousedown;
+            };
+            menuItem.onclick = menuItem.onmousedown = function() {
+                if (self.value.endsWith(this._tag + " ")) {
+                    // do nothing
+                } else if (tag_split_last.test(self.value)) {
                     self.value = self.value.slice(0, tag_split_last.lastIndex) + this._tag + " ";
                 } else {
                     self.value = this._tag + " ";
                 }
-                self.focus();
+                if (self._menu) self.parentNode.removeChild(self._menu);
+                self._menu = null;
+                self._index = 0;
+                self.parentNode.setAttribute("aria-expanded", "false");
                 return false;
             };
             this._menu.appendChild(menuItem);

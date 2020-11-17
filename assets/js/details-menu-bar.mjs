@@ -34,7 +34,15 @@ export class DetailsMenuBarElement extends HTMLElement {
             d.addEventListener("toggle", this._eventToggle.bind(d));
             d.querySelector(".details-menu-inner").addEventListener("mouseleave", this._eventMouseLeave.bind(d));
             d.querySelector(".details-menu-inner").addEventListener("click", this._eventMouseClick.bind(d));
+            d.querySelector("summary").addEventListener("mousedown", this._eventTopClick.bind(d));
+            d.querySelector("summary").addEventListener("click", function(e) { e.preventDefault() });
+            d.querySelector("summary").addEventListener("touchstart", this._eventTopClick.bind(d));
         }
+    }
+    _eventTopClick(e) {
+        e.preventDefault();
+        e.stopPropagation();
+        this.open = !this.open;
     }
     // keyboard behavior for these menus should behave at the intersection of the menus on GitHub and the WAI ARIA menus
     // See https://www.w3.org/TR/wai-aria-practices-1.1/examples/menubar/menubar-1/menubar-1.html for more info on a lot of these practices.
