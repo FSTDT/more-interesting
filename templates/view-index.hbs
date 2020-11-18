@@ -33,7 +33,7 @@
     <details-menu-bar class=footer-aside>
         <a href="{{this.uuid}}#comment-form" class="button hide-small">↩ Comment</a>
         <details class="details-menu-outer backwards">
-        <summary class="details-menu-summary backwards" aria-haspopup=menu>More</summary>
+        <summary class="details-menu-summary backwards" aria-haspopup=menu role=button>More</summary>
         <div class="details-menu-inner backwards" role=menu>
             <a href="{{this.uuid}}" class=details-menu-item>Permalink</a>
         {{#if (gte ../user.trust_level 3)}}
@@ -73,7 +73,7 @@
     </div>
     <details-menu-bar class=footer-aside>
         <details class="details-menu-outer backwards">
-        <summary class="details-menu-summary backwards" aria-haspopup=menu>More</summary>
+        <summary class="details-menu-summary backwards" aria-haspopup=menu role=button>More</summary>
         <div class="details-menu-inner backwards" role=menu>
             <a href="{{this.uuid}}" class=details-menu-item>Permalink</a>
         </div>

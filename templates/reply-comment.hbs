@@ -17,7 +17,7 @@
             <details-menu-bar class=footer-aside>
                 <button disabled>↩ Reply</button>
                 <details class="details-menu-outer backwards">
-                <summary class="details-menu-summary backwards" aria-haspopup=menu>More</summary>
+                <summary class="details-menu-summary backwards" aria-haspopup=menu role=button>More</summary>
                 <div class="details-menu-inner backwards" role=menu>
                 <a href="#{{comments.0.id}}" class=details-menu-item>Permalink</a>
                 {{#if (or (gte ../user.trust_level 3) (eq comments.0.created_by ../user.id))}}
@@ -51,7 +51,7 @@
     </form>
     <details-menu-bar class=form-footer>
         <details class=details-menu-outer>
-            <summary class=details-menu-summary aria-haspopup=menu>{{#if is_subscribed}}Subscribed{{else}}Not subscribed{{/if}}</summary>
+            <summary class=details-menu-summary aria-haspopup=menu role=button>{{#if is_subscribed}}Subscribed{{else}}Not subscribed{{/if}}</summary>
             <form class=details-menu-inner role=menu action="subscriptions?redirect={{posts.0.uuid}}&U={{session.uuid}}" method=POST is=subscriptions-menu>
                 <input type=hidden name=post value="{{posts.0.uuid}}">
                 <button class=details-menu-item role=menuitem name=subscribed value=true>Subscribe</button>

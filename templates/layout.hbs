@@ -16,7 +16,7 @@
             <span>
             {{#if user.username}}
                 <details class="details-menu-outer backwards" role=menuitem>
-                    <summary class="details-menu-summary backwards" aria-haspopup=menu>+</summary>
+                    <summary class="details-menu-summary backwards" aria-haspopup=menu role=button>+</summary>
                     <div class="details-menu-inner backwards" role=menu>
                         {{#if (not config.hide_link_post)}}
                         <a class=details-menu-item href="submit" role=menuitem>Submit a link</a>
@@ -33,7 +33,7 @@
                     </div>
                 </details>
                 <details class="details-menu-outer backwards" role=menuitem>
-                    <summary class="details-menu-summary backwards" aria-haspopup=menu>{{user.username}}</summary>
+                    <summary class="details-menu-summary backwards" aria-haspopup=menu role=button>{{user.username}}</summary>
                     <form class="details-menu-inner backwards" role=menu action="logout?U={{session.uuid}}" method=POST>
                         {{#if (gte user.trust_level 3)}}
                             <a class=details-menu-item href="mod-queue">Mod queue</a>
@@ -46,7 +46,7 @@
             {{else}}
                 {{#if config.enable_public_signup}}
                 <details class="details-menu-outer backwards" role=menuitem>
-                    <summary class="details-menu-summary backwards" aria-haspopup=menu>Your account</summary>
+                    <summary class="details-menu-summary backwards" aria-haspopup=menu role=button>Your account</summary>
                     <div class="details-menu-inner backwards" role=menu>
                         <a class=details-menu-item href=signup role=menuitem>Register</a>
                         <a class=details-menu-item href=login role=menuitem>Sign in</a>
@@ -58,7 +58,7 @@
             {{/if}}
             {{#if notifications}}
                 <details class="details-menu-outer backwards" role=menuitem>
-                    <summary class="details-menu-summary backwards" aria-haspopup=menu>{{count notifications}} Notification{{#if notifications.1}}s{{/if}}</summary>
+                    <summary class="details-menu-summary backwards" aria-haspopup=menu role=button>{{count notifications}} Notification{{#if notifications.1}}s{{/if}}</summary>
                     <div class="details-menu-inner backwards" role=menu>
                         {{#each notifications}}
                             <a class=details-menu-item href={{post_uuid}}><h4 style=margin:0>{{post_title}}</h4>{{comment_count}} comments</a>

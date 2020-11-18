@@ -30,14 +30,14 @@
         <main class="main-mini">
             <details-menu-bar>
                 <details class=details-menu-outer>
-                    <summary class=details-menu-summary aria-haspopup=menu>Dark mode</summary>
+                    <summary class=details-menu-summary aria-haspopup=menu role=button>Dark mode</summary>
                     <form class=details-menu-inner method=POST action="set-dark-mode?U={{session.uuid}}" role=menu>
                         <button class=details-menu-item name=active value=false role=menuitem aria-checked="{{#if user.dark_mode}}false{{else}}true{{/if}}">Turn off</button>
                         <button class=details-menu-item name=active value=true role=menuitem aria-checked="{{#if user.dark_mode}}true{{else}}false{{/if}}">Turn on</button>
                     </form>
                 </details>
                 <details class=details-menu-outer>
-                    <summary class=details-menu-summary>Big mode</summary>
+                    <summary class=details-menu-summary aria-haspopup=menu role=button>Big mode</summary>
                     <form class=details-menu-inner method=POST action="set-big-mode?U={{session.uuid}}" role=menu>
                         <button class=details-menu-item name=active value=false role=menuitem aria-checked="{{#if user.big_mode}}false{{else}}true{{/if}}">Turn off</button>
                         <button class=details-menu-item name=active value=true role=menuitem aria-checked="{{#if user.big_mode}}true{{else}}false{{/if}}">Turn on</button>

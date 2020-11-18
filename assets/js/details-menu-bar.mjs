@@ -33,7 +33,9 @@ export class DetailsMenuBarElement extends HTMLElement {
             d.addEventListener("mouseover", this._eventMouseOver.bind(d));
             d.addEventListener("toggle", this._eventToggle.bind(d));
             d.querySelector(".details-menu-inner").addEventListener("mouseleave", this._eventMouseLeave.bind(d));
-            d.querySelector(".details-menu-inner").addEventListener("click", this._eventMouseClick.bind(d));
+            for (let m of d.querySelector(".details-menu-item")) {
+                m.addEventListener("click", this._eventMouseClick.bind(d));
+            }
             d.querySelector("summary").addEventListener("mousedown", this._eventTopClick.bind(d));
             d.querySelector("summary").addEventListener("click", function(e) { e.preventDefault() });
             d.querySelector("summary").addEventListener("touchstart", this._eventTopClick.bind(d));
