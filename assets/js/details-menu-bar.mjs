@@ -28,23 +28,56 @@ export class DetailsMenuBarElement extends HTMLElement {
     constructor() {
         super();
         let details = this.querySelectorAll(".details-menu-outer");
+        var summary;
         for (let d of details) {
+            summary = d.querySelector("summary");
             d.addEventListener("keydown", this._eventKeydown.bind(d));
             d.addEventListener("mouseover", this._eventMouseOver.bind(d));
             d.addEventListener("toggle", this._eventToggle.bind(d));
             d.querySelector(".details-menu-inner").addEventListener("mouseleave", this._eventMouseLeave.bind(d));
-            for (let m of d.querySelector(".details-menu-item")) {
+            for (let m of d.querySelectorAll(".details-menu-item")) {
                 m.addEventListener("click", this._eventMouseClick.bind(d));
+                m.addEventListener("mouseup", this._eventRelease.bind(d));
             }
-            d.querySelector("summary").addEventListener("mousedown", this._eventTopClick.bind(d));
-            d.querySelector("summary").addEventListener("click", function(e) { e.preventDefault() });
-            d.querySelector("summary").addEventListener("touchstart", this._eventTopClick.bind(d));
+            summary.addEventListener("mousedown", this._eventTopClick.bind(d));
+            summary.addEventListener("touchstart", this._eventTouchStart.bind(d));
+            summary.addEventListener("touchmove", this._eventTouchMove.bind(d));
+            summary.addEventListener("touchend", this._eventTouchEnd.bind(d));
+            summary.addEventListener("click", function(e) { e.preventDefault() });
+            summary.addEventListener("mouseup", this._eventRelease.bind(d));
         }
     }
     _eventTopClick(e) {
         e.preventDefault();
         e.stopPropagation();
+        if (!this._touched) {
+            this.open = !this.open;
+        }
+    }
+    _eventTouchStart(e) {
         this.open = !this.open;
+        this._touched = true;
+    }
+    _eventTouchMove(e) {
+        this._moved = true;
+        this._touched = true;
+        this.open = false;
+    }
+    _eventTouchEnd(e) {
+        e.preventDefault();
+        delete this._touched;
+        if (this._moved) {
+            delete this._moved;
+            this.open = false;
+        }
+    }
+    _eventRelease(e) {
+        var summary = this.querySelector("summary");
+        if (e.target !== summary) {
+            e.currentTarget.click();
+            e.preventDefault();
+            e.stopPropagation();
+        }
     }
     // keyboard behavior for these menus should behave at the intersection of the menus on GitHub and the WAI ARIA menus
     // See https://www.w3.org/TR/wai-aria-practices-1.1/examples/menubar/menubar-1/menubar-1.html for more info on a lot of these practices.
