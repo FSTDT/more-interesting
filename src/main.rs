@@ -36,7 +36,7 @@ use rocket_contrib::serve::StaticFiles;
 use rocket_contrib::templates::{Template, handlebars};
 use serde::{Serialize, Serializer};
 use std::borrow::Cow;
-use crate::models::{SiteCustomization, NotificationInfo, NewNotification, NewSubscription, PostSearch, PostSearchOrderBy, UserSession, PostInfo, NewStar, NewHide, NewHideComment, NewUser, CommentInfo, NewPost, NewComment, NewStarComment, NewTag, Tag, Comment, ModerationInfo, NewFlag, NewFlagComment, LegacyComment, CommentSearchResult, DomainSynonym, DomainSynonymInfo, NewDomain};
+use crate::models::{SiteCustomization, NotificationInfo, NewNotification, NewSubscription, PostSearch, PostSearchOrderBy, UserSession, PostInfo, NewStar, NewHide, NewHideComment, NewUser, CommentInfo, NewPost, NewComment, NewStarComment, NewTag, Tag, Comment, ModerationInfo, NewFlag, NewFlagComment, LegacyCommentInfo, CommentSearchResult, DomainSynonym, DomainSynonymInfo, NewDomain};
 use more_interesting_base32::Base32;
 use url::Url;
 use std::collections::HashMap;
@@ -93,7 +93,7 @@ struct TemplateContext {
     posts: Vec<PostInfo>,
     starred_by: Vec<String>,
     comments: Vec<CommentInfo>,
-    legacy_comments: Vec<LegacyComment>,
+    legacy_comments: Vec<LegacyCommentInfo>,
     comment_search_result: Vec<CommentSearchResult>,
     comment: Option<Comment>,
     user: User,
@@ -1148,7 +1148,7 @@ fn get_comments(conn: MoreInterestingConn, login: Option<LoginSession>, uuid: St
             warn!("Failed to get comments: {:?}", e);
             Vec::new()
         });
-        let legacy_comments = conn.get_legacy_comments_from_post(post_info.id, user.id).unwrap_or_else(|e| {
+        let legacy_comments = conn.get_legacy_comment_info_from_post(post_info.id, user.id).unwrap_or_else(|e| {
             warn!("Failed to get comments: {:?}", e);
             Vec::new()
         });
@@ -1243,7 +1243,7 @@ fn preview_comment(conn: MoreInterestingConn, login: LoginSession, comment: Form
         warn!("Failed to get comments: {:?}", e);
         Vec::new()
     });
-    let legacy_comments = conn.get_legacy_comments_from_post(post_info.id, user.id).unwrap_or_else(|e| {
+    let legacy_comments = conn.get_legacy_comment_info_from_post(post_info.id, user.id).unwrap_or_else(|e| {
         warn!("Failed to get comments: {:?}", e);
         Vec::new()
     });

@@ -127,6 +127,18 @@ pub struct LegacyComment {
     pub updated_at: NaiveDateTime,
 }
 
+#[derive(Serialize)]
+pub struct LegacyCommentInfo {
+    pub id: i32,
+    pub post_id: i32,
+    pub author: String,
+    pub text: String,
+    pub html: String,
+    pub created_at: NaiveDateTime,
+    pub updated_at: NaiveDateTime,
+    pub created_at_relative: String,
+}
+
 impl Default for User {
     fn default() -> Self {
         User {
@@ -2130,12 +2142,19 @@ impl MoreInterestingConn {
         use self::posts::dsl::*;
         posts.filter(uuid.eq(post_id_value.into_i64())).get_result::<Post>(&self.0)
     }
-    pub fn get_legacy_comments_from_post(&self, post_id_param: i32, _user_id_param: i32) -> Result<Vec<LegacyComment>, DieselError> {
-        use self::legacy_comments::dsl::*;
-        let all: Vec<LegacyComment> = legacy_comments
-            .filter(self::legacy_comments::dsl::post_id.eq(post_id_param))
-            .order_by(self::legacy_comments::dsl::created_at)
-            .get_results(&self.0)?;
+    pub fn get_legacy_comment_info_from_post(&self, post_id_param: i32, _user_id_param: i32) -> Result<Vec<LegacyCommentInfo>, DieselError> {
+        use self::legacy_comments::dsl;
+        let all: Vec<LegacyCommentInfo> = dsl::legacy_comments
+            .filter(dsl::post_id.eq(post_id_param))
+            .order_by(dsl::created_at)
+            .get_results::<LegacyComment>(&self.0)?
+            .into_iter().map(|LegacyComment { id, post_id, author, text, html, created_at, updated_at } | {
+                let created_at_relative = relative_date(&created_at);
+                LegacyCommentInfo {
+                    id, post_id, author, text, html, created_at, updated_at,
+                    created_at_relative,
+                }
+            }).collect();
         Ok(all)
     }
     pub fn get_legacy_comment_by_id(&self, legacy_comment_id_value: i32) -> Result<LegacyComment, DieselError> {
@@ -2231,7 +2250,8 @@ fn tuple_to_comment_search_results((id, html, post_id, post_uuid, post_title, cr
     let created_by_identicon = Base32::from(created_by_identicon as i64);
     CommentSearchResult {
         id, html, post_id, post_uuid, post_title, created_by, created_by_username,
-        created_at, created_at_relative, created_by_identicon,
+        created_at, created_at_relative,
+        created_by_identicon,
     }
 }
 
@@ -2265,7 +2285,7 @@ pub fn relative_date(dt: &NaiveDateTime) -> String {
     //   to tooltips.
     use chrono_humanize::{Accuracy, HumanTime, Tense};
     let h = HumanTime::from(*dt - Utc::now().naive_utc());
-    v_htmlescape::escape(&h.to_text_en(Accuracy::Rough, Tense::Past)).to_string()
+    v_htmlescape::escape(&h.to_text_en(Accuracy::Rough, Tense::Present)).to_string()
 }
 
 pub struct PrettifyData<'a> {
