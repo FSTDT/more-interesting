@@ -421,11 +421,23 @@ pub fn prettify_body_bbcode<D: Data>(text: &str, data: &mut D) -> Output {
                 ret_val.push_str("<blockquote>");
                 let tag = QUOTE_TAG_OPEN.find(&text[..]).expect("it to still be there");
                 text = &text[tag.end()..];
+                if !text.starts_with("\n\n") && !text.is_empty() && text != "\n" {
+                    ret_val.push_str("<p>");
+                    if text.starts_with("\n") {
+                        text = &text[1..];
+                    }
+                }
             }
             b'[' if QUOTE_TAG_CLOSE.is_match(&text[..]) => {
                 ret_val.push_str("</blockquote>");
                 let tag = QUOTE_TAG_CLOSE.find(&text[..]).expect("it to still be there");
                 text = &text[tag.end()..];
+                if !text.starts_with("\n\n") && !text.is_empty() && text != "\n" {
+                    ret_val.push_str("<p>");
+                    if text.starts_with("\n") {
+                        text = &text[1..];
+                    }
+                }
             }
             b'[' if QUOTE_TAG_OPEN_PARAM.is_match(&text[..]) => {
                 let end_param = find_matching_square_bracket(text);
@@ -466,6 +478,12 @@ pub fn prettify_body_bbcode<D: Data>(text: &str, data: &mut D) -> Output {
                     }
                     ret_val.push_str("<blockquote class=good-quote>");
                     text = &text[end_param+1..];
+                    if !text.starts_with("\n\n") && !text.is_empty() && text != "\n" {
+                        ret_val.push_str("<p>");
+                        if text.starts_with("\n") {
+                            text = &text[1..];
+                        }
+                    }
                 } else {
                     ret_val.push_str("[");
                     text = &text[1..];
@@ -805,6 +823,12 @@ pub fn prettify_title<D: Data>(text: &str, url: &str, data: &mut D) -> Output {
             ret_val.push_str("</a></span>");
         }
     }
+    if ret_val.string.starts_with("</span>") {
+        ret_val.string = ret_val.string[7..].to_owned();
+    }
+    if ret_val.string.ends_with("</a>") {
+        ret_val.string += "</span>";
+    }
     ret_val
 }
 
@@ -1114,7 +1138,7 @@ mod test {
 
         let html = "<span class=article-header-inner><a href=\"url\">this is a #test for </a></span><span class=article-header-inner><a class=inner-link href=\"./?tag=words\">#words</a></span><span class=article-header-inner><a href=\"url\"> here</a></span>";
 
-        assert_eq!(prettify_title(title, "url", &mut MyData).string, CLEANER.clean(html).to_string());
+        assert_eq!(CLEANER.clean(&prettify_title(title, "url", &mut MyData).string).to_string(), CLEANER.clean(html).to_string());
     }
     #[test]
     fn test_example_title_avoid_empty_links() {
@@ -1138,7 +1162,7 @@ mod test {
 
         let html = "<span class=article-header-inner><a href=\"url\">this is a #test for </a></span><span class=article-header-inner><a class=inner-link href=\"./?tag=words\">#words</a> </span><span class=article-header-inner><a class=inner-link href=\"./?tag=words\">#words</a></span>";
 
-        assert_eq!(prettify_title(title, "url", &mut MyData).string, CLEANER.clean(html).to_string());
+        assert_eq!(&prettify_title(title, "url", &mut MyData).string, html);
     }
     #[test]
     fn test_windows_newlines() {
@@ -1243,7 +1267,7 @@ mod test {
                 hostname.to_owned()
             }
         }
-        assert_eq!(prettify_title(comment, "url", &mut MyData).string, CLEANER.clean(html).to_string());
+        assert_eq!(CLEANER.clean(&prettify_title(comment, "url", &mut MyData).string).to_string(), CLEANER.clean(html).to_string());
     }
     #[test]
     fn test_double_space_title() {
@@ -1264,7 +1288,7 @@ mod test {
                 hostname.to_owned()
             }
         }
-        assert_eq!(prettify_title(comment, "url", &mut MyData).string, CLEANER.clean(html).to_string());
+        assert_eq!(CLEANER.clean(&prettify_title(comment, "url", &mut MyData).string).to_string(), CLEANER.clean(html).to_string());
     }
     #[test]
     fn test_ends_with_hash_title() {
@@ -1285,12 +1309,33 @@ mod test {
                 hostname.to_owned()
             }
         }
-        assert_eq!(prettify_title(comment, "url", &mut MyData).string, CLEANER.clean(html).to_string());
+        assert_eq!(CLEANER.clean(&prettify_title(comment, "url", &mut MyData).string).to_string(), CLEANER.clean(html).to_string());
     }
     #[test]
     fn test_bbcode() {
         let comment = "[url]ok[/url] [url=u]ok[/url] [url=u[/url]]";
         let html = "<p><a href=\"ok\">ok</a> <a href=\"u\">ok</a> [url=u[/url]]";
+        struct MyData;
+        impl Data for MyData {
+            fn check_comment_ref(&mut self, id: i32) -> bool {
+                id == 12345
+            }
+            fn check_hash_tag(&mut self, tag: &str) -> bool {
+                tag == "words"
+            }
+            fn check_username(&mut self, username: &str) -> bool {
+                username == "mentioning"
+            }
+            fn get_domain_canonical(&mut self, hostname: &str) -> String {
+                hostname.to_owned()
+            }
+        }
+        assert_eq!(prettify_body_bbcode(comment, &mut MyData).string, CLEANER.clean(html).to_string());
+    }
+    #[test]
+    fn test_bbcode_quote2() {
+        let comment = "[quote]ok[/quote]test";
+        let html = "<p></p><blockquote><p>ok</p></blockquote><p>test</p>";
         struct MyData;
         impl Data for MyData {
             fn check_comment_ref(&mut self, id: i32) -> bool {
@@ -1416,7 +1461,7 @@ mod test {
     #[test]
     fn test_bbcode_quote() {
         let comment = "[quote=pyro]this [i]thing[/i] sucks[/quote]\n\n[quote]okay?[/quote]";
-        let html = "<p>@pyro<blockquote class=good-quote>this <i>thing</i> sucks</blockquote>\n\n<p><blockquote>okay?</blockquote>";
+        let html = "<p>@pyro<blockquote class=good-quote><p>this <i>thing</i> sucks</p></blockquote>\n\n<p><blockquote><p>okay?</p></blockquote>";
         struct MyData;
         impl Data for MyData {
             fn check_comment_ref(&mut self, id: i32) -> bool {
@@ -1437,7 +1482,7 @@ mod test {
     #[test]
     fn test_bbcode_quote_url_param() {
         let comment = "[quote=[url=http://example.com]example[/url]]this [i]thing[/i] sucks[/quote]";
-        let html = "<p><a href=http://example.com>example</a><blockquote class=good-quote>this <i>thing</i> sucks</blockquote>";
+        let html = "<p><a href=http://example.com>example</a><blockquote class=good-quote><p>this <i>thing</i> sucks</p></blockquote>";
         struct MyData;
         impl Data for MyData {
             fn check_comment_ref(&mut self, id: i32) -> bool {
@@ -1458,7 +1503,7 @@ mod test {
     #[test]
     fn test_bbcode_quote_url() {
         let comment = "[quote=[url]http://example.com[/url]]this [i]thing[/i] sucks[/quote]";
-        let html = "<p><a href=http://example.com>http://example.com</a><blockquote class=good-quote>this <i>thing</i> sucks</blockquote>";
+        let html = "<p><a href=http://example.com>http://example.com</a><blockquote class=good-quote><p>this <i>thing</i> sucks</p></blockquote>";
         struct MyData;
         impl Data for MyData {
             fn check_comment_ref(&mut self, id: i32) -> bool {
