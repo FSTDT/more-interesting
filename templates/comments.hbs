@@ -152,16 +152,16 @@
         <input type=hidden name=post value="{{posts.0.uuid}}">
         <span style="float:left;margin-top:1em;position:relative;top:2px"><button>Add comment</button>&nbsp;</span>
     </form>
-    <details-menu-bar class=form-footer>
+    <subscriptions-menu><details-menu-bar class=form-footer>
         <details class=details-menu-outer>
             <summary class=details-menu-summary aria-haspopup=menu role=button>{{#if is_subscribed}}Subscribed{{else}}Not subscribed{{/if}}</summary>
-            <form class=details-menu-inner role=menu action="subscriptions?redirect={{posts.0.uuid}}&U={{session.uuid}}" method=POST is=subscriptions-menu>
+            <form class=details-menu-inner role=menu action="subscriptions?redirect={{posts.0.uuid}}&U={{session.uuid}}" method=POST>
                 <input type=hidden name=post value="{{posts.0.uuid}}">
-                <button class=details-menu-item role=menuitem name=subscribed value=true>Subscribe</button>
-                <button class=details-menu-item role=menuitem name=subscribed value=false>Unsubscribed</button>
+                <button class=details-menu-item role=menuitem name=subscribed value=true>Subscribed</button>
+                <button class=details-menu-item role=menuitem name=subscribed value=false>Not subscribed</button>
             </form>
         </details>
-    </details-menu-bar>
+    </details-menu-bar></subscriptions-menu>
     <p>When you subscribe, you get a notification whenever someone comments on this post.</p>
     </div>
     <script>
