@@ -448,8 +448,8 @@ fn parse_index_params(conn: &MoreInterestingConn, user: &User, params: Option<Fo
     }
     if let Some(user) = params.as_ref().and_then(|params| params.user.as_ref()) {
         if let Ok(user) =conn.get_user_by_username(user) {
-		search.for_user_id = user.id;
-	}
+                search.for_user_id = user.id;
+        }
     }
     if let Some(before_date) = params.as_ref().and_then(|params| params.before_date.as_ref()).and_then(|d| d.parse::<NaiveDate>().ok()) {
         search.before_date = Some(before_date);
@@ -2311,6 +2311,7 @@ fn main() {
             }
             Ok(rocket)
         }))
+        // NOTE: I really need to fix the Subscribed menu on IE11.
         .mount("/", routes![index, login_form, login, logout, create_link_form, create_post_form, create, submit_preview, get_comments, vote, signup, get_settings, create_invite, invite_tree, change_password, post_comment, vote_comment, get_admin_tags, admin_tags, get_tags, edit_post, get_edit_post, edit_comment, get_edit_comment, set_dark_mode, set_big_mode, mod_log, get_mod_queue, moderate_post, moderate_comment, get_public_signup, rebake, random, redirect_legacy_id, latest, rss, top, banner_post, robots_txt, search_comments, new, get_admin_domains, admin_domains, create_message_form, create_message, subscriptions, post_subscriptions, get_reply_comment, preview_comment, get_admin_customization, admin_customization, conv_legacy_id, get_tags_json, get_admin_flags, get_admin_comment_flags, faq, identicon])
         .mount("/assets", StaticFiles::from("assets"))
         .attach(Template::custom(|engines| {
