@@ -1072,3 +1072,8 @@ button.hide-button {
     background: none !important;
     display: flex;
 }
+
+.rp {
+    text-align: center;
+    margin-top: 0.25em;
+}

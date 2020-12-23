@@ -20,6 +20,16 @@ table! {
 table! {
     use crate::sql_types::*;
 
+    comment_readpoints (user_id, post_id) {
+        user_id -> Int4,
+        post_id -> Int4,
+        comment_readpoint -> Int4,
+    }
+}
+
+table! {
+    use crate::sql_types::*;
+
     comments (id) {
         id -> Int4,
         text -> Varchar,
@@ -258,6 +268,8 @@ joinable!(comment_flags -> comments (comment_id));
 joinable!(comment_flags -> users (user_id));
 joinable!(comment_hides -> comments (comment_id));
 joinable!(comment_hides -> users (user_id));
+joinable!(comment_readpoints -> posts (post_id));
+joinable!(comment_readpoints -> users (user_id));
 joinable!(comment_stars -> comments (comment_id));
 joinable!(comment_stars -> users (user_id));
 joinable!(comments -> posts (post_id));
@@ -284,6 +296,7 @@ joinable!(user_sessions -> users (user_id));
 allow_tables_to_appear_in_same_query!(
     comment_flags,
     comment_hides,
+    comment_readpoints,
     comments,
     comment_stars,
     domains,

@@ -836,6 +836,7 @@ fn submit_preview(login: Option<LoginSession>, customization: Customization, con
         hotness: 0.0,
         score: 0,
         comment_count: 0,
+        comment_readpoint: None,
         authored_by_submitter: false,
         created_at: Utc::now().naive_utc(),
         created_at_relative: relative_date(&Utc::now().naive_utc()),
@@ -1158,6 +1159,11 @@ fn get_comments(conn: MoreInterestingConn, login: Option<LoginSession>, uuid: St
             conn.use_notification(post_id, user.id).unwrap_or_else(|e| {
                 warn!("Failed to consume notification: {:?}", e);
             });
+            if let Some(comment) = comments.last() {
+                conn.set_readpoint(post_id, user.id, comment.id).unwrap_or_else(|e| {
+                    warn!("Failed to set readpoint: {:?}", e);
+                });
+            }
         }
         let notifications = conn.list_notifications(user.id).unwrap_or(Vec::new());
         let is_private = post_info.private || !post_info.visible;
@@ -1748,7 +1754,7 @@ struct EditCommentForm {
 fn edit_comment(conn: MoreInterestingConn, login: LoginSession, form: Form<EditCommentForm>, config: State<SiteConfig>) -> Result<impl Responder<'static>, Status> {
     let user = login.user;
     let comment = conn.get_comment_by_id(form.comment).map_err(|_| Status::NotFound)?;
-    let post = conn.get_post_info_from_comment(user.id, form.comment).map_err(|_| Status::NotFound)?;
+    let post = conn.get_post_info_from_comment(form.comment).map_err(|_| Status::NotFound)?;
     if user.trust_level < 3 && comment.created_by != user.id {
         return Err(Status::NotFound);
     }
@@ -1847,7 +1853,7 @@ fn get_mod_queue(conn: MoreInterestingConn, login: ModeratorSession, flash: Opti
     let mod_a_comment: bool = rand::random();
     if mod_a_comment {
         if let Some(comment_info) = conn.find_moderated_comment(user.id) {
-            let post_info = conn.get_post_info_from_comment(user.id, comment_info.id).unwrap();
+            let post_info = conn.get_post_info_from_comment(comment_info.id).unwrap();
             return Ok(Template::render("mod-queue-comment", &TemplateContext {
                 title: Cow::Borrowed("moderate comment"),
                 alert: flash.map(|f| f.msg().to_owned()),
@@ -1876,7 +1882,7 @@ fn get_mod_queue(conn: MoreInterestingConn, login: ModeratorSession, flash: Opti
         }))
     }
     if let Some(comment_info) = conn.find_moderated_comment(user.id) {
-        let post_info = conn.get_post_info_from_comment(user.id, comment_info.id).unwrap();
+        let post_info = conn.get_post_info_from_comment(comment_info.id).unwrap();
         return Ok(Template::render("mod-queue-comment", &TemplateContext {
             title: Cow::Borrowed("moderate comment"),
             alert: flash.map(|f| f.msg().to_owned()),
@@ -2031,7 +2037,7 @@ fn moderate_comment(conn: MoreInterestingConn, login: ModeratorSession, form: Fo
     } else {
         return Err(Status::NotFound);
     };
-    let post_info = conn.get_post_info_from_comment(login.user.id, comment_info.id).unwrap();
+    let post_info = conn.get_post_info_from_comment(comment_info.id).unwrap();
     if form.action == "approve" {
         match conn.approve_comment(comment_info.id) {
             Ok(_) => {

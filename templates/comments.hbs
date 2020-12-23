@@ -67,7 +67,7 @@
             </details-menu-bar>
             </footer></form>
         </article>
-        <h3 id=comments>{{posts.0.comment_count}} comments</h3>
+        <h3{{#if posts.0.comment_readpoint}} id=comments{{/if}}>{{posts.0.comment_count}} comments</h3>
         {{#each legacy_comments}}
             <aside id="{{this.id}}">
                 <header class=aside-header>
@@ -113,6 +113,11 @@
                 </footer>
                 </form>
             </aside>{{/if}}
+            {{#if (eq ../posts.0.comment_readpoint this.id)}}
+                {{#if (not @last)}}
+                <div id=comments class=rp>‹new comments›</div>
+                {{/if}}
+            {{/if}}
         {{/each}}
     </ajax-form>
     {{#if user.id}}

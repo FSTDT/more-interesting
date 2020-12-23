@@ -3,7 +3,7 @@ use diesel::prelude::*;
 use diesel::sql_types;
 use diesel::result::Error as DieselError;
 use chrono::{NaiveDate, NaiveDateTime, NaiveTime, Utc, Duration};
-use crate::schema::{site_customization, users, user_sessions, posts, stars, invite_tokens, comments, comment_stars, tags, post_tagging, moderation, flags, comment_flags, domains, legacy_comments, domain_synonyms, notifications, subscriptions, post_hides, comment_hides, post_word_freq};
+use crate::schema::{site_customization, users, user_sessions, posts, stars, invite_tokens, comments, comment_stars, tags, post_tagging, moderation, flags, comment_flags, domains, legacy_comments, domain_synonyms, notifications, subscriptions, post_hides, comment_hides, post_word_freq, comment_readpoints};
 use crate::password::{password_hash, password_verify, PasswordResult};
 use serde::Serialize;
 use more_interesting_base32::Base32;
@@ -204,6 +204,7 @@ pub struct PostInfo {
     pub starred_by_me: bool,
     pub flagged_by_me: bool,
     pub hidden_by_me: bool,
+    pub comment_readpoint: Option<i32>,
     pub excerpt_html: Option<String>,
     pub banner_title: Option<String>,
     pub banner_desc: Option<String>,
@@ -396,6 +397,14 @@ pub enum PostSearchOrderBy {
     Top,
 }
 
+#[derive(Insertable, Queryable, QueryableByName, Serialize)]
+#[table_name="comment_readpoints"]
+pub struct ReadPoint {
+    pub user_id: i32,
+    pub post_id: i32,
+    pub comment_readpoint: i32,
+}
+
 #[derive(Queryable, QueryableByName, Serialize)]
 #[table_name="notifications"]
 pub struct Notification {
@@ -570,6 +579,26 @@ impl MoreInterestingConn {
             .execute(&self.0)?;
         Ok(())
     }
+    pub fn set_readpoint(&self, post_id_value: i32, user_id_value: i32, comment_id_value: i32) -> Result<(), DieselError> {
+        use self::comment_readpoints::dsl::*;
+        let r = diesel::insert_into(comment_readpoints)
+            .values(ReadPoint {
+                user_id: user_id_value,
+                post_id: post_id_value,
+                comment_readpoint: comment_id_value,
+            })
+            .execute(&self.0);
+        if r.is_err() {
+            diesel::update(
+                comment_readpoints
+                .filter(user_id.eq(user_id_value))
+                .filter(post_id.eq(post_id_value))
+            )
+            .set(comment_readpoint.eq(comment_id_value))
+            .execute(&self.0)?;
+        }
+        Ok(())
+    }
     pub fn list_notifications(&self, user_id_value: i32) -> Result<Vec<NotificationInfo>, DieselError> {
         use self::posts::dsl::*;
         use self::users::dsl::*;
@@ -627,45 +656,46 @@ impl MoreInterestingConn {
             .get_results::<i32>(&self.0)?)
     }
     pub fn search_posts(&self, search: &PostSearch) -> Result<Vec<PostInfo>, DieselError> {
-        use self::posts::dsl::*;
-        use self::stars::dsl::*;
-        use self::flags::dsl::*;
-        use self::post_hides::dsl::*;
-        use self::users::dsl::*;
-        use self::subscriptions::dsl::*;
-        use self::post_tagging::dsl::*;
+        use self::posts::dsl::{self as p, *};
+        use self::stars::dsl::{self as s, *};
+        use self::flags::dsl::{self as f, *};
+        use self::post_hides::dsl::{self as ph, *};
+        use self::users::dsl::{self as u, *};
+        use self::subscriptions::dsl::{self as sb, *};
+        use self::post_tagging::dsl::{self as pt, *};
+        use self::comment_readpoints::dsl::{self as cr, *};
         use crate::schema::post_search_index::dsl::*;
         use diesel_full_text_search::{plainto_tsquery, TsVectorExtensions, ts_rank_cd};
         let query = posts.filter(visible.eq(true));
         let mut query = match search.order_by {
-            PostSearchOrderBy::Hottest if search.keywords == "" => query.order_by((initial_stellar_time.desc(), self::posts::dsl::created_at.desc())).into_boxed(),
+            PostSearchOrderBy::Hottest if search.keywords == "" => query.order_by((initial_stellar_time.desc(), p::created_at.desc())).into_boxed(),
             PostSearchOrderBy::Hottest => query.into_boxed(),
-            PostSearchOrderBy::Top => query.order_by((score.desc(), self::posts::dsl::created_at.desc())).into_boxed(),
-            PostSearchOrderBy::Newest => query.order_by((initial_stellar_time.desc(), self::posts::dsl::created_at.desc())).into_boxed(),
-            PostSearchOrderBy::Latest => query.order_by(self::posts::dsl::updated_at.desc()).into_boxed(),
+            PostSearchOrderBy::Top => query.order_by((score.desc(), p::created_at.desc())).into_boxed(),
+            PostSearchOrderBy::Newest => query.order_by((initial_stellar_time.desc(), p::created_at.desc())).into_boxed(),
+            PostSearchOrderBy::Latest => query.order_by(p::updated_at.desc()).into_boxed(),
         };
         if !search.or_domains.is_empty() {
             query = query.filter(domain_id.eq_any(&search.or_domains))
         }
         if !search.or_tags.is_empty() {
             let ids = post_tagging
-                .filter(self::post_tagging::dsl::tag_id.eq_any(&search.or_tags))
-                .select(self::post_tagging::dsl::post_id);
-            query = query.filter(self::posts::dsl::id.eq_any(ids));
+                .filter(pt::tag_id.eq_any(&search.or_tags))
+                .select(pt::post_id);
+            query = query.filter(p::id.eq_any(ids));
         }
         if !search.and_tags.is_empty() {
             for &tag_id_ in &search.and_tags {
                 let ids = post_tagging
-                    .filter(self::post_tagging::dsl::tag_id.eq(tag_id_))
-                    .select(self::post_tagging::dsl::post_id);
-                query = query.filter(self::posts::dsl::id.eq_any(ids));
+                    .filter(pt::tag_id.eq(tag_id_))
+                    .select(pt::post_id);
+                query = query.filter(p::id.eq_any(ids));
             }
         }
         if search.subscriptions {
             let ids = subscriptions
-                .filter(self::subscriptions::dsl::user_id.eq(search.my_user_id))
-                .select(self::subscriptions::dsl::post_id);
-            query = query.filter(self::posts::dsl::id.eq_any(ids));
+                .filter(sb::user_id.eq(search.my_user_id))
+                .select(sb::post_id);
+            query = query.filter(p::id.eq_any(ids));
         } else {
             query = query.filter(private.eq(false));
         }
@@ -676,53 +706,55 @@ impl MoreInterestingConn {
         }
         if let Some(before_date) = before_date {
             let midnight = NaiveTime::from_hms(23, 59, 59);
-            query = query.filter(self::posts::dsl::created_at.lt(before_date.and_time(midnight)));
+            query = query.filter(p::created_at.lt(before_date.and_time(midnight)));
         }
         if let Some(after_date) = after_date {
             let midnight = NaiveTime::from_hms(0, 0, 0);
-            query = query.filter(self::posts::dsl::created_at.gt(after_date.and_time(midnight)));
+            query = query.filter(p::created_at.gt(after_date.and_time(midnight)));
         }
         if search.for_user_id != 0 {
-            query = query.filter(self::posts::dsl::submitted_by.eq(search.for_user_id));
+            query = query.filter(p::submitted_by.eq(search.for_user_id));
         }
         if search.title != "" {
-            query = query.filter(self::posts::dsl::title.like(format!("%{}%", &search.title)));
+            query = query.filter(p::title.like(format!("%{}%", &search.title)));
         }
         let mut data = PrettifyData::new(self, 0);
         let mut all: Vec<PostInfo> = if search.keywords != "" && search.order_by == PostSearchOrderBy::Hottest {
             if search.my_user_id != 0 {
                 query
-                    .left_outer_join(stars.on(self::stars::dsl::post_id.eq(self::posts::dsl::id).and(self::stars::dsl::user_id.eq(search.my_user_id))))
-                    .left_outer_join(flags.on(self::flags::dsl::post_id.eq(self::posts::dsl::id).and(self::flags::dsl::user_id.eq(search.my_user_id))))
-                    .left_outer_join(post_hides.on(self::post_hides::dsl::post_id.eq(self::posts::dsl::id).and(self::post_hides::dsl::user_id.eq(search.my_user_id))))
+                    .left_outer_join(stars.on(s::post_id.eq(p::id).and(s::user_id.eq(search.my_user_id))))
+                    .left_outer_join(flags.on(f::post_id.eq(p::id).and(f::user_id.eq(search.my_user_id))))
+                    .left_outer_join(post_hides.on(ph::post_id.eq(p::id).and(ph::user_id.eq(search.my_user_id))))
+                    .left_outer_join(comment_readpoints.on(cr::post_id.eq(p::id).and(cr::user_id.eq(search.my_user_id))))
                     .inner_join(users)
                     .inner_join(post_search_index)
                     .select((
-                        self::posts::dsl::id,
-                        self::posts::dsl::uuid,
-                        self::posts::dsl::title,
-                        self::posts::dsl::url,
-                        self::posts::dsl::visible,
-                        self::posts::dsl::private,
-                        self::posts::dsl::initial_stellar_time,
-                        self::posts::dsl::score,
-                        self::posts::dsl::comment_count,
-                        self::posts::dsl::authored_by_submitter,
-                        self::posts::dsl::created_at,
-                        self::posts::dsl::submitted_by,
-                        self::posts::dsl::excerpt_html,
-                        self::stars::dsl::post_id.nullable(),
-                        self::flags::dsl::post_id.nullable(),
-                        self::post_hides::dsl::post_id.nullable(),
-                        self::users::dsl::username,
-                        self::posts::dsl::banner_title,
-                        self::posts::dsl::banner_desc,
+                        p::id,
+                        p::uuid,
+                        p::title,
+                        p::url,
+                        p::visible,
+                        p::private,
+                        p::initial_stellar_time,
+                        p::score,
+                        p::comment_count,
+                        cr::comment_readpoint.nullable(),
+                        p::authored_by_submitter,
+                        p::created_at,
+                        p::submitted_by,
+                        p::excerpt_html,
+                        s::post_id.nullable(),
+                        f::post_id.nullable(),
+                        ph::post_id.nullable(),
+                        u::username,
+                        p::banner_title,
+                        p::banner_desc,
                     ))
                     .filter(search_index.matches(plainto_tsquery(&search.keywords)))
                     .order_by(ts_rank_cd(search_index, plainto_tsquery(&search.keywords)).desc())
                     .offset(search.search_page as i64 * 75)
                     .limit(75)
-                    .get_results::<(i32, Base32, String, Option<String>, bool, bool, i32, i32, i32, bool, NaiveDateTime, i32, Option<String>, Option<i32>, Option<i32>, Option<i32>, String, Option<String>, Option<String>)>(&self.0)?
+                    .get_results::<(i32, Base32, String, Option<String>, bool, bool, i32, i32, i32, Option<i32>, bool, NaiveDateTime, i32, Option<String>, Option<i32>, Option<i32>, Option<i32>, String, Option<String>, Option<String>)>(&self.0)?
                     .into_iter()
                     .map(|t| tuple_to_post_info(&mut data, t, self.get_current_stellar_time()))
                     .collect()
@@ -731,22 +763,22 @@ impl MoreInterestingConn {
                     .inner_join(users)
                     .inner_join(post_search_index)
                     .select((
-                        self::posts::dsl::id,
-                        self::posts::dsl::uuid,
-                        self::posts::dsl::title,
-                        self::posts::dsl::url,
-                        self::posts::dsl::visible,
-                        self::posts::dsl::private,
-                        self::posts::dsl::initial_stellar_time,
-                        self::posts::dsl::score,
-                        self::posts::dsl::comment_count,
-                        self::posts::dsl::authored_by_submitter,
-                        self::posts::dsl::created_at,
-                        self::posts::dsl::submitted_by,
-                        self::posts::dsl::excerpt_html,
-                        self::users::dsl::username,
-                        self::posts::dsl::banner_title,
-                        self::posts::dsl::banner_desc,
+                        p::id,
+                        p::uuid,
+                        p::title,
+                        p::url,
+                        p::visible,
+                        p::private,
+                        p::initial_stellar_time,
+                        p::score,
+                        p::comment_count,
+                        p::authored_by_submitter,
+                        p::created_at,
+                        p::submitted_by,
+                        p::excerpt_html,
+                        u::username,
+                        p::banner_title,
+                        p::banner_desc,
                     ))
                     .filter(search_index.matches(plainto_tsquery(&search.keywords)))
                     .order_by(ts_rank_cd(search_index, plainto_tsquery(&search.keywords)).desc())
@@ -762,9 +794,9 @@ impl MoreInterestingConn {
                 let ids = post_search_index
                     .filter(search_index.matches(plainto_tsquery(&search.keywords)))
                     .select(crate::schema::post_search_index::dsl::post_id);
-                query = query.filter(self::posts::dsl::id.eq_any(ids));
+                query = query.filter(p::id.eq_any(ids));
             } else if search.after_post_id != 0 {
-                query = query.filter(self::posts::dsl::id.lt(search.after_post_id));
+                query = query.filter(p::id.lt(search.after_post_id));
             }
             let search_page = if search.keywords == "" {
                 0
@@ -772,34 +804,36 @@ impl MoreInterestingConn {
                 search.search_page
             };
             query
-                .left_outer_join(stars.on(self::stars::dsl::post_id.eq(self::posts::dsl::id).and(self::stars::dsl::user_id.eq(search.my_user_id))))
-                .left_outer_join(flags.on(self::flags::dsl::post_id.eq(self::posts::dsl::id).and(self::flags::dsl::user_id.eq(search.my_user_id))))
-                .left_outer_join(post_hides.on(self::post_hides::dsl::post_id.eq(self::posts::dsl::id).and(self::post_hides::dsl::user_id.eq(search.my_user_id))))
+                .left_outer_join(stars.on(s::post_id.eq(p::id).and(s::user_id.eq(search.my_user_id))))
+                .left_outer_join(flags.on(f::post_id.eq(p::id).and(f::user_id.eq(search.my_user_id))))
+                .left_outer_join(post_hides.on(ph::post_id.eq(p::id).and(ph::user_id.eq(search.my_user_id))))
+                .left_outer_join(comment_readpoints.on(cr::post_id.eq(p::id).and(cr::user_id.eq(search.my_user_id))))
                 .inner_join(users)
                 .select((
-                    self::posts::dsl::id,
-                    self::posts::dsl::uuid,
-                    self::posts::dsl::title,
-                    self::posts::dsl::url,
-                    self::posts::dsl::visible,
-                    self::posts::dsl::private,
-                    self::posts::dsl::initial_stellar_time,
-                    self::posts::dsl::score,
-                    self::posts::dsl::comment_count,
-                    self::posts::dsl::authored_by_submitter,
-                    self::posts::dsl::created_at,
-                    self::posts::dsl::submitted_by,
-                    self::posts::dsl::excerpt_html,
-                    self::stars::dsl::post_id.nullable(),
-                    self::flags::dsl::post_id.nullable(),
-                    self::post_hides::dsl::post_id.nullable(),
-                    self::users::dsl::username,
-                    self::posts::dsl::banner_title,
-                    self::posts::dsl::banner_desc,
+                    p::id,
+                    p::uuid,
+                    p::title,
+                    p::url,
+                    p::visible,
+                    p::private,
+                    p::initial_stellar_time,
+                    p::score,
+                    p::comment_count,
+                    cr::comment_readpoint.nullable(),
+                    p::authored_by_submitter,
+                    p::created_at,
+                    p::submitted_by,
+                    p::excerpt_html,
+                    s::post_id.nullable(),
+                    f::post_id.nullable(),
+                    ph::post_id.nullable(),
+                    u::username,
+                    p::banner_title,
+                    p::banner_desc,
                 ))
                 .offset(search_page as i64 * 75)
                 .limit(75)
-                .get_results::<(i32, Base32, String, Option<String>, bool, bool, i32, i32, i32, bool, NaiveDateTime, i32, Option<String>, Option<i32>, Option<i32>, Option<i32>, String, Option<String>, Option<String>)>(&self.0)?
+                .get_results::<(i32, Base32, String, Option<String>, bool, bool, i32, i32, i32, Option<i32>, bool, NaiveDateTime, i32, Option<String>, Option<i32>, Option<i32>, Option<i32>, String, Option<String>, Option<String>)>(&self.0)?
                 .into_iter()
                 .map(|t| tuple_to_post_info(&mut data, t, self.get_current_stellar_time()))
                 .collect()
@@ -816,6 +850,7 @@ impl MoreInterestingConn {
         use self::flags::dsl::{self as f, *};
         use self::post_hides::dsl::{self as ph, *};
         use self::users::dsl::{self as u, *};
+        use self::comment_readpoints::{self as cr, *};
         use crate::schema::post_search_index::dsl::{self as psi, *};
         use diesel_full_text_search::{to_tsquery, ts_rank, TsVectorExtensions};
         // Find the 10 least frequent words in this post.
@@ -848,6 +883,7 @@ impl MoreInterestingConn {
             .left_outer_join(stars.on(s::post_id.eq(self::posts::dsl::id).and(s::user_id.eq(user_id_param))))
             .left_outer_join(flags.on(f::post_id.eq(p::id).and(f::user_id.eq(user_id_param))))
             .left_outer_join(post_hides.on(ph::post_id.eq(p::id).and(ph::user_id.eq(user_id_param))))
+            .left_outer_join(cr::table.on(cr::post_id.eq(p::id).and(cr::user_id.eq(user_id_param))))
             .inner_join(users)
             .inner_join(post_search_index)
             .select((
@@ -860,6 +896,7 @@ impl MoreInterestingConn {
                 p::initial_stellar_time,
                 p::score,
                 p::comment_count,
+                cr::comment_readpoint.nullable(),
                 p::authored_by_submitter,
                 p::created_at,
                 p::submitted_by,
@@ -877,7 +914,7 @@ impl MoreInterestingConn {
             .filter(psi::search_index.matches(to_tsquery(&word_list_short)))
             .order_by(ts_rank(psi::search_index, to_tsquery(&word_list)).desc())
             .limit(100)
-            .get_results::<(i32, Base32, String, Option<String>, bool, bool, i32, i32, i32, bool, NaiveDateTime, i32, Option<String>, Option<i32>, Option<i32>, Option<i32>, String, Option<String>, Option<String>)>(&self.0)?
+            .get_results::<(i32, Base32, String, Option<String>, bool, bool, i32, i32, i32, Option<i32>, bool, NaiveDateTime, i32, Option<String>, Option<i32>, Option<i32>, Option<i32>, String, Option<String>, Option<String>)>(&self.0)?
             .into_iter()
             .map(|t| tuple_to_post_info(&mut data, t, self.get_current_stellar_time()))
             .collect();
@@ -885,44 +922,47 @@ impl MoreInterestingConn {
     }
 
     pub fn get_post_info_recent_by_user(&self, user_id_param: i32, user_info_id_param: i32) -> Result<Vec<PostInfo>, DieselError> {
-        use self::posts::dsl::*;
-        use self::stars::dsl::*;
-        use self::flags::dsl::*;
-        use self::post_hides::dsl::*;
-        use self::users::dsl::*;
+        use self::posts::dsl::{self as p, *};
+        use self::stars::dsl::{self as s, *};
+        use self::flags::dsl::{self as f, *};
+        use self::post_hides::dsl::{self as ph, *};
+        use self::users::dsl::{self as u, *};
+        use self::comment_readpoints::{self as cr, *};
         let mut data = PrettifyData::new(self, 0);
         let mut all: Vec<PostInfo> = posts
-            .left_outer_join(stars.on(self::stars::dsl::post_id.eq(self::posts::dsl::id).and(self::stars::dsl::user_id.eq(user_id_param))))
-            .left_outer_join(flags.on(self::flags::dsl::post_id.eq(self::posts::dsl::id).and(self::flags::dsl::user_id.eq(user_id_param))))
-            .left_outer_join(post_hides.on(self::post_hides::dsl::post_id.eq(self::posts::dsl::id).and(self::post_hides::dsl::user_id.eq(user_id_param))))
+            .left_outer_join(stars.on(s::post_id.eq(p::id).and(s::user_id.eq(user_id_param))))
+            .left_outer_join(flags.on(f::post_id.eq(p::id).and(f::user_id.eq(user_id_param))))
+            .left_outer_join(post_hides.on(ph::post_id.eq(p::id).and(ph::user_id.eq(user_id_param))))
+            .left_outer_join(cr::table.on(cr::post_id.eq(p::id).and(cr::user_id.eq(user_id_param))))
             .inner_join(users)
             .select((
-                self::posts::dsl::id,
-                self::posts::dsl::uuid,
-                self::posts::dsl::title,
-                self::posts::dsl::url,
-                self::posts::dsl::visible,
-                self::posts::dsl::private,
-                self::posts::dsl::initial_stellar_time,
-                self::posts::dsl::score,
-                self::posts::dsl::comment_count,
-                self::posts::dsl::authored_by_submitter,
-                self::posts::dsl::created_at,
-                self::posts::dsl::submitted_by,
-                self::posts::dsl::excerpt_html,
-                self::stars::dsl::post_id.nullable(),
-                self::flags::dsl::post_id.nullable(),
-                self::post_hides::dsl::post_id.nullable(),
-                self::users::dsl::username,
-                self::posts::dsl::banner_title,
-                self::posts::dsl::banner_desc,
+                p::id,
+                p::uuid,
+                p::title,
+                p::url,
+                p::visible,
+                p::private,
+                p::initial_stellar_time,
+                p::score,
+                p::comment_count,
+                cr::comment_readpoint.nullable(),
+                p::authored_by_submitter,
+                p::created_at,
+                p::submitted_by,
+                p::excerpt_html,
+                s::post_id.nullable(),
+                f::post_id.nullable(),
+                ph::post_id.nullable(),
+                u::username,
+                p::banner_title,
+                p::banner_desc,
             ))
             .filter(visible.eq(true))
             .filter(private.eq(false))
-            .filter(self::posts::dsl::submitted_by.eq(user_info_id_param))
-            .order_by((initial_stellar_time.desc(), self::posts::dsl::created_at.desc()))
+            .filter(p::submitted_by.eq(user_info_id_param))
+            .order_by((initial_stellar_time.desc(), p::created_at.desc()))
             .limit(75)
-            .get_results::<(i32, Base32, String, Option<String>, bool, bool, i32, i32, i32, bool, NaiveDateTime, i32, Option<String>, Option<i32>, Option<i32>, Option<i32>, String, Option<String>, Option<String>)>(&self.0)?
+            .get_results::<(i32, Base32, String, Option<String>, bool, bool, i32, i32, i32, Option<i32>, bool, NaiveDateTime, i32, Option<String>, Option<i32>, Option<i32>, Option<i32>, String, Option<String>, Option<String>)>(&self.0)?
             .into_iter()
             .map(|t| tuple_to_post_info(&mut data, t, self.get_current_stellar_time()))
             .collect();
@@ -931,42 +971,45 @@ impl MoreInterestingConn {
         Ok(all)
     }
     pub fn get_post_info_by_uuid(&self, user_id_param: i32, uuid_param: Base32) -> Result<PostInfo, DieselError> {
-        use self::posts::dsl::*;
-        use self::stars::dsl::*;
-        use self::flags::dsl::*;
-        use self::post_hides::dsl::*;
-        use self::users::dsl::*;
+        use self::posts::dsl::{self as p, *};
+        use self::stars::dsl::{self as s, *};
+        use self::flags::dsl::{self as f, *};
+        use self::post_hides::dsl::{self as ph, *};
+        use self::users::dsl::{self as u, *};
+        use self::comment_readpoints::dsl::{self as cr, *};
         // This is a bunch of duplicate code.
         let mut data = PrettifyData::new(self, 0);
         Ok(tuple_to_post_info(&mut data, posts
-            .left_outer_join(stars.on(self::stars::dsl::post_id.eq(self::posts::dsl::id).and(self::stars::dsl::user_id.eq(user_id_param))))
-            .left_outer_join(flags.on(self::flags::dsl::post_id.eq(self::posts::dsl::id).and(self::flags::dsl::user_id.eq(user_id_param))))
-            .left_outer_join(post_hides.on(self::post_hides::dsl::post_id.eq(self::posts::dsl::id).and(self::post_hides::dsl::user_id.eq(user_id_param))))
+            .left_outer_join(stars.on(s::post_id.eq(p::id).and(s::user_id.eq(user_id_param))))
+            .left_outer_join(flags.on(f::post_id.eq(p::id).and(f::user_id.eq(user_id_param))))
+            .left_outer_join(post_hides.on(ph::post_id.eq(p::id).and(ph::user_id.eq(user_id_param))))
+            .left_outer_join(comment_readpoints.on(cr::post_id.eq(p::id).and(cr::user_id.eq(user_id_param))))
             .inner_join(users)
             .select((
-                self::posts::dsl::id,
-                self::posts::dsl::uuid,
-                self::posts::dsl::title,
-                self::posts::dsl::url,
-                self::posts::dsl::visible,
-                self::posts::dsl::private,
-                self::posts::dsl::initial_stellar_time,
-                self::posts::dsl::score,
-                self::posts::dsl::comment_count,
-                self::posts::dsl::authored_by_submitter,
-                self::posts::dsl::created_at,
-                self::posts::dsl::submitted_by,
-                self::posts::dsl::excerpt_html,
-                self::stars::dsl::post_id.nullable(),
-                self::flags::dsl::post_id.nullable(),
-                self::post_hides::dsl::post_id.nullable(),
-                self::users::dsl::username,
-                self::posts::dsl::banner_title,
-                self::posts::dsl::banner_desc,
+                p::id,
+                p::uuid,
+                p::title,
+                p::url,
+                p::visible,
+                p::private,
+                p::initial_stellar_time,
+                p::score,
+                p::comment_count,
+                cr::comment_readpoint.nullable(),
+                p::authored_by_submitter,
+                p::created_at,
+                p::submitted_by,
+                p::excerpt_html,
+                s::post_id.nullable(),
+                f::post_id.nullable(),
+                ph::post_id.nullable(),
+                u::username,
+                p::banner_title,
+                p::banner_desc,
             ))
             .filter(rejected.eq(false))
             .filter(uuid.eq(uuid_param.into_i64()))
-            .first::<(i32, Base32, String, Option<String>, bool, bool, i32, i32, i32, bool, NaiveDateTime, i32, Option<String>, Option<i32>, Option<i32>, Option<i32>, String, Option<String>, Option<String>)>(&self.0)?, self.get_current_stellar_time()))
+            .first::<(i32, Base32, String, Option<String>, bool, bool, i32, i32, i32, Option<i32>, bool, NaiveDateTime, i32, Option<String>, Option<i32>, Option<i32>, Option<i32>, String, Option<String>, Option<String>)>(&self.0)?, self.get_current_stellar_time()))
     }
     pub fn get_user_comments_count_today(&self, user_id_value: i32) -> i32 {
         use self::comments::dsl::*;
@@ -1610,44 +1653,39 @@ impl MoreInterestingConn {
             .collect();
         Ok(all)
     }
-    pub fn get_post_info_from_comment(&self, user_id_param: i32, comment_id_param: i32) -> Result<PostInfo, DieselError> {
-        use self::posts::dsl::*;
-        use self::stars::dsl::*;
-        use self::flags::dsl::*;
-        use self::post_hides::dsl::*;
-        use self::users::dsl::*;
-        use self::comments::dsl::*;
+    pub fn get_post_info_from_comment(&self, comment_id_param: i32) -> Result<PostInfo, DieselError> {
+        use self::posts::dsl::{self as p, *};
+        use self::stars::dsl::{self as s, *};
+        use self::flags::dsl::{self as f, *};
+        use self::post_hides::dsl::{self as ph, *};
+        use self::users::dsl::{self as u, *};
+        use self::comments::dsl::{self as c, *};
+        use self::comment_readpoints::{self as cr, *};
         // This is a bunch of duplicate code.
         let mut data = PrettifyData::new(self, 0);
-        Ok(tuple_to_post_info(&mut data, posts
-            .left_outer_join(stars.on(self::stars::dsl::post_id.eq(self::posts::dsl::id).and(self::stars::dsl::user_id.eq(user_id_param))))
-            .left_outer_join(flags.on(self::flags::dsl::post_id.eq(self::posts::dsl::id).and(self::flags::dsl::user_id.eq(user_id_param))))
-            .left_outer_join(post_hides.on(self::post_hides::dsl::post_id.eq(self::posts::dsl::id).and(self::post_hides::dsl::user_id.eq(user_id_param))))
+        Ok(tuple_to_post_info_logged_out(&mut data, posts
             .inner_join(users)
             .inner_join(comments)
             .select((
-                self::posts::dsl::id,
-                self::posts::dsl::uuid,
-                self::posts::dsl::title,
-                self::posts::dsl::url,
-                self::posts::dsl::visible,
-                self::posts::dsl::private,
-                self::posts::dsl::initial_stellar_time,
-                self::posts::dsl::score,
-                self::posts::dsl::comment_count,
-                self::posts::dsl::authored_by_submitter,
-                self::posts::dsl::created_at,
-                self::posts::dsl::submitted_by,
-                self::posts::dsl::excerpt_html,
-                self::stars::dsl::post_id.nullable(),
-                self::flags::dsl::post_id.nullable(),
-                self::post_hides::dsl::post_id.nullable(),
-                self::users::dsl::username,
-                self::posts::dsl::banner_title,
-                self::posts::dsl::banner_desc,
+                p::id,
+                p::uuid,
+                p::title,
+                p::url,
+                p::visible,
+                p::private,
+                p::initial_stellar_time,
+                p::score,
+                p::comment_count,
+                p::authored_by_submitter,
+                p::created_at,
+                p::submitted_by,
+                p::excerpt_html,
+                u::username,
+                p::banner_title,
+                p::banner_desc,
             ))
             .filter(self::comments::dsl::id.eq(comment_id_param))
-            .first::<(i32, Base32, String, Option<String>, bool, bool, i32, i32, i32, bool, NaiveDateTime, i32, Option<String>, Option<i32>, Option<i32>, Option<i32>, String, Option<String>, Option<String>)>(&self.0)?, self.get_current_stellar_time()))
+            .first::<(i32, Base32, String, Option<String>, bool, bool, i32, i32, i32, bool, NaiveDateTime, i32, Option<String>, String, Option<String>, Option<String>)>(&self.0)?, self.get_current_stellar_time()))
     }
     pub fn get_post_starred_by(&self, post_id_param: i32) -> Result<Vec<String>, DieselError> {
         use self::stars::dsl::*;
@@ -1960,44 +1998,47 @@ impl MoreInterestingConn {
             .map(|_| ())
     }
     pub fn find_moderated_post(&self, user_id_param: i32) -> Option<PostInfo> {
-        use self::posts::dsl::*;
-        use self::stars::dsl::*;
-        use self::flags::dsl::*;
-        use self::post_hides::dsl::*;
-        use self::users::dsl::*;
+        use self::posts::dsl::{self as p, *};
+        use self::stars::dsl::{self as s, *};
+        use self::flags::dsl::{self as f, *};
+        use self::post_hides::dsl::{self as ph, *};
+        use self::users::dsl::{self as u, *};
+        use self::comment_readpoints::{self as cr, *};
         let mut data = PrettifyData::new(self, 0);
         let mut all: Vec<PostInfo> = posts
-            .left_outer_join(stars.on(self::stars::dsl::post_id.eq(self::posts::dsl::id).and(self::stars::dsl::user_id.eq(user_id_param))))
-            .left_outer_join(flags.on(self::flags::dsl::post_id.eq(self::posts::dsl::id).and(self::flags::dsl::user_id.eq(user_id_param))))
-            .left_outer_join(post_hides.on(self::post_hides::dsl::post_id.eq(self::posts::dsl::id).and(self::post_hides::dsl::user_id.eq(user_id_param))))
+            .left_outer_join(stars.on(s::post_id.eq(p::id).and(s::user_id.eq(user_id_param))))
+            .left_outer_join(flags.on(f::post_id.eq(p::id).and(f::user_id.eq(user_id_param))))
+            .left_outer_join(post_hides.on(ph::post_id.eq(p::id).and(ph::user_id.eq(user_id_param))))
+            .left_outer_join(cr::table.on(cr::post_id.eq(p::id).and(cr::user_id.eq(user_id_param))))
             .inner_join(users)
             .select((
-                self::posts::dsl::id,
-                self::posts::dsl::uuid,
-                self::posts::dsl::title,
-                self::posts::dsl::url,
-                self::posts::dsl::visible,
-                self::posts::dsl::private,
-                self::posts::dsl::initial_stellar_time,
-                self::posts::dsl::score,
-                self::posts::dsl::comment_count,
-                self::posts::dsl::authored_by_submitter,
-                self::posts::dsl::created_at,
-                self::posts::dsl::submitted_by,
-                self::posts::dsl::excerpt_html,
-                self::stars::dsl::post_id.nullable(),
-                self::flags::dsl::post_id.nullable(),
-                self::post_hides::dsl::post_id.nullable(),
-                self::users::dsl::username,
-                self::posts::dsl::banner_title,
-                self::posts::dsl::banner_desc,
+                p::id,
+                p::uuid,
+                p::title,
+                p::url,
+                p::visible,
+                p::private,
+                p::initial_stellar_time,
+                p::score,
+                p::comment_count,
+                cr::comment_readpoint.nullable(),
+                p::authored_by_submitter,
+                p::created_at,
+                p::submitted_by,
+                p::excerpt_html,
+                s::post_id.nullable(),
+                f::post_id.nullable(),
+                ph::post_id.nullable(),
+                u::username,
+                p::banner_title,
+                p::banner_desc,
             ))
             .filter(visible.eq(false))
             .filter(rejected.eq(false))
             .filter(self::users::dsl::trust_level.gt(-2))
             .order_by(self::posts::dsl::created_at.asc())
             .limit(50)
-            .get_results::<(i32, Base32, String, Option<String>, bool, bool, i32, i32, i32, bool, NaiveDateTime, i32, Option<String>, Option<i32>, Option<i32>, Option<i32>, String, Option<String>, Option<String>)>(&self.0).ok()?
+            .get_results::<(i32, Base32, String, Option<String>, bool, bool, i32, i32, i32, Option<i32>, bool, NaiveDateTime, i32, Option<String>, Option<i32>, Option<i32>, Option<i32>, String, Option<String>, Option<String>)>(&self.0).ok()?
             .into_iter()
             .map(|t| tuple_to_post_info(&mut data, t, self.get_current_stellar_time()))
             .collect();
@@ -2203,10 +2244,10 @@ fn tuple_to_notification_info((post_uuid, post_title, comment_count, from_userna
 }
 
 fn tuple_to_post_info_logged_out(data: &mut PrettifyData, (id, uuid, title, url, visible, private, initial_stellar_time, score, comment_count, authored_by_submitter, created_at, submitted_by, excerpt_html, submitted_by_username, banner_title, banner_desc): (i32, Base32, String, Option<String>, bool, bool, i32, i32, i32, bool, NaiveDateTime, i32, Option<String>, String, Option<String>, Option<String>), current_stellar_time: i32) -> PostInfo {
-    tuple_to_post_info(data, (id, uuid, title, url, visible, private, initial_stellar_time, score, comment_count, authored_by_submitter, created_at, submitted_by, excerpt_html, None, None, None, submitted_by_username, banner_title, banner_desc), current_stellar_time)
+    tuple_to_post_info(data, (id, uuid, title, url, visible, private, initial_stellar_time, score, comment_count, None, authored_by_submitter, created_at, submitted_by, excerpt_html, None, None, None, submitted_by_username, banner_title, banner_desc), current_stellar_time)
 }
 
-fn tuple_to_post_info(data: &mut PrettifyData, (id, uuid, title, url, visible, private, initial_stellar_time, score, comment_count, authored_by_submitter, created_at, submitted_by, excerpt_html, starred_post_id, flagged_post_id, hidden_post_id, submitted_by_username, banner_title, banner_desc): (i32, Base32, String, Option<String>, bool, bool, i32, i32, i32, bool, NaiveDateTime, i32, Option<String>, Option<i32>, Option<i32>, Option<i32>, String, Option<String>, Option<String>), current_stellar_time: i32) -> PostInfo {
+fn tuple_to_post_info(data: &mut PrettifyData, (id, uuid, title, url, visible, private, initial_stellar_time, score, comment_count, comment_readpoint, authored_by_submitter, created_at, submitted_by, excerpt_html, starred_post_id, flagged_post_id, hidden_post_id, submitted_by_username, banner_title, banner_desc): (i32, Base32, String, Option<String>, bool, bool, i32, i32, i32, Option<i32>, bool, NaiveDateTime, i32, Option<String>, Option<i32>, Option<i32>, Option<i32>, String, Option<String>, Option<String>), current_stellar_time: i32) -> PostInfo {
     let link_url = if let Some(ref url) = url {
         url.clone()
     } else {
@@ -2219,6 +2260,7 @@ fn tuple_to_post_info(data: &mut PrettifyData, (id, uuid, title, url, visible, p
     PostInfo {
         id, uuid, title, url, visible, private, score, authored_by_submitter,
         submitted_by, submitted_by_username, comment_count, title_html,
+        comment_readpoint,
         excerpt_html, banner_title, banner_desc,
         created_at, created_at_relative,
         starred_by_me: starred_post_id.is_some(),
