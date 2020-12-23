@@ -1068,7 +1068,8 @@ button.hide-button {
     left: auto;
     top: 0;
     bottom: 0;
-    border: none;
+    border: none !important;
+    border-image: none !important;
     background: none !important;
     display: flex;
 }
