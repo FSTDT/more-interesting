@@ -114,7 +114,9 @@
                 </form>
             </aside>{{/if}}
             {{#if (eq ../posts.0.comment_readpoint this.id)}}
-                {{#if (not @last)}}
+                {{#if @last}}
+                <div id=comments class=rp></div>
+                {{else}}
                 <div id=comments class=rp>‹new comments›</div>
                 {{/if}}
             {{/if}}
