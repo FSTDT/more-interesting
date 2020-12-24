@@ -73,7 +73,7 @@ export class DetailsMenuBarElement extends HTMLElement {
     }
     _eventRelease(e) {
         var summary = this.querySelector("summary");
-        if (e.target !== summary) {
+        if (e.target !== summary && !e.shiftKey && !e.metaKey && !e.ctrlKey && !e.altKey && e.button === 0) {
             e.currentTarget.click();
             e.preventDefault();
             e.stopPropagation();
