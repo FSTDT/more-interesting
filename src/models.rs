@@ -38,7 +38,9 @@ pub enum CreatePostError {
     DieselError(DieselError),
     RequireTag,
     TooManyPosts,
-    TooLong,
+    TooManyPostsDomain,
+    TooManyPostsDomainUser,
+    TooLong
 }
 
 impl From<DieselError> for CreatePostError {
@@ -1031,6 +1033,17 @@ impl MoreInterestingConn {
             .get_result(&self.0)
             .unwrap_or(0) as i32
     }
+    pub fn get_userdomain_posts_count_today(&self, user_id_value: i32, domain_id_value: i32) -> i32 {
+        use self::posts::dsl::*;
+        let yesterday = Utc::now().naive_utc() - Duration::days(1);
+        posts
+            .filter(domain_id.eq(domain_id_value))
+            .filter(submitted_by.eq(user_id_value))
+            .filter(created_at.gt(yesterday))
+            .count()
+            .get_result(&self.0)
+            .unwrap_or(0) as i32
+    }
     pub fn get_user_posts_count_today(&self, user_id_value: i32) -> i32 {
         use self::posts::dsl::*;
         let yesterday = Utc::now().naive_utc() - Duration::days(1);
@@ -1121,15 +1134,6 @@ impl MoreInterestingConn {
         if self.get_user_posts_count_today(new_post.submitted_by) >= 5 && enforce_rate_limit {
             return Err(CreatePostError::TooManyPosts);
         }
-        if self.get_domain_posts_count_today(new_post.submitted_by) >= 4 && enforce_rate_limit {
-            return Err(CreatePostError::TooManyPosts);
-        }
-        if new_post.title.chars().filter(|&c| c != ' ' && c != '\n').count() > 500 {
-            return Err(CreatePostError::TooLong);
-        }
-        if new_post.excerpt.unwrap_or("").chars().filter(|&c| c != ' ' && c != '\n').count() > 1750 {
-            return Err(CreatePostError::TooLong);
-        }
         let excerpt_html_and_stuff = if let Some(excerpt) = new_post.excerpt {
             let body = match body_format {
                 BodyFormat::Plain => crate::prettify::prettify_body(excerpt, &mut PrettifyData::new(self, 0)),
@@ -1140,9 +1144,18 @@ impl MoreInterestingConn {
             None
         };
         let (url, domain) = self.get_post_domain_url(new_post.url);
+        if new_post.title.chars().filter(|&c| c != ' ' && c != '\n').count() > 500 && !url.is_none() {
+            return Err(CreatePostError::TooLong);
+        }
+        if new_post.excerpt.unwrap_or("").chars().filter(|&c| c != ' ' && c != '\n').count() > 1750 && !url.is_none() {
+            return Err(CreatePostError::TooLong);
+        }
         if let Some(ref domain) = domain {
-            if self.get_domain_posts_count_today(domain.id) > 4 && enforce_rate_limit {
-                return Err(CreatePostError::TooManyPosts);
+            if self.get_domain_posts_count_today(domain.id) >= 4 && enforce_rate_limit {
+                return Err(CreatePostError::TooManyPostsDomain);
+            }
+            if self.get_userdomain_posts_count_today(new_post.submitted_by, domain.id) >= 2 && enforce_rate_limit {
+                return Err(CreatePostError::TooManyPostsDomainUser);
             }
         }
         let result = diesel::insert_into(posts::table)

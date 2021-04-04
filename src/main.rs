@@ -951,6 +951,12 @@ fn create(login: Option<LoginSession>, conn: MoreInterestingConn, post: Form<New
         Err(CreatePostError::TooManyPosts) => {
             Ok(Flash::error(Redirect::to("submit".to_string()), "You have exceeded the post limit for today; try again tomorrow"))
         }
+        Err(CreatePostError::TooManyPostsDomain) => {
+            Ok(Flash::error(Redirect::to("submit".to_string()), "This domain name has exceeded the post limit for today; try submitting quotes from somewhere else"))
+        }
+        Err(CreatePostError::TooManyPostsDomainUser) => {
+            Ok(Flash::error(Redirect::to("submit".to_string()), "You have submitted too many posts from this particular domain; try submitting quotes from somewhere else"))
+        }
         Err(CreatePostError::RequireTag) => {
             Ok(Flash::error(Redirect::to("submit".to_string()), "Please specify at least one tag"))
         }
