@@ -1127,7 +1127,7 @@ impl MoreInterestingConn {
             domain_id: Option<i32>,
         }
         let title_html_and_stuff = crate::prettify::prettify_title(new_post.title, "", &mut PrettifyData::new(self, 0));
-        if title_html_and_stuff.hash_tags.is_empty() {
+        if title_html_and_stuff.hash_tags.is_empty() && !new_post.private {
             return Err(CreatePostError::RequireTag);
         }
         // TODO: make this configurable
