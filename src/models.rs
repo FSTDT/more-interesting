@@ -3,7 +3,7 @@ use diesel::prelude::*;
 use diesel::sql_types;
 use diesel::result::Error as DieselError;
 use chrono::{NaiveDate, NaiveDateTime, NaiveTime, Utc, Duration};
-use crate::schema::{site_customization, users, user_sessions, posts, stars, invite_tokens, comments, comment_stars, tags, post_tagging, moderation, flags, comment_flags, domains, legacy_comments, domain_synonyms, notifications, subscriptions, post_hides, comment_hides, post_word_freq, comment_readpoints};
+use crate::schema::{site_customization, users, user_sessions, posts, stars, invite_tokens, comments, comment_stars, tags, post_tagging, moderation, flags, comment_flags, domains, legacy_comments, domain_synonyms, notifications, subscriptions, post_hides, comment_hides, post_word_freq, comment_readpoints, domain_restrictions};
 use crate::password::{password_hash, password_verify, PasswordResult};
 use serde::Serialize;
 use more_interesting_base32::Base32;
@@ -242,6 +242,13 @@ pub struct NewDomain {
 pub struct DomainSynonym {
     pub from_hostname: String,
     pub to_domain_id: i32,
+}
+
+#[derive(Insertable, Queryable, Serialize)]
+#[table_name="domain_restrictions"]
+pub struct DomainRestriction {
+    pub domain_id: i32,
+    pub restriction_level: i32,
 }
 
 #[derive(Queryable, Serialize)]
@@ -1126,6 +1133,7 @@ impl MoreInterestingConn {
             private: bool,
             domain_id: Option<i32>,
         }
+        let mut visible = new_post.visible;
         let title_html_and_stuff = crate::prettify::prettify_title(new_post.title, "", &mut PrettifyData::new(self, 0));
         if title_html_and_stuff.hash_tags.is_empty() && !new_post.private {
             return Err(CreatePostError::RequireTag);
@@ -1157,6 +1165,13 @@ impl MoreInterestingConn {
             if self.get_userdomain_posts_count_today(new_post.submitted_by, domain.id) >= 2 && enforce_rate_limit {
                 return Err(CreatePostError::TooManyPostsDomainUser);
             }
+            if let Ok(restriction) = self.get_domain_restriction_by_id(domain.id) {
+                if restriction.restriction_level > 2 {
+                    return Err(CreatePostError::TooManyPostsDomain);
+                } else if restriction.restriction_level > 0 {
+                    visible = false;
+                }
+            }
         }
         let result = diesel::insert_into(posts::table)
             .values(CreatePost {
@@ -1166,10 +1181,9 @@ impl MoreInterestingConn {
                 initial_stellar_time: self.get_current_stellar_time(),
                 excerpt: new_post.excerpt,
                 excerpt_html: excerpt_html_and_stuff.as_ref().map(|e| &e.string[..]),
-                visible: new_post.visible,
                 private: new_post.private,
                 domain_id: domain.map(|d| d.id),
-                url
+                url, visible
             })
             .get_result::<Post>(&self.0);
         if let Ok(ref post) = result {
@@ -1527,6 +1541,10 @@ impl MoreInterestingConn {
         } else {
             domains.filter(hostname.eq(hostname_value)).get_result::<Domain>(&self.0)
         }
+    }
+    pub fn get_domain_restriction_by_id(&self, domain_id_value: i32) -> Result<DomainRestriction, DieselError> {
+        use self::domain_restrictions::dsl::*;
+        domain_restrictions.find(domain_id_value).get_result::<DomainRestriction>(&self.0)
     }
     pub fn comment_on_post(&self, new_post: NewComment, body_format: BodyFormat) -> Result<Comment, CreateCommentError> {
         #[derive(Insertable)]

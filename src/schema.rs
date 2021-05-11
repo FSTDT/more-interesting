@@ -30,6 +30,16 @@ table! {
 table! {
     use crate::sql_types::*;
 
+    comment_stars (user_id, comment_id) {
+        user_id -> Int4,
+        comment_id -> Int4,
+        created_at -> Timestamp,
+    }
+}
+
+table! {
+    use crate::sql_types::*;
+
     comments (id) {
         id -> Int4,
         text -> Varchar,
@@ -46,10 +56,18 @@ table! {
 table! {
     use crate::sql_types::*;
 
-    comment_stars (user_id, comment_id) {
-        user_id -> Int4,
-        comment_id -> Int4,
-        created_at -> Timestamp,
+    domain_restrictions (domain_id) {
+        domain_id -> Int4,
+        restriction_level -> Int4,
+    }
+}
+
+table! {
+    use crate::sql_types::*;
+
+    domain_synonyms (from_hostname) {
+        from_hostname -> Varchar,
+        to_domain_id -> Int4,
     }
 }
 
@@ -62,15 +80,6 @@ table! {
         hostname -> Varchar,
         is_www -> Bool,
         is_https -> Bool,
-    }
-}
-
-table! {
-    use crate::sql_types::*;
-
-    domain_synonyms (from_hostname) {
-        from_hostname -> Varchar,
-        to_domain_id -> Int4,
     }
 }
 
@@ -143,32 +152,6 @@ table! {
 table! {
     use crate::sql_types::*;
 
-    posts (id) {
-        id -> Int4,
-        uuid -> Int8,
-        title -> Varchar,
-        url -> Nullable<Varchar>,
-        visible -> Bool,
-        initial_stellar_time -> Int4,
-        score -> Int4,
-        comment_count -> Int4,
-        authored_by_submitter -> Bool,
-        created_at -> Timestamp,
-        submitted_by -> Int4,
-        excerpt -> Nullable<Varchar>,
-        excerpt_html -> Nullable<Varchar>,
-        updated_at -> Timestamp,
-        rejected -> Bool,
-        domain_id -> Nullable<Int4>,
-        banner_title -> Nullable<Varchar>,
-        banner_desc -> Nullable<Varchar>,
-        private -> Bool,
-    }
-}
-
-table! {
-    use crate::sql_types::*;
-
     post_search_index (post_id) {
         post_id -> Int4,
         search_index -> Tsvector,
@@ -190,6 +173,32 @@ table! {
     post_word_freq (word) {
         word -> Varchar,
         num -> Nullable<Int4>,
+    }
+}
+
+table! {
+    use crate::sql_types::*;
+
+    posts (id) {
+        id -> Int4,
+        uuid -> Int8,
+        title -> Varchar,
+        url -> Nullable<Varchar>,
+        visible -> Bool,
+        initial_stellar_time -> Int4,
+        score -> Int4,
+        comment_count -> Int4,
+        authored_by_submitter -> Bool,
+        created_at -> Timestamp,
+        submitted_by -> Int4,
+        excerpt -> Nullable<Varchar>,
+        excerpt_html -> Nullable<Varchar>,
+        updated_at -> Timestamp,
+        rejected -> Bool,
+        domain_id -> Nullable<Int4>,
+        banner_title -> Nullable<Varchar>,
+        banner_desc -> Nullable<Varchar>,
+        private -> Bool,
     }
 }
 
@@ -239,6 +248,17 @@ table! {
 table! {
     use crate::sql_types::*;
 
+    user_sessions (uuid) {
+        uuid -> Int8,
+        created_at -> Timestamp,
+        user_agent -> Text,
+        user_id -> Int4,
+    }
+}
+
+table! {
+    use crate::sql_types::*;
+
     users (id) {
         id -> Int4,
         banned -> Bool,
@@ -253,17 +273,6 @@ table! {
     }
 }
 
-table! {
-    use crate::sql_types::*;
-
-    user_sessions (uuid) {
-        uuid -> Int8,
-        created_at -> Timestamp,
-        user_agent -> Text,
-        user_id -> Int4,
-    }
-}
-
 joinable!(comment_flags -> comments (comment_id));
 joinable!(comment_flags -> users (user_id));
 joinable!(comment_hides -> comments (comment_id));
@@ -274,6 +283,7 @@ joinable!(comment_stars -> comments (comment_id));
 joinable!(comment_stars -> users (user_id));
 joinable!(comments -> posts (post_id));
 joinable!(comments -> users (created_by));
+joinable!(domain_restrictions -> domains (domain_id));
 joinable!(domain_synonyms -> domains (to_domain_id));
 joinable!(flags -> posts (post_id));
 joinable!(flags -> users (user_id));
@@ -297,24 +307,25 @@ allow_tables_to_appear_in_same_query!(
     comment_flags,
     comment_hides,
     comment_readpoints,
-    comments,
     comment_stars,
-    domains,
+    comments,
+    domain_restrictions,
     domain_synonyms,
+    domains,
     flags,
     invite_tokens,
     legacy_comments,
     moderation,
     notifications,
     post_hides,
-    posts,
     post_search_index,
     post_tagging,
     post_word_freq,
+    posts,
     site_customization,
     stars,
     subscriptions,
     tags,
-    users,
     user_sessions,
+    users,
 );

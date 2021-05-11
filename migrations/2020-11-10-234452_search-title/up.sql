@@ -11,8 +11,8 @@ BEGIN
 END;
 $emp_stamp$ LANGUAGE plpgsql;
 
-CREATE TRIGGER add_post_index_insert BEFORE INSERT ON posts FOR EACH ROW EXECUTE PROCEDURE add_post_index();
-CREATE TRIGGER add_post_index_update BEFORE UPDATE OF excerpt ON posts FOR EACH ROW EXECUTE PROCEDURE add_post_index();
+CREATE TRIGGER add_post_index_insert AFTER INSERT ON posts FOR EACH ROW EXECUTE PROCEDURE add_post_index();
+CREATE TRIGGER add_post_index_update AFTER UPDATE OF excerpt ON posts FOR EACH ROW EXECUTE PROCEDURE add_post_index();
 
 TRUNCATE TABLE post_search_index;
 
