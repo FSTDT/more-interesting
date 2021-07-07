@@ -7,7 +7,8 @@ license = "MIT OR Apache-2.0"
 
 [dependencies]
 rocket = { git = "https://github.com/SergioBenitez/Rocket" }
-rocket_contrib = { git = "https://github.com/SergioBenitez/Rocket", default-features = false, features = ["diesel_postgres_pool", "serve", "handlebars_templates"] }
+rocket_sync_db_pools = { git = "https://github.com/SergioBenitez/Rocket", default-features = false, features = ["diesel_postgres_pool"] }
+rocket_dyn_templates = { git = "https://github.com/SergioBenitez/Rocket", default-features = false, features = ["handlebars"] }
 diesel = { version = "1.4.3", features = ["postgres", "chrono", "serde_json"] }
 diesel_full_text_search = "1.0.1"
 chrono = { version = "0.4.11", features = ["serde"] }

@@ -4,8 +4,10 @@ Base 32: encode numbers in a compact, URL-safe form
 
 use lazy_static::lazy_static;
 use std::collections::HashMap;
-use rocket::request::{FromParam, FromFormValue};
-use rocket::http::RawStr;
+use rocket::{self, form};
+use rocket::data::ToByteUnit;
+use rocket::form::{DataField, FromFormField, ValueField};
+use rocket::request::FromParam;
 use std::str::{Utf8Error, FromStr};
 use std::fmt::{self, Display, Formatter};
 use byteorder::{BigEndian, ReadBytesExt, WriteBytesExt};
@@ -170,49 +172,38 @@ impl From<Utf8Error> for Base32Error {
     }
 }
 
-impl<'a> FromParam<'a> for Base32 {
-    type Error = Base32Error;
+impl<'a> From<Base32Error> for form::error::ErrorKind<'a> {
+    fn from(_: Base32Error) -> form::error::ErrorKind<'a> {
+        form::error::ErrorKind::Unexpected
+    }
+}
 
-    fn from_param(param: &'a RawStr) -> Result<Self, Self::Error> {
-        let data = decode(&param.percent_decode()?)?;
+#[rocket::async_trait]
+impl<'r> FromFormField<'r> for Base32 {
+    fn from_value(field: ValueField<'r>) -> form::Result<'r, Self> {
+        let data = decode(&field.value)?;
+        Ok(Base32 { data })
+    }
+
+    async fn from_data(field: DataField<'r, '_>) -> form::Result<'r, Self> {
+        // These numbers are never that long.
+        let limit = 256.kibibytes();
+        let bytes = field.data.open(limit).into_bytes().await?;
+        if !bytes.is_complete() {
+            Err((None, Some(limit)))?;
+        }
+        let bytes = bytes.into_inner();
+        let string = std::str::from_utf8(&bytes)?;
+        let data = decode(&string[..])?;
         Ok(Base32 { data })
     }
 }
 
-impl<'a> FromFormValue<'a> for Base32 {
+impl<'r> FromParam<'r> for Base32 {
     type Error = Base32Error;
-
-    fn from_form_value(param: &'a RawStr) -> Result<Self, Self::Error> {
-        let data = decode(&param.percent_decode()?)?;
+    fn from_param(field: &'r str) -> Result<Base32, Base32Error> {
+        let data = decode(&field)?;
         Ok(Base32 { data })
-    }
-}
-
-impl rocket::http::uri::UriDisplay<rocket::http::uri::Query> for Base32 {
-    fn fmt(&self, f: &mut rocket::http::uri::Formatter<rocket::http::uri::Query>) -> fmt::Result {
-        f.write_named_value("post", &self.to_string())
-    }
-}
-
-impl rocket::http::uri::UriDisplay<rocket::http::uri::Path> for Base32 {
-    fn fmt(&self, f: &mut rocket::http::uri::Formatter<rocket::http::uri::Path>) -> fmt::Result {
-        f.write_value(&self.to_string())
-    }
-}
-
-impl<'a> rocket::http::uri::FromUriParam<rocket::http::uri::Query, &'a str> for Base32 {
-    type Target = Base32;
-
-    fn from_uri_param(page: &'a str) -> Base32 {
-        Base32::from_str(page).unwrap_or(Base32 {data: 0})
-    }
-}
-
-impl<'a> rocket::http::uri::FromUriParam<rocket::http::uri::Path, Base32> for Base32 {
-    type Target = Base32;
-
-    fn from_uri_param(page: Base32) -> Base32 {
-        page
     }
 }
 

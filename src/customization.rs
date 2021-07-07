@@ -1,7 +1,7 @@
 use rocket::request::FromRequest;
 use rocket::Request;
 use rocket::http::Status;
-use rocket::Outcome;
+use rocket::outcome::Outcome;
 use crate::models::*;
 use serde::Serialize;
 
@@ -22,12 +22,13 @@ pub struct Customization {
     pub title_label: String,
 }
 
-impl<'a, 'r> FromRequest<'a, 'r> for Customization {
+#[rocket::async_trait]
+impl<'r> FromRequest<'r> for Customization {
     type Error = ();
 
-    fn from_request(request: &'a Request<'r>) -> Outcome<Customization, (Status, ()), ()> {
-        let conn = MoreInterestingConn::from_request(request).unwrap();
-        let customization_variables = match conn.get_customizations() {
+    async fn from_request(request: &'r Request<'_>) -> Outcome<Customization, (Status, ()), ()> {
+        let conn = MoreInterestingConn::from_request(request).await.unwrap();
+        let customization_variables = match conn.get_customizations().await {
             Ok(v) => v,
             Err(e) => {
                 warn!("Failed to get customization variables: {:?}", e);

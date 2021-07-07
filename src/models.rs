@@ -1,11 +1,11 @@
-use rocket_contrib::databases::diesel::PgConnection;
+use rocket_sync_db_pools::diesel::PgConnection;
 use diesel::prelude::*;
 use diesel::sql_types;
 use diesel::result::Error as DieselError;
 use chrono::{NaiveDate, NaiveDateTime, NaiveTime, Utc, Duration};
 use crate::schema::{site_customization, users, user_sessions, posts, stars, invite_tokens, comments, comment_stars, tags, post_tagging, moderation, flags, comment_flags, domains, legacy_comments, domain_synonyms, notifications, subscriptions, post_hides, comment_hides, post_word_freq, comment_readpoints, domain_restrictions};
 use crate::password::{password_hash, password_verify, PasswordResult};
-use serde::Serialize;
+use serde::{Deserialize, Serialize};
 use more_interesting_base32::Base32;
 use std::cmp::max;
 use std::cmp::Ordering;
@@ -49,10 +49,18 @@ impl From<DieselError> for CreatePostError {
     }
 }
 
-#[derive(Clone, Copy, Debug, Eq, PartialEq, Serialize)]
+#[derive(Clone, Copy, Debug, Deserialize, Eq, PartialEq, Serialize)]
 pub enum BodyFormat {
+    #[serde(alias = "plain")]
     Plain,
+    #[serde(alias = "bbcode")]
     BBCode,
+}
+
+impl Default for BodyFormat {
+    fn default() -> BodyFormat {
+        BodyFormat::Plain
+    }
 }
 
 #[derive(Queryable, Serialize)]
@@ -176,10 +184,10 @@ pub struct SiteCustomization {
     pub value: String,
 }
 
-pub struct NewPost<'a> {
-    pub title: &'a str,
-    pub url: Option<&'a str>,
-    pub excerpt: Option<&'a str>,
+pub struct NewPost {
+    pub title: String,
+    pub url: Option<String>,
+    pub excerpt: Option<String>,
     pub submitted_by: i32,
     pub visible: bool,
     pub private: bool,
@@ -270,9 +278,10 @@ pub struct Comment {
     pub rejected: bool,
 }
 
-pub struct NewComment<'a> {
+#[derive(Clone)]
+pub struct NewComment {
     pub post_id: i32,
-    pub text: &'a str,
+    pub text: String,
     pub created_by: i32,
     pub visible: bool,
 }
@@ -317,62 +326,65 @@ pub struct InviteToken {
     pub invited_by: i32,
 }
 
-#[derive(Insertable)]
+#[derive(Clone, Insertable)]
 #[table_name="stars"]
 pub struct NewStar {
     pub user_id: i32,
     pub post_id: i32,
 }
 
-#[derive(Insertable)]
+#[derive(Clone, Insertable)]
 #[table_name="flags"]
 pub struct NewFlag {
     pub user_id: i32,
     pub post_id: i32,
 }
 
-#[derive(Insertable)]
+#[derive(Clone, Insertable)]
 #[table_name="post_hides"]
 pub struct NewHide {
     pub user_id: i32,
     pub post_id: i32,
 }
 
-#[derive(Insertable)]
+#[derive(Clone, Insertable)]
 #[table_name="comment_stars"]
 pub struct NewStarComment {
     pub user_id: i32,
     pub comment_id: i32,
 }
 
-#[derive(Insertable)]
+#[derive(Clone, Insertable)]
 #[table_name="comment_flags"]
 pub struct NewFlagComment {
     pub user_id: i32,
     pub comment_id: i32,
 }
 
-#[derive(Insertable)]
+#[derive(Clone, Insertable)]
 #[table_name="comment_hides"]
 pub struct NewHideComment {
     pub user_id: i32,
     pub comment_id: i32,
 }
 
-pub struct UserAuth<'a> {
-    pub username: &'a str,
-    pub password: &'a str,
+#[derive(Clone)]
+pub struct UserAuth {
+    pub username: String,
+    pub password: String,
 }
 
-pub struct NewUser<'a> {
-    pub username: &'a str,
-    pub password: &'a str,
+#[derive(Clone)]
+pub struct NewUser {
+    pub username: String,
+    pub password: String,
     pub invited_by: Option<i32>,
 }
 
-pub struct NewTag<'a> {
-    pub name: &'a str,
-    pub description: Option<&'a str>,
+#[derive(Clone)]
+pub struct NewTag {
+    pub name: String,
+    pub description: Option<String>,
 }
 
 #[derive(Queryable, Serialize)]
@@ -442,7 +454,7 @@ pub struct Subscription {
     pub created_by: i32,
 }
 
-#[derive(Insertable)]
+#[derive(Clone, Insertable)]
 #[table_name="subscriptions"]
 pub struct NewSubscription {
     pub user_id: i32,
@@ -450,6 +462,7 @@ pub struct NewSubscription {
     pub created_by: i32,
 }
 
+#[derive(Clone)]
 pub struct PostSearch {
     pub my_user_id: i32,
     pub for_user_id: i32,
@@ -505,7 +518,29 @@ impl PostSearch {
 pub struct MoreInterestingConn(PgConnection);
 
 impl MoreInterestingConn {
-    pub fn get_recent_post_flags(&self) -> Vec<PostFlagInfo> {
+    pub async fn prettify_title(&self, post_id: i32, title: &str, url: &str) -> String {
+        let title = title.to_owned();
+        let url = url.to_owned();
+        self.run(move |conn| {
+            let mut data = PrettifyData::new(conn, post_id);
+            crate::prettify::prettify_title(&title, &url, &mut data).string
+        }).await
+    }
+    pub async fn prettify_body(&self, post_id: i32, excerpt: &str, body_format: BodyFormat) -> String {
+        let excerpt = excerpt.to_owned();
+        self.run(move |conn| {
+            let mut data = PrettifyData::new(conn, post_id);
+            let body = match body_format {
+                BodyFormat::Plain => crate::prettify::prettify_body(&excerpt, &mut data),
+                BodyFormat::BBCode => crate::prettify::prettify_body_bbcode(&excerpt, &mut data),
+            };
+            body.string
+        }).await
+    }
+    pub async fn get_recent_post_flags(&self) -> Vec<PostFlagInfo> {
+        self.run(move |conn| Self::get_recent_post_flags_(conn)).await
+    }
+    fn get_recent_post_flags_(conn: &PgConnection) -> Vec<PostFlagInfo> {
         use self::flags::dsl as f;
         use self::posts::dsl::{*, self as p};
         use self::users::dsl::{*, self as u};
@@ -520,13 +555,16 @@ impl MoreInterestingConn {
             .filter(p::visible.eq(true))
             .order_by(f::created_at.desc())
             .limit(200)
-            .get_results::<PostFlagInfo>(&self.0)
+            .get_results::<PostFlagInfo>(conn)
             .unwrap_or(Vec::new())
             .into_iter()
             .collect();
         all
     }
-    pub fn get_recent_comment_flags(&self) -> Vec<CommentFlagInfo> {
+    pub async fn get_recent_comment_flags(&self) -> Vec<CommentFlagInfo> {
+        self.run(|conn| Self::get_recent_comment_flags_(conn)).await
+    }
+    fn get_recent_comment_flags_(conn: &PgConnection) -> Vec<CommentFlagInfo> {
         use self::comment_flags::dsl as f;
         use self::posts::dsl::{*, self as p};
         use self::comments::dsl::{*, self as c};
@@ -544,51 +582,70 @@ impl MoreInterestingConn {
             .filter(c::visible.eq(true))
             .order_by(f::created_at.desc())
             .limit(200)
-            .get_results::<CommentFlagInfo>(&self.0)
+            .get_results::<CommentFlagInfo>(conn)
             .unwrap_or(Vec::new())
             .into_iter()
             .collect();
         all
     }
-    pub fn set_customization(&self, new: SiteCustomization) -> Result<(), DieselError> {
+    pub async fn set_customization(&self, new: SiteCustomization) -> Result<(), DieselError> {
+        self.run(|conn| Self::set_customization_(conn, new)).await
+    }
+    fn set_customization_(conn: &PgConnection, new: SiteCustomization) -> Result<(), DieselError> {
         use self::site_customization::dsl::*;
-        let affected_rows = if self.get_customization_value(&new.name).is_some() {
+        let affected_rows = if Self::get_customization_value_(conn, &new.name).is_some() {
             diesel::update(site_customization.find(&new.name))
                 .set(value.eq(&new.value))
-                .execute(&self.0)?
+                .execute(conn)?
         } else {
             diesel::insert_into(site_customization)
                 .values(new)
-                .execute(&self.0)?
+                .execute(conn)?
         };
         assert_eq!(affected_rows, 1);
         Ok(())
     }
-    pub fn get_customizations(&self) -> Result<Vec<SiteCustomization>, DieselError> {
-        use self::site_customization::dsl::*;
-        site_customization.get_results::<SiteCustomization>(&self.0)
+    pub async fn get_customizations(&self) -> Result<Vec<SiteCustomization>, DieselError> {
+        self.run(move |conn| Self::get_customizations_(conn)).await
     }
-    pub fn get_customization_value(&self, name_param: &str) -> Option<String> {
+    fn get_customizations_(conn: &PgConnection) -> Result<Vec<SiteCustomization>, DieselError> {
+        use self::site_customization::dsl::*;
+        site_customization.get_results::<SiteCustomization>(conn)
+    }
+    pub async fn get_customization_value(&self, name_param: &str) -> Option<String> {
+        let name_param = name_param.to_owned();
+        self.run(move |conn| Self::get_customization_value_(conn, &name_param)).await
+    }
+    fn get_customization_value_(conn: &PgConnection, name_param: &str) -> Option<String> {
         use self::site_customization::dsl::*;
         site_customization
             .select(value)
             .filter(name.eq(name_param))
-            .get_result::<String>(&self.0)
+            .get_result::<String>(conn)
             .ok()
     }
-    pub fn create_notification(&self, new: NewNotification) -> Result<(), DieselError> {
+    pub async fn create_notification(&self, new: NewNotification) -> Result<(), DieselError> {
+        self.run(move |conn| Self::create_notification_(conn, new)).await
+    }
+    fn create_notification_(conn: &PgConnection, new: NewNotification) -> Result<(), DieselError> {
         diesel::insert_into(notifications::table)
             .values(new)
-            .execute(&self.0)?;
+            .execute(conn)?;
         Ok(())
     }
-    pub fn use_notification(&self, post_id_value: i32, user_id_value: i32) -> Result<(), DieselError> {
+    pub async fn use_notification(&self, post_id_value: i32, user_id_value: i32) -> Result<(), DieselError> {
+        self.run(move |conn| Self::use_notification_(conn, post_id_value, user_id_value)).await
+    }
+    fn use_notification_(conn: &PgConnection, post_id_value: i32, user_id_value: i32) -> Result<(), DieselError> {
         use self::notifications::dsl::*;
         diesel::delete(notifications.filter(user_id.eq(user_id_value)).filter(post_id.eq(post_id_value)))
-            .execute(&self.0)?;
+            .execute(conn)?;
         Ok(())
     }
-    pub fn set_readpoint(&self, post_id_value: i32, user_id_value: i32, comment_id_value: i32) -> Result<(), DieselError> {
+    pub async fn set_readpoint(&self, post_id_value: i32, user_id_value: i32, comment_id_value: i32) -> Result<(), DieselError> {
+        self.run(move |conn| Self::set_readpoint_(conn, post_id_value, user_id_value, comment_id_value)).await
+    }
+    fn set_readpoint_(conn: &PgConnection, post_id_value: i32, user_id_value: i32, comment_id_value: i32) -> Result<(), DieselError> {
         use self::comment_readpoints::dsl::*;
         let r = diesel::insert_into(comment_readpoints)
             .values(ReadPoint {
@@ -596,7 +653,7 @@ impl MoreInterestingConn {
                 post_id: post_id_value,
                 comment_readpoint: comment_id_value,
             })
-            .execute(&self.0);
+            .execute(conn);
         if r.is_err() {
             diesel::update(
                 comment_readpoints
@@ -604,11 +661,14 @@ impl MoreInterestingConn {
                 .filter(post_id.eq(post_id_value))
             )
             .set(comment_readpoint.eq(comment_id_value))
-            .execute(&self.0)?;
+            .execute(conn)?;
         }
         Ok(())
     }
-    pub fn list_notifications(&self, user_id_value: i32) -> Result<Vec<NotificationInfo>, DieselError> {
+    pub async fn list_notifications(&self, user_id_value: i32) -> Result<Vec<NotificationInfo>, DieselError> {
+        self.run(move |conn| Self::list_notifications_(conn, user_id_value)).await
+    }
+    fn list_notifications_(conn: &PgConnection, user_id_value: i32) -> Result<Vec<NotificationInfo>, DieselError> {
         use self::posts::dsl::*;
         use self::users::dsl::*;
         use self::notifications::dsl::*;
@@ -628,13 +688,16 @@ impl MoreInterestingConn {
             .filter(self::notifications::dsl::user_id.eq(user_id_value))
             .order_by(self::notifications::dsl::created_at.asc())
             .limit(50)
-            .get_results::<(Base32, String, i32, String)>(&self.0)?
+            .get_results::<(Base32, String, i32, String)>(conn)?
             .into_iter()
             .map(|t| tuple_to_notification_info(t))
             .collect();
         Ok(all)
     }
-    pub fn is_subscribed(&self, post_id_value: i32, user_id_value: i32) -> Result<bool, DieselError> {
+    pub async fn is_subscribed(&self, post_id_value: i32, user_id_value: i32) -> Result<bool, DieselError> {
+        self.run(move |conn| Self::is_subscribed_(conn, post_id_value, user_id_value)).await
+    }
+    fn is_subscribed_(conn: &PgConnection, post_id_value: i32, user_id_value: i32) -> Result<bool, DieselError> {
         use self::subscriptions::dsl::*;
         use diesel::{select, dsl::exists};
         if user_id_value == 0 {
@@ -643,28 +706,41 @@ impl MoreInterestingConn {
         Ok(select(exists(subscriptions
             .filter(post_id.eq(post_id_value))
             .filter(user_id.eq(user_id_value))))
-            .get_result::<bool>(&self.0)?)
+            .get_result::<bool>(conn)?)
     }
-    pub fn create_subscription(&self, new: NewSubscription) -> Result<(), DieselError> {
+    pub async fn create_subscription(&self, new: NewSubscription) -> Result<(), DieselError> {
+        self.run(move |conn| Self::create_subscription_(conn, new)).await
+    }
+    fn create_subscription_(conn: &PgConnection, new: NewSubscription) -> Result<(), DieselError> {
         diesel::insert_into(subscriptions::table)
             .values(new)
-            .execute(&self.0)?;
+            .execute(conn)?;
         Ok(())
     }
-    pub fn drop_subscription(&self, new: NewSubscription) -> Result<(), DieselError> {
+    pub async fn drop_subscription(&self, new: NewSubscription) -> Result<(), DieselError> {
+        self.run(move |conn| Self::drop_subscription_(conn, new)).await
+    }
+    fn drop_subscription_(conn: &PgConnection, new: NewSubscription) -> Result<(), DieselError> {
         use self::subscriptions::dsl::*;
         diesel::delete(subscriptions.filter(user_id.eq(new.user_id)).filter(post_id.eq(new.post_id)))
-            .execute(&self.0)?;
+            .execute(conn)?;
         Ok(())
     }
-    pub fn list_subscribed_users(&self, post_id_value: i32) -> Result<Vec<i32>, DieselError> {
+    pub async fn list_subscribed_users(&self, post_id_value: i32) -> Result<Vec<i32>, DieselError> {
+        self.run(move |conn| Self::list_subscribed_users_(conn, post_id_value)).await
+    }
+    fn list_subscribed_users_(conn: &PgConnection, post_id_value: i32) -> Result<Vec<i32>, DieselError> {
         use self::subscriptions::dsl::*;
         Ok(subscriptions
             .select(user_id)
             .filter(post_id.eq(post_id_value))
-            .get_results::<i32>(&self.0)?)
+            .get_results::<i32>(conn)?)
     }
-    pub fn search_posts(&self, search: &PostSearch) -> Result<Vec<PostInfo>, DieselError> {
+    pub async fn search_posts(&self, search: &PostSearch) -> Result<Vec<PostInfo>, DieselError> {
+        let search = search.clone();
+        self.run(move |conn| Self::search_posts_(conn, &search)).await
+    }
+    fn search_posts_(conn: &PgConnection, search: &PostSearch) -> Result<Vec<PostInfo>, DieselError> {
         use self::posts::dsl::{self as p, *};
         use self::stars::dsl::{self as s, *};
         use self::flags::dsl::{self as f, *};
@@ -727,7 +803,7 @@ impl MoreInterestingConn {
         if search.title != "" {
             query = query.filter(p::title.like(format!("%{}%", &search.title)));
         }
-        let mut data = PrettifyData::new(self, 0);
+        let mut data = PrettifyData::new(conn, 0);
         let mut all: Vec<PostInfo> = if search.keywords != "" && search.order_by == PostSearchOrderBy::Hottest {
             if search.my_user_id != 0 {
                 query
@@ -763,9 +839,9 @@ impl MoreInterestingConn {
                     .order_by(ts_rank_cd(search_index, plainto_tsquery(&search.keywords)).desc())
                     .offset(search.search_page as i64 * 75)
                     .limit(75)
-                    .get_results::<(i32, Base32, String, Option<String>, bool, bool, i32, i32, i32, Option<i32>, bool, NaiveDateTime, i32, Option<String>, Option<i32>, Option<i32>, Option<i32>, String, Option<String>, Option<String>)>(&self.0)?
+                    .get_results::<(i32, Base32, String, Option<String>, bool, bool, i32, i32, i32, Option<i32>, bool, NaiveDateTime, i32, Option<String>, Option<i32>, Option<i32>, Option<i32>, String, Option<String>, Option<String>)>(conn)?
                     .into_iter()
-                    .map(|t| tuple_to_post_info(&mut data, t, self.get_current_stellar_time()))
+                    .map(|t| tuple_to_post_info(&mut data, t, Self::get_current_stellar_time_(conn)))
                     .collect()
             } else {
                 query
@@ -793,9 +869,9 @@ impl MoreInterestingConn {
                     .order_by(ts_rank_cd(search_index, plainto_tsquery(&search.keywords)).desc())
                     .offset(search.search_page as i64 * 75)
                     .limit(75)
-                    .get_results::<(i32, Base32, String, Option<String>, bool, bool, i32, i32, i32, bool, NaiveDateTime, i32, Option<String>, String, Option<String>, Option<String>)>(&self.0)?
+                    .get_results::<(i32, Base32, String, Option<String>, bool, bool, i32, i32, i32, bool, NaiveDateTime, i32, Option<String>, String, Option<String>, Option<String>)>(conn)?
                     .into_iter()
-                    .map(|t| tuple_to_post_info_logged_out(&mut data, t, self.get_current_stellar_time()))
+                    .map(|t| tuple_to_post_info_logged_out(&mut data, t, Self::get_current_stellar_time_(conn)))
                     .collect()
             }
         } else {
@@ -842,9 +918,9 @@ impl MoreInterestingConn {
                 ))
                 .offset(search_page as i64 * 75)
                 .limit(75)
-                .get_results::<(i32, Base32, String, Option<String>, bool, bool, i32, i32, i32, Option<i32>, bool, NaiveDateTime, i32, Option<String>, Option<i32>, Option<i32>, Option<i32>, String, Option<String>, Option<String>)>(&self.0)?
+                .get_results::<(i32, Base32, String, Option<String>, bool, bool, i32, i32, i32, Option<i32>, bool, NaiveDateTime, i32, Option<String>, Option<i32>, Option<i32>, Option<i32>, String, Option<String>, Option<String>)>(conn)?
                 .into_iter()
-                .map(|t| tuple_to_post_info(&mut data, t, self.get_current_stellar_time()))
+                .map(|t| tuple_to_post_info(&mut data, t, Self::get_current_stellar_time_(conn)))
                 .collect()
         };
         if let (PostSearchOrderBy::Hottest, "") = (search.order_by, &search.keywords[..]) {
@@ -853,7 +929,10 @@ impl MoreInterestingConn {
         }
         Ok(all)
     }
-    pub fn get_post_info_similar(&self, user_id_param: i32, post_info: &Post) -> Result<Vec<PostInfo>, DieselError> {
+    pub async fn get_post_info_similar(&self, user_id_param: i32, post_info: Post) -> Result<Vec<PostInfo>, DieselError> {
+        self.run(move |conn| Self::get_post_info_similar_(conn, user_id_param, post_info)).await
+    }
+    fn get_post_info_similar_(conn: &PgConnection, user_id_param: i32, post_info: Post) -> Result<Vec<PostInfo>, DieselError> {
         use self::posts::dsl::{self as p, *};
         use self::stars::dsl::{self as s, *};
         use self::flags::dsl::{self as f, *};
@@ -874,7 +953,7 @@ impl MoreInterestingConn {
           INNER JOIN (SELECT word FROM TS_STAT(CONCAT('SELECT to_tsvector(regexp_replace(regexp_replace(regexp_replace(excerpt, ''\[[uU][rR][lL]=(.*)\](.*?)\[\/[uU][rR][lL]\]'', ''\2''), ''\[[bB]\](.*?)\[/[bB]\]'', ''\1''), ''\[[iI]\](.*?)\[/[iI]\]'', ''\1'')) FROM posts WHERE id = {}'))) AS TS ON (TS.word = PWF.word)
           ORDER BY PWF.num ASC
           LIMIT 20
-        "##, post_info.id)).get_results::<Word>(&self.0)?;
+        "##, post_info.id)).get_results::<Word>(conn)?;
         let mut     words_title: Vec<Word> = diesel::sql_query(format!(r##"
           SELECT
             PWF.word AS word
@@ -882,12 +961,12 @@ impl MoreInterestingConn {
           INNER JOIN (SELECT word FROM TS_STAT(CONCAT('SELECT to_tsvector(title) FROM posts WHERE id = {}'))) AS TS ON (TS.word = PWF.word)
           ORDER BY PWF.num ASC
           LIMIT 20
-        "##, post_info.id)).get_results::<Word>(&self.0)?;
+        "##, post_info.id)).get_results::<Word>(conn)?;
         words.append(&mut words_title);
         let word_list_short = words.iter().take(10).map(|word| &word.word[..]).collect::<Vec<&str>>().join("|");
         let word_list = words.iter().map(|word| &word.word[..]).collect::<Vec<&str>>().join("&");
         // Now actually find the "similar" posts.
-        let mut data = PrettifyData::new(self, 0);
+        let mut data = PrettifyData::new(conn, 0);
         let all: Vec<PostInfo> = posts
             .left_outer_join(stars.on(s::post_id.eq(self::posts::dsl::id).and(s::user_id.eq(user_id_param))))
             .left_outer_join(flags.on(f::post_id.eq(p::id).and(f::user_id.eq(user_id_param))))
@@ -923,21 +1002,23 @@ impl MoreInterestingConn {
             .filter(psi::search_index.matches(to_tsquery(&word_list_short)))
             .order_by(ts_rank(psi::search_index, to_tsquery(&word_list)).desc())
             .limit(100)
-            .get_results::<(i32, Base32, String, Option<String>, bool, bool, i32, i32, i32, Option<i32>, bool, NaiveDateTime, i32, Option<String>, Option<i32>, Option<i32>, Option<i32>, String, Option<String>, Option<String>)>(&self.0)?
+            .get_results::<(i32, Base32, String, Option<String>, bool, bool, i32, i32, i32, Option<i32>, bool, NaiveDateTime, i32, Option<String>, Option<i32>, Option<i32>, Option<i32>, String, Option<String>, Option<String>)>(conn)?
             .into_iter()
-            .map(|t| tuple_to_post_info(&mut data, t, self.get_current_stellar_time()))
+            .map(|t| tuple_to_post_info(&mut data, t, Self::get_current_stellar_time_(conn)))
             .collect();
         Ok(all)
     }
-
-    pub fn get_post_info_recent_by_user(&self, user_id_param: i32, user_info_id_param: i32) -> Result<Vec<PostInfo>, DieselError> {
+    pub async fn get_post_info_recent_by_user(&self, user_id_param: i32, user_info_id_param: i32) -> Result<Vec<PostInfo>, DieselError> {
+        self.run(move |conn| Self::get_post_info_recent_by_user_(conn, user_id_param, user_info_id_param)).await
+    }
+    fn get_post_info_recent_by_user_(conn: &PgConnection, user_id_param: i32, user_info_id_param: i32) -> Result<Vec<PostInfo>, DieselError> {
         use self::posts::dsl::{self as p, *};
         use self::stars::dsl::{self as s, *};
         use self::flags::dsl::{self as f, *};
         use self::post_hides::dsl::{self as ph, *};
         use self::users::dsl::{self as u, *};
         use self::comment_readpoints::{self as cr, *};
-        let mut data = PrettifyData::new(self, 0);
+        let mut data = PrettifyData::new(conn, 0);
         let mut all: Vec<PostInfo> = posts
             .left_outer_join(stars.on(s::post_id.eq(p::id).and(s::user_id.eq(user_id_param))))
             .left_outer_join(flags.on(f::post_id.eq(p::id).and(f::user_id.eq(user_id_param))))
@@ -971,15 +1052,18 @@ impl MoreInterestingConn {
             .filter(p::submitted_by.eq(user_info_id_param))
             .order_by((initial_stellar_time.desc(), p::created_at.desc()))
             .limit(75)
-            .get_results::<(i32, Base32, String, Option<String>, bool, bool, i32, i32, i32, Option<i32>, bool, NaiveDateTime, i32, Option<String>, Option<i32>, Option<i32>, Option<i32>, String, Option<String>, Option<String>)>(&self.0)?
+            .get_results::<(i32, Base32, String, Option<String>, bool, bool, i32, i32, i32, Option<i32>, bool, NaiveDateTime, i32, Option<String>, Option<i32>, Option<i32>, Option<i32>, String, Option<String>, Option<String>)>(conn)?
             .into_iter()
-            .map(|t| tuple_to_post_info(&mut data, t, self.get_current_stellar_time()))
+            .map(|t| tuple_to_post_info(&mut data, t, Self::get_current_stellar_time_(conn)))
             .collect();
         all.sort_by_key(|info| OrderedFloat(-info.hotness));
         all.truncate(50);
         Ok(all)
     }
-    pub fn get_post_info_by_uuid(&self, user_id_param: i32, uuid_param: Base32) -> Result<PostInfo, DieselError> {
+    pub async fn get_post_info_by_uuid(&self, user_id_param: i32, uuid_param: Base32) -> Result<PostInfo, DieselError> {
+        self.run(move |conn| Self::get_post_info_by_uuid_(conn, user_id_param, uuid_param)).await
+    }
+    fn get_post_info_by_uuid_(conn: &PgConnection, user_id_param: i32, uuid_param: Base32) -> Result<PostInfo, DieselError> {
         use self::posts::dsl::{self as p, *};
         use self::stars::dsl::{self as s, *};
         use self::flags::dsl::{self as f, *};
@@ -987,7 +1071,7 @@ impl MoreInterestingConn {
         use self::users::dsl::{self as u, *};
         use self::comment_readpoints::dsl::{self as cr, *};
         // This is a bunch of duplicate code.
-        let mut data = PrettifyData::new(self, 0);
+        let mut data = PrettifyData::new(conn, 0);
         Ok(tuple_to_post_info(&mut data, posts
             .left_outer_join(stars.on(s::post_id.eq(p::id).and(s::user_id.eq(user_id_param))))
             .left_outer_join(flags.on(f::post_id.eq(p::id).and(f::user_id.eq(user_id_param))))
@@ -1018,29 +1102,38 @@ impl MoreInterestingConn {
             ))
             .filter(rejected.eq(false))
             .filter(uuid.eq(uuid_param.into_i64()))
-            .first::<(i32, Base32, String, Option<String>, bool, bool, i32, i32, i32, Option<i32>, bool, NaiveDateTime, i32, Option<String>, Option<i32>, Option<i32>, Option<i32>, String, Option<String>, Option<String>)>(&self.0)?, self.get_current_stellar_time()))
+            .first::<(i32, Base32, String, Option<String>, bool, bool, i32, i32, i32, Option<i32>, bool, NaiveDateTime, i32, Option<String>, Option<i32>, Option<i32>, Option<i32>, String, Option<String>, Option<String>)>(conn)?, Self::get_current_stellar_time_(conn)))
     }
-    pub fn get_user_comments_count_today(&self, user_id_value: i32) -> i32 {
+    pub async fn get_user_comments_count_today(&self, user_id_param: i32) -> i32 {
+        self.run(move |conn| Self::get_user_comments_count_today_(conn, user_id_param)).await
+    }
+    fn get_user_comments_count_today_(conn: &PgConnection, user_id_value: i32) -> i32 {
         use self::comments::dsl::*;
         let yesterday = Utc::now().naive_utc() - Duration::days(1);
         comments
             .filter(created_by.eq(user_id_value))
             .filter(created_at.gt(yesterday))
             .count()
-            .get_result(&self.0)
+            .get_result(conn)
             .unwrap_or(0) as i32
     }
-    pub fn get_domain_posts_count_today(&self, domain_id_value: i32) -> i32 {
+    pub async fn get_domain_posts_count_today(&self, domain_id_param: i32) -> i32 {
+        self.run(move |conn| Self::get_domain_posts_count_today_(conn, domain_id_param)).await
+    }
+    fn get_domain_posts_count_today_(conn: &PgConnection, domain_id_value: i32) -> i32 {
         use self::posts::dsl::*;
         let yesterday = Utc::now().naive_utc() - Duration::days(1);
         posts
             .filter(domain_id.eq(domain_id_value))
             .filter(created_at.gt(yesterday))
             .count()
-            .get_result(&self.0)
+            .get_result(conn)
             .unwrap_or(0) as i32
     }
-    pub fn get_userdomain_posts_count_today(&self, user_id_value: i32, domain_id_value: i32) -> i32 {
+    pub async fn get_userdomain_posts_count_today(&self, user_id_param: i32, domain_id_param: i32) -> i32 {
+        self.run(move |conn| Self::get_userdomain_posts_count_today_(conn, user_id_param, domain_id_param)).await
+    }
+    fn get_userdomain_posts_count_today_(conn: &PgConnection, user_id_value: i32, domain_id_value: i32) -> i32 {
         use self::posts::dsl::*;
         let yesterday = Utc::now().naive_utc() - Duration::days(1);
         posts
@@ -1048,27 +1141,36 @@ impl MoreInterestingConn {
             .filter(submitted_by.eq(user_id_value))
             .filter(created_at.gt(yesterday))
             .count()
-            .get_result(&self.0)
+            .get_result(conn)
             .unwrap_or(0) as i32
     }
-    pub fn get_user_posts_count_today(&self, user_id_value: i32) -> i32 {
+    pub async fn get_user_posts_count_today(&self, user_id_param: i32) -> i32 {
+        self.run(move |conn| Self::get_user_posts_count_today_(conn, user_id_param)).await
+    }
+    fn get_user_posts_count_today_(conn: &PgConnection, user_id_value: i32) -> i32 {
         use self::posts::dsl::*;
         let yesterday = Utc::now().naive_utc() - Duration::days(1);
         posts
             .filter(submitted_by.eq(user_id_value))
             .filter(created_at.gt(yesterday))
             .count()
-            .get_result(&self.0)
+            .get_result(conn)
             .unwrap_or(0) as i32
     }
-    pub fn get_current_stellar_time(&self) -> i32 {
+    pub async fn get_current_stellar_time(&self) -> i32 {
+        self.run(move |conn| Self::get_current_stellar_time_(conn)).await
+    }
+    fn get_current_stellar_time_(conn: &PgConnection) -> i32 {
         use self::stars::dsl::*;
         // the stars table should be limited by the i32 limits, but diesel doesn't know that
-        stars.count().get_result(&self.0).unwrap_or(0) as i32
+        stars.count().get_result(conn).unwrap_or(0) as i32
     }
-    fn get_post_domain_url(&self, url: Option<&str>) -> (Option<String>, Option<Domain>) {
+    async fn get_post_domain_url(&self, url: Option<String>) -> (Option<String>, Option<Domain>) {
+        self.run(move |conn| Self::get_post_domain_url_(conn, url)).await
+    }
+    fn get_post_domain_url_(conn: &PgConnection, url: Option<String>) -> (Option<String>, Option<Domain>) {
         let url_host = url
-            .and_then(|u| Url::parse(u).ok())
+            .and_then(|u| Url::parse(&u[..]).ok())
             .and_then(|u| { let h = u.host_str()?.to_owned(); Some((u, h)) });
         if let Some((mut url, host)) = url_host {
             let mut host = &host[..];
@@ -1099,8 +1201,8 @@ impl MoreInterestingConn {
                 host = &host[7..];
             }
             let is_https = url.scheme() == "https";
-            let domain = self.get_domain_by_hostname(host).unwrap_or_else(|_| {
-                self.create_domain(NewDomain {
+            let domain = Self::get_domain_by_hostname_(conn, host).unwrap_or_else(|_| {
+                Self::create_domain_(conn, NewDomain {
                     hostname: host.to_owned(),
                     is_www, is_https
                 }).expect("if domain does not exist, creating it should work")
@@ -1118,7 +1220,10 @@ impl MoreInterestingConn {
             (None, None)
         }
     }
-    pub fn create_post(&self, new_post: &NewPost, body_format: BodyFormat, enforce_rate_limit: bool) -> Result<Post, CreatePostError> {
+    pub async fn create_post(&self, new_post: NewPost, body_format: BodyFormat, enforce_rate_limit: bool) -> Result<Post, CreatePostError> {
+        self.run(move |conn| Self::create_post_(conn, new_post, body_format, enforce_rate_limit)).await
+    }
+    fn create_post_(conn: &PgConnection, new_post: NewPost, body_format: BodyFormat, enforce_rate_limit: bool) -> Result<Post, CreatePostError> {
         #[derive(Insertable)]
         #[table_name="posts"]
         struct CreatePost<'a> {
@@ -1134,38 +1239,38 @@ impl MoreInterestingConn {
             domain_id: Option<i32>,
         }
         let mut visible = new_post.visible;
-        let title_html_and_stuff = crate::prettify::prettify_title(new_post.title, "", &mut PrettifyData::new(self, 0));
+        let title_html_and_stuff = crate::prettify::prettify_title(&new_post.title, "", &mut PrettifyData::new(conn, 0));
         if title_html_and_stuff.hash_tags.is_empty() && !new_post.private {
             return Err(CreatePostError::RequireTag);
         }
         // TODO: make this configurable
-        if self.get_user_posts_count_today(new_post.submitted_by) >= 5 && enforce_rate_limit {
+        if Self::get_user_posts_count_today_(conn, new_post.submitted_by) >= 5 && enforce_rate_limit {
             return Err(CreatePostError::TooManyPosts);
         }
-        let excerpt_html_and_stuff = if let Some(excerpt) = new_post.excerpt {
+        let excerpt_html_and_stuff = if let Some(excerpt) = &new_post.excerpt {
             let body = match body_format {
-                BodyFormat::Plain => crate::prettify::prettify_body(excerpt, &mut PrettifyData::new(self, 0)),
-                BodyFormat::BBCode => crate::prettify::prettify_body_bbcode(excerpt, &mut PrettifyData::new(self, 0)),
+                BodyFormat::Plain => crate::prettify::prettify_body(&excerpt, &mut PrettifyData::new(conn, 0)),
+                BodyFormat::BBCode => crate::prettify::prettify_body_bbcode(&excerpt, &mut PrettifyData::new(conn, 0)),
             };
             Some(body)
         } else {
             None
         };
-        let (url, domain) = self.get_post_domain_url(new_post.url);
+        let (url, domain) = Self::get_post_domain_url_(conn, new_post.url.as_ref().cloned());
         if new_post.title.chars().filter(|&c| c != ' ' && c != '\n').count() > 500 && !url.is_none() {
             return Err(CreatePostError::TooLong);
         }
-        if new_post.excerpt.unwrap_or("").chars().filter(|&c| c != ' ' && c != '\n').count() > 1750 && !url.is_none() {
+        if new_post.excerpt.as_ref().map(|x| &x[..]).unwrap_or("").chars().filter(|&c| c != ' ' && c != '\n').count() > 1750 && !url.is_none() {
             return Err(CreatePostError::TooLong);
         }
         if let Some(ref domain) = domain {
-            if self.get_domain_posts_count_today(domain.id) >= 4 && enforce_rate_limit {
+            if Self::get_domain_posts_count_today_(conn, domain.id) >= 4 && enforce_rate_limit {
                 return Err(CreatePostError::TooManyPostsDomain);
             }
-            if self.get_userdomain_posts_count_today(new_post.submitted_by, domain.id) >= 2 && enforce_rate_limit {
+            if Self::get_userdomain_posts_count_today_(conn, new_post.submitted_by, domain.id) >= 2 && enforce_rate_limit {
                 return Err(CreatePostError::TooManyPostsDomainUser);
             }
-            if let Ok(restriction) = self.get_domain_restriction_by_id(domain.id) {
+            if let Ok(restriction) = Self::get_domain_restriction_by_id_(conn, domain.id) {
                 if restriction.restriction_level > 2 {
                     return Err(CreatePostError::TooManyPostsDomain);
                 } else if restriction.restriction_level > 0 {
@@ -1175,37 +1280,41 @@ impl MoreInterestingConn {
         }
         let result = diesel::insert_into(posts::table)
             .values(CreatePost {
-                title: new_post.title,
+                title: &new_post.title,
                 uuid: rand::random(),
                 submitted_by: new_post.submitted_by,
-                initial_stellar_time: self.get_current_stellar_time(),
-                excerpt: new_post.excerpt,
+                initial_stellar_time: Self::get_current_stellar_time_(conn),
+                excerpt: new_post.excerpt.as_ref().map(|x| &x[..]),
                 excerpt_html: excerpt_html_and_stuff.as_ref().map(|e| &e.string[..]),
                 private: new_post.private,
                 domain_id: domain.map(|d| d.id),
-                url, visible
+                url: url.as_ref().cloned(),
+                visible,
             })
-            .get_result::<Post>(&self.0);
+            .get_result::<Post>(conn);
         if let Ok(ref post) = result {
             for tag in title_html_and_stuff.hash_tags.iter().chain(excerpt_html_and_stuff.iter().flat_map(|e| e.hash_tags.iter())).map(|s| &s[..]).collect::<HashSet<&str>>() {
-                if let Ok(tag_info) = self.get_tag_by_name(&tag) {
+                if let Ok(tag_info) = Self::get_tag_by_name_(conn, &tag) {
                     diesel::insert_into(post_tagging::table)
                         .values(CreatePostTagging {
                             post_id: post.id,
                             tag_id: tag_info.id,
                         })
-                        .execute(&self.0)?;
+                        .execute(conn)?;
                 }
             }
         }
         result.map_err(Into::into)
     }
-    pub fn update_post(&self, post_id_value: i32, bump: bool, new_post: &NewPost, body_format: BodyFormat) -> Result<(), DieselError> {
-        let title_html_and_stuff = crate::prettify::prettify_title(new_post.title, "", &mut PrettifyData::new(self, 0));
-        let excerpt_html_and_stuff = if let Some(e) = new_post.excerpt {
+    pub async fn update_post(&self, post_id_value: i32, bump: bool, new_post: NewPost, body_format: BodyFormat) -> Result<(), DieselError> {
+        self.run(move |conn| Self::update_post_(conn, post_id_value, bump, new_post, body_format)).await
+    }
+    fn update_post_(conn: &PgConnection, post_id_value: i32, bump: bool, new_post: NewPost, body_format: BodyFormat) -> Result<(), DieselError> {
+        let title_html_and_stuff = crate::prettify::prettify_title(&new_post.title, "", &mut PrettifyData::new(conn, 0));
+        let excerpt_html_and_stuff = if let Some(e) = &new_post.excerpt {
             let body = match body_format {
-                BodyFormat::Plain => crate::prettify::prettify_body(e, &mut PrettifyData::new(self, 0)),
-                BodyFormat::BBCode => crate::prettify::prettify_body_bbcode(e, &mut PrettifyData::new(self, 0)),
+                BodyFormat::Plain => crate::prettify::prettify_body(&e, &mut PrettifyData::new(conn, 0)),
+                BodyFormat::BBCode => crate::prettify::prettify_body_bbcode(&e, &mut PrettifyData::new(conn, 0)),
             };
             Some(body)
         } else {
@@ -1213,7 +1322,7 @@ impl MoreInterestingConn {
         };
         use self::posts::dsl::*;
         use self::post_tagging::dsl::*;
-        let (url_value, domain) = self.get_post_domain_url(new_post.url);
+        let (url_value, domain) = Self::get_post_domain_url_(conn, new_post.url);
         diesel::update(posts.find(post_id_value))
             .set((
                 title.eq(new_post.title),
@@ -1224,190 +1333,251 @@ impl MoreInterestingConn {
                 private.eq(new_post.private),
                 domain_id.eq(domain.map(|d| d.id))
             ))
-            .execute(&self.0)?;
+            .execute(conn)?;
         if bump {
             diesel::update(posts.find(post_id_value))
                 .set((
-                    initial_stellar_time.eq(self.get_current_stellar_time()),
+                    initial_stellar_time.eq(Self::get_current_stellar_time_(conn)),
                     visible.eq(new_post.visible),
                     private.eq(new_post.private),
                 ))
-                .execute(&self.0)?;
+                .execute(conn)?;
         }
         diesel::delete(post_tagging.filter(post_id.eq(post_id_value)))
-            .execute(&self.0)?;
+            .execute(conn)?;
         for tag in title_html_and_stuff.hash_tags.iter().chain(excerpt_html_and_stuff.iter().flat_map(|e| e.hash_tags.iter())).map(|s| &s[..]).collect::<HashSet<&str>>() {
-            if let Ok(tag_info) = self.get_tag_by_name(&tag) {
+            if let Ok(tag_info) = Self::get_tag_by_name_(conn, &tag) {
                 diesel::insert_into(post_tagging)
                     .values(CreatePostTagging {
                         post_id: post_id_value,
                         tag_id: tag_info.id,
                     })
-                    .execute(&self.0)?;
+                    .execute(conn)?;
             }
         }
         Ok(())
     }
-    pub fn add_star(&self, new_star: &NewStar) -> bool {
+    pub async fn add_star(&self, new_star: &NewStar) -> bool {
+        let new_star = new_star.clone();
+        self.run(move |conn| Self::add_star_(conn, &new_star)).await
+    }
+    fn add_star_(conn: &PgConnection, new_star: &NewStar) -> bool {
         let affected_rows = diesel::insert_into(stars::table)
             .values(new_star)
-            .execute(&self.0)
+            .execute(conn)
             .unwrap_or(0);
         // affected rows will be 1 if inserted, or 0 otherwise
-        self.update_score_on_post(new_star.post_id, affected_rows as i32);
+        Self::update_score_on_post_(conn, new_star.post_id, affected_rows as i32);
         affected_rows == 1
     }
-    pub fn rm_star(&self, new_star: &NewStar) -> bool {
+    pub async fn rm_star(&self, new_star: &NewStar) -> bool {
+        let new_star = new_star.clone();
+        self.run(move |conn| Self::rm_star_(conn, &new_star)).await
+    }
+    fn rm_star_(conn: &PgConnection, new_star: &NewStar) -> bool {
         use self::stars::dsl::*;
         let affected_rows = diesel::delete(
             stars
                 .filter(user_id.eq(new_star.user_id))
                 .filter(post_id.eq(new_star.post_id))
         )
-            .execute(&self.0)
+            .execute(conn)
             .unwrap_or(0);
         // affected rows will be 1 if deleted, or 0 otherwise
-        self.update_score_on_post(new_star.post_id, -(affected_rows as i32));
+        Self::update_score_on_post_(conn, new_star.post_id, -(affected_rows as i32));
         affected_rows == 1
     }
-    pub fn add_hide(&self, new_hide: &NewHide) -> bool {
+    pub async fn add_hide(&self, new_hide: &NewHide) -> bool {
+        let new_hide = new_hide.clone();
+        self.run(move |conn| Self::add_hide_(conn, &new_hide)).await
+    }
+    fn add_hide_(conn: &PgConnection, new_hide: &NewHide) -> bool {
         let affected_rows = diesel::insert_into(post_hides::table)
             .values(new_hide)
-            .execute(&self.0)
+            .execute(conn)
             .unwrap_or(0);
         // affected rows will be 1 if inserted, or 0 otherwise
         affected_rows == 1
     }
-    pub fn rm_hide(&self, new_hide: &NewHide) -> bool {
+    pub async fn rm_hide(&self, new_hide: &NewHide) -> bool {
+        let new_hide = new_hide.clone();
+        self.run(move |conn| Self::rm_hide_(conn, &new_hide)).await
+    }
+    fn rm_hide_(conn: &PgConnection, new_hide: &NewHide) -> bool {
         use self::post_hides::dsl::*;
         let affected_rows = diesel::delete(
             post_hides
                 .filter(user_id.eq(new_hide.user_id))
                 .filter(post_id.eq(new_hide.post_id))
         )
-            .execute(&self.0)
+            .execute(conn)
             .unwrap_or(0);
         // affected rows will be 1 if deleted, or 0 otherwise
         affected_rows == 1
     }
-    pub fn add_star_comment(&self, new_star: &NewStarComment) -> bool {
+    pub async fn add_star_comment(&self, new_star: &NewStarComment) -> bool {
+        let new_star = new_star.clone();
+        self.run(move |conn| Self::add_star_comment_(conn, &new_star)).await
+    }
+    fn add_star_comment_(conn: &PgConnection, new_star: &NewStarComment) -> bool {
         let affected_rows = diesel::insert_into(comment_stars::table)
             .values(new_star)
-            .execute(&self.0)
+            .execute(conn)
             .unwrap_or(0);
         affected_rows == 1
     }
-    pub fn rm_star_comment(&self, new_star: &NewStarComment) -> bool {
+    pub async fn rm_star_comment(&self, new_star: &NewStarComment) -> bool {
+        let new_star = new_star.clone();
+        self.run(move |conn| Self::rm_star_comment_(conn, &new_star)).await
+    }
+    fn rm_star_comment_(conn: &PgConnection, new_star: &NewStarComment) -> bool {
         use self::comment_stars::dsl::*;
         let affected_rows = diesel::delete(
             comment_stars
                 .filter(user_id.eq(new_star.user_id))
                 .filter(comment_id.eq(new_star.comment_id))
         )
-            .execute(&self.0)
+            .execute(conn)
             .unwrap_or(0);
         affected_rows == 1
     }
-    pub fn add_hide_comment(&self, new_hide: &NewHideComment) -> bool {
+    pub async fn add_hide_comment(&self, new_hide: &NewHideComment) -> bool {
+        let new_hide = new_hide.clone();
+        self.run(move |conn| Self::add_hide_comment_(conn, &new_hide)).await
+    }
+    fn add_hide_comment_(conn: &PgConnection, new_hide: &NewHideComment) -> bool {
         let affected_rows = diesel::insert_into(comment_hides::table)
             .values(new_hide)
-            .execute(&self.0)
+            .execute(conn)
             .unwrap_or(0);
         affected_rows == 1
     }
-    pub fn rm_hide_comment(&self, new_hide: &NewHideComment) -> bool {
+    pub async fn rm_hide_comment(&self, new_hide: &NewHideComment) -> bool {
+        let new_hide = new_hide.clone();
+        self.run(move |conn| Self::rm_hide_comment_(conn, &new_hide)).await
+    }
+    fn rm_hide_comment_(conn: &PgConnection, new_hide: &NewHideComment) -> bool {
         use self::comment_hides::dsl::*;
         let affected_rows = diesel::delete(
             comment_hides
                 .filter(user_id.eq(new_hide.user_id))
                 .filter(comment_id.eq(new_hide.comment_id))
         )
-            .execute(&self.0)
+            .execute(conn)
             .unwrap_or(0);
         affected_rows == 1
     }
-    fn maybe_invisible_post(&self, post_id_param: i32) {
+    fn maybe_invisible_post_(conn: &PgConnection, post_id_param: i32) {
         use self::flags::dsl::*;
-        let flag_count: i64 = flags.filter(post_id.eq(post_id_param)).count().get_result(&self.0).expect("if flagging worked, then so should counting");
+        let flag_count: i64 = flags.filter(post_id.eq(post_id_param)).count().get_result(conn).expect("if flagging worked, then so should counting");
         if flag_count == FLAG_INVISIBLE_THRESHOLD {
-            self.invisible_post(post_id_param).expect("if flagging worked, then so should hiding the post");
+            Self::invisible_post_(conn, post_id_param).expect("if flagging worked, then so should hiding the post");
         }
     }
-    fn maybe_invisible_comment(&self, comment_id_param: i32) {
+    fn maybe_invisible_comment_(conn: &PgConnection, comment_id_param: i32) {
         use self::comment_flags::dsl::*;
-        let flag_count: i64 = comment_flags.filter(comment_id.eq(comment_id_param)).count().get_result(&self.0).expect("if flagging worked, then so should counting");
+        let flag_count: i64 = comment_flags.filter(comment_id.eq(comment_id_param)).count().get_result(conn).expect("if flagging worked, then so should counting");
         if flag_count == FLAG_INVISIBLE_THRESHOLD {
-            self.invisible_comment(comment_id_param).expect("if flagging worked, then so should hiding the post");
+            Self::invisible_comment_(conn, comment_id_param).expect("if flagging worked, then so should hiding the post");
         }
     }
-    pub fn add_flag(&self, new_flag: &NewFlag) -> bool {
+    pub async fn add_flag(&self, new_flag: &NewFlag) -> bool {
+        let new_flag = new_flag.clone();
+        self.run(move |conn| Self::add_flag_(conn, &new_flag)).await
+    }
+    fn add_flag_(conn: &PgConnection, new_flag: &NewFlag) -> bool {
         let affected_rows = diesel::insert_into(flags::table)
             .values(new_flag)
-            .execute(&self.0)
+            .execute(conn)
             .unwrap_or(0);
         if affected_rows == 1 {
-            self.maybe_invisible_post(new_flag.post_id);
+            Self::maybe_invisible_post_(conn, new_flag.post_id);
         }
         affected_rows == 1
     }
-    pub fn rm_flag(&self, new_flag: &NewFlag) -> bool {
+    pub async fn rm_flag(&self, new_flag: &NewFlag) -> bool {
+        let new_flag = new_flag.clone();
+        self.run(move |conn| Self::rm_flag_(conn, &new_flag)).await
+    }
+    fn rm_flag_(conn: &PgConnection, new_flag: &NewFlag) -> bool {
         use self::flags::dsl::*;
         let affected_rows = diesel::delete(
             flags
                 .filter(user_id.eq(new_flag.user_id))
                 .filter(post_id.eq(new_flag.post_id))
         )
-            .execute(&self.0)
+            .execute(conn)
             .unwrap_or(0);
         affected_rows == 1
     }
-    pub fn add_flag_comment(&self, new_flag: &NewFlagComment) -> bool {
+    pub async fn add_flag_comment(&self, new_flag: &NewFlagComment) -> bool {
+        let new_flag = new_flag.clone();
+        self.run(move |conn| Self::add_flag_comment_(conn, &new_flag)).await
+    }
+    fn add_flag_comment_(conn: &PgConnection, new_flag: &NewFlagComment) -> bool {
         let affected_rows = diesel::insert_into(comment_flags::table)
             .values(new_flag)
-            .execute(&self.0)
+            .execute(conn)
             .unwrap_or(0);
         if affected_rows == 1 {
-            self.maybe_invisible_comment(new_flag.comment_id);
+            Self::maybe_invisible_comment_(conn, new_flag.comment_id);
         }
         affected_rows == 1
     }
-    pub fn rm_flag_comment(&self, new_flag: &NewFlagComment) -> bool {
+    pub async fn rm_flag_comment(&self, new_flag: &NewFlagComment) -> bool {
+        let new_flag = new_flag.clone();
+        self.run(move |conn| Self::rm_flag_comment_(conn, &new_flag)).await
+    }
+    fn rm_flag_comment_(conn: &PgConnection, new_flag: &NewFlagComment) -> bool {
         use self::comment_flags::dsl::*;
         let affected_rows = diesel::delete(
             comment_flags
                 .filter(user_id.eq(new_flag.user_id))
                 .filter(comment_id.eq(new_flag.comment_id))
         )
-            .execute(&self.0)
+            .execute(conn)
             .unwrap_or(0);
         affected_rows == 1
     }
-    fn update_score_on_post(&self, post_id_value: i32, count_value: i32) {
+    fn update_score_on_post_(conn: &PgConnection, post_id_value: i32, count_value: i32) {
         use self::posts::dsl::*;
         diesel::update(posts.find(post_id_value)).set(score.eq(score + count_value))
-            .execute(&self.0)
+            .execute(conn)
             .expect("if adding a star worked, then so should updating the post");
     }
-    fn update_comment_count_on_post(&self, post_id_value: i32, count_value: i32) -> Result<(), DieselError> {
+    fn update_comment_count_on_post_(conn: &PgConnection, post_id_value: i32, count_value: i32) -> Result<(), DieselError> {
         use self::posts::dsl::*;
         diesel::update(posts.find(post_id_value)).set(comment_count.eq(comment_count + count_value))
-            .execute(&self.0)
+            .execute(conn)
             .map(|_| ())
     }
-    pub fn has_users(&self) -> Result<bool, DieselError> {
+    pub async fn has_users(&self) -> Result<bool, DieselError> {
+        self.run(move |conn| Self::has_users_(conn)).await
+    }
+    fn has_users_(conn: &PgConnection) -> Result<bool, DieselError> {
         use self::users::dsl::*;
         use diesel::{select, dsl::exists};
-        select(exists(users.select(id))).get_result(&self.0)
+        select(exists(users.select(id))).get_result(conn)
     }
-    pub fn get_user_by_id(&self, user_id_param: i32) -> Result<User, DieselError> {
+    pub async fn get_user_by_id(&self, user_id_param: i32) -> Result<User, DieselError> {
+        self.run(move |conn| Self::get_user_by_id_(conn, user_id_param)).await
+    }
+    fn get_user_by_id_(conn: &PgConnection, user_id_param: i32) -> Result<User, DieselError> {
         use self::users::dsl::*;
-        users.filter(id.eq(user_id_param)).get_result(&self.0)
+        users.filter(id.eq(user_id_param)).get_result(conn)
     }
-    pub fn get_user_by_username(&self, username_param: &str) -> Result<User, DieselError> {
+    pub async fn get_user_by_username(&self, username_param: &str) -> Result<User, DieselError> {
+        let username_param = username_param.to_owned();
+        self.run(move |conn| Self::get_user_by_username_(conn, &username_param)).await
+    }
+    fn get_user_by_username_(conn: &PgConnection, username_param: &str) -> Result<User, DieselError> {
         use self::users::dsl::*;
-        users.filter(username.eq(username_param)).get_result(&self.0)
+        users.filter(username.eq(username_param)).get_result(conn)
     }
-    pub fn register_user(&self, new_user: &NewUser) -> Result<User, DieselError> {
+    pub async fn register_user(&self, new_user: NewUser) -> Result<User, DieselError> {
+        self.run(move |conn| Self::register_user_(conn, new_user)).await
+    }
+    fn register_user_(conn: &PgConnection, new_user: NewUser) -> Result<User, DieselError> {
         #[derive(Insertable)]
         #[table_name="users"]
         struct CreateUser<'a> {
@@ -1416,44 +1586,61 @@ impl MoreInterestingConn {
             invited_by: Option<i32>,
             identicon: i32,
         }
-        let password_hash = password_hash(new_user.password);
+        let password_hash = password_hash(&new_user.password);
         let identicon = rand::random();
         diesel::insert_into(users::table)
             .values(CreateUser {
-                username: new_user.username,
+                username: &new_user.username[..],
                 password_hash: &password_hash[..],
                 invited_by: new_user.invited_by, identicon,
             })
-            .get_result(&self.0)
+            .get_result(conn)
     }
-    pub fn authenticate_user(&self, new_user: &UserAuth) -> Option<User> {
-        let mut user = self.get_user_by_username(new_user.username).ok()?;
-        if password_verify(new_user.password, &mut user.password_hash[..]) == PasswordResult::Passed {
+    pub async fn authenticate_user(&self, new_user: &UserAuth) -> Option<User> {
+        let new_user = new_user.clone();
+        self.run(move |conn| Self::authenticate_user_(conn, &new_user)).await
+    }
+    fn authenticate_user_(conn: &PgConnection, new_user: &UserAuth) -> Option<User> {
+        let mut user = Self::get_user_by_username_(conn, &new_user.username).ok()?;
+        if password_verify(&new_user.password, &mut user.password_hash[..]) == PasswordResult::Passed {
             Some(user)
         } else {
             None
         }
     }
-    pub fn change_user_password(&self, user_id_value: i32, password: &str) -> Result<(), DieselError> {
+    pub async fn change_user_password(&self, user_id_value: i32, password: &str) -> Result<(), DieselError> {
+        let password = password.to_owned();
+        self.run(move |conn| Self::change_user_password_(conn, user_id_value, &password)).await
+    }
+    fn change_user_password_(conn: &PgConnection, user_id_value: i32, password: &str) -> Result<(), DieselError> {
         use self::users::dsl::*;
         let password_hash_value = crate::password::password_hash(password);
         diesel::update(users.find(user_id_value)).set(password_hash.eq(password_hash_value))
-            .execute(&self.0)
+            .execute(conn)
             .map(|k| { assert_eq!(k, 1); })
     }
-    pub fn change_user_trust_level(&self, user_id_value: i32, trust_level_value: i32) -> Result<(), DieselError> {
+    pub async fn change_user_trust_level(&self, user_id_value: i32, trust_level_value: i32) -> Result<(), DieselError> {
+        self.run(move |conn| Self::change_user_trust_level_(conn, user_id_value, trust_level_value)).await
+    }
+    fn change_user_trust_level_(conn: &PgConnection, user_id_value: i32, trust_level_value: i32) -> Result<(), DieselError> {
         use self::users::dsl::*;
         diesel::update(users.find(user_id_value)).set(trust_level.eq(trust_level_value))
-            .execute(&self.0)
+            .execute(conn)
             .map(|k| { assert_eq!(k, 1); })
     }
-    pub fn change_user_banned(&self, user_id_value: i32, banned_value: bool) -> Result<(), DieselError> {
+    pub async fn change_user_banned(&self, user_id_value: i32, banned_value: bool) -> Result<(), DieselError> {
+        self.run(move |conn| Self::change_user_banned_(conn, user_id_value, banned_value)).await
+    }
+    fn change_user_banned_(conn: &PgConnection, user_id_value: i32, banned_value: bool) -> Result<(), DieselError> {
         use self::users::dsl::*;
         diesel::update(users.find(user_id_value)).set(banned.eq(banned_value))
-            .execute(&self.0)
+            .execute(conn)
             .map(|k| { assert_eq!(k, 1); })
     }
-    pub fn create_invite_token(&self, invited_by: i32) -> Result<InviteToken, DieselError> {
+    pub async fn create_invite_token(&self, invited_by: i32) -> Result<InviteToken, DieselError> {
+        self.run(move |conn| Self::create_invite_token_(conn, invited_by)).await
+    }
+    fn create_invite_token_(conn: &PgConnection, invited_by: i32) -> Result<InviteToken, DieselError> {
         #[derive(Insertable)]
         #[table_name="invite_tokens"]
         struct CreateInviteToken {
@@ -1465,32 +1652,47 @@ impl MoreInterestingConn {
                 uuid: rand::random(),
                 invited_by
             })
-            .get_result(&self.0)
+            .get_result(conn)
     }
-    pub fn check_invite_token_exists(&self, uuid_value: Base32) -> bool {
+    pub async fn check_invite_token_exists(&self, uuid_value: Base32) -> bool {
+        self.run(move |conn| Self::check_invite_token_exists_(conn, uuid_value)).await
+    }
+    fn check_invite_token_exists_(conn: &PgConnection, uuid_value: Base32) -> bool {
         use self::invite_tokens::dsl::*;
         use diesel::{select, dsl::exists};
         let uuid_value = uuid_value.into_i64();
-        select(exists(invite_tokens.find(uuid_value))).get_result(&self.0).unwrap_or(false)
+        select(exists(invite_tokens.find(uuid_value))).get_result(conn).unwrap_or(false)
     }
-    pub fn consume_invite_token(&self, uuid_value: Base32) -> Result<InviteToken, DieselError> {
+    pub async fn consume_invite_token(&self, uuid_value: Base32) -> Result<InviteToken, DieselError> {
+        self.run(move |conn| Self::consume_invite_token_(conn, uuid_value)).await
+    }
+    fn consume_invite_token_(conn: &PgConnection, uuid_value: Base32) -> Result<InviteToken, DieselError> {
         use self::invite_tokens::dsl::*;
         let uuid_value = uuid_value.into_i64();
-        diesel::delete(invite_tokens.find(uuid_value)).get_result(&self.0)
+        diesel::delete(invite_tokens.find(uuid_value)).get_result(conn)
     }
-    pub fn get_invite_tree(&self) -> HashMap<i32, Vec<User>> {
+    pub async fn get_invite_tree(&self) -> HashMap<i32, Vec<User>> {
+        self.run(move |conn| Self::get_invite_tree_(conn)).await
+    }
+    fn get_invite_tree_(conn: &PgConnection) -> HashMap<i32, Vec<User>> {
         use self::users::dsl::*;
         let mut ret_val: HashMap<i32, Vec<User>> = HashMap::new();
-        for user in users.get_results::<User>(&self.0).unwrap_or(Vec::new()).into_iter() {
+        for user in users.get_results::<User>(conn).unwrap_or(Vec::new()).into_iter() {
             ret_val.entry(user.invited_by.unwrap_or(0)).or_default().push(user)
         }
         ret_val
     }
-    pub fn get_comment_by_id(&self, comment_id_value: i32) -> Result<Comment, DieselError> {
-        use self::comments::dsl::*;
-        comments.find(comment_id_value).get_result::<Comment>(&self.0)
+    pub async fn get_comment_by_id(&self, comment_id_value: i32) -> Result<Comment, DieselError> {
+        self.run(move |conn| Self::get_comment_by_id_(conn, comment_id_value)).await
     }
-    pub fn get_comment_info_by_id(&self, comment_id_value: i32, user_id_param: i32) -> Result<CommentInfo, DieselError> {
+    fn get_comment_by_id_(conn: &PgConnection, comment_id_value: i32) -> Result<Comment, DieselError> {
+        use self::comments::dsl::*;
+        comments.find(comment_id_value).get_result::<Comment>(conn)
+    }
+    pub async fn get_comment_info_by_id(&self, comment_id_value: i32, user_id_param: i32) -> Result<CommentInfo, DieselError> {
+        self.run(move |conn| Self::get_comment_info_by_id_(conn, comment_id_value, user_id_param)).await
+    }
+    fn get_comment_info_by_id_(conn: &PgConnection, comment_id_value: i32, user_id_param: i32) -> Result<CommentInfo, DieselError> {
         use self::comments::dsl::*;
         use self::comment_stars::dsl::*;
         use self::comment_flags::dsl::*;
@@ -1517,36 +1719,52 @@ impl MoreInterestingConn {
             ))
             .filter(visible.eq(true))
             .filter(self::comments::dsl::id.eq(comment_id_value))
-            .get_result::<(i32, String, String, bool, i32, NaiveDateTime, i32, Option<i32>, Option<i32>, Option<i32>, String, i32)>(&self.0)
-            .map(|t| tuple_to_comment_info(self, t))
+            .get_result::<(i32, String, String, bool, i32, NaiveDateTime, i32, Option<i32>, Option<i32>, Option<i32>, String, i32)>(conn)
+            .map(|t| tuple_to_comment_info(conn, t))
     }
-    pub fn create_domain(&self, new_domain: NewDomain) -> Result<Domain, DieselError> {
+    pub async fn create_domain(&self, new_domain: NewDomain) -> Result<Domain, DieselError> {
+        self.run(move |conn| Self::create_domain_(conn, new_domain)).await
+    }
+    fn create_domain_(conn: &PgConnection, new_domain: NewDomain) -> Result<Domain, DieselError> {
         use self::domains::dsl::*;
         diesel::insert_into(domains)
             .values(new_domain)
-            .get_result(&self.0)
+            .get_result(conn)
     }
-    pub fn get_domain_by_id(&self, domain_id_value: i32) -> Result<Domain, DieselError> {
+    pub async fn get_domain_by_id(&self, domain_id_value: i32) -> Result<Domain, DieselError> {
+        self.run(move |conn| Self::get_domain_by_id_(conn, domain_id_value)).await
+    }
+    fn get_domain_by_id_(conn: &PgConnection, domain_id_value: i32) -> Result<Domain, DieselError> {
         use self::domains::dsl::*;
-        domains.find(domain_id_value).get_result::<Domain>(&self.0)
+        domains.find(domain_id_value).get_result::<Domain>(conn)
     }
-    pub fn get_domain_by_hostname(&self, mut hostname_value: &str) -> Result<Domain, DieselError> {
+    pub async fn get_domain_by_hostname(&self, hostname_value: &str) -> Result<Domain, DieselError> {
+        let hostname_value = hostname_value.to_owned();
+        self.run(move |conn| Self::get_domain_by_hostname_(conn, &hostname_value)).await
+    }
+    fn get_domain_by_hostname_(conn: &PgConnection, mut hostname_value: &str) -> Result<Domain, DieselError> {
         use self::domains::dsl::*;
         use self::domain_synonyms::*;
         if hostname_value.starts_with("www.") {
             hostname_value = &hostname_value[4..];
         }
-        if let Ok(domain_synonym) = domain_synonyms::table.filter(from_hostname.eq(hostname_value)).get_result::<DomainSynonym>(&self.0) {
-            domains.filter(id.eq(domain_synonym.to_domain_id)).get_result::<Domain>(&self.0)
+        if let Ok(domain_synonym) = domain_synonyms::table.filter(from_hostname.eq(hostname_value)).get_result::<DomainSynonym>(conn) {
+            domains.filter(id.eq(domain_synonym.to_domain_id)).get_result::<Domain>(conn)
         } else {
-            domains.filter(hostname.eq(hostname_value)).get_result::<Domain>(&self.0)
+            domains.filter(hostname.eq(hostname_value)).get_result::<Domain>(conn)
         }
     }
-    pub fn get_domain_restriction_by_id(&self, domain_id_value: i32) -> Result<DomainRestriction, DieselError> {
-        use self::domain_restrictions::dsl::*;
-        domain_restrictions.find(domain_id_value).get_result::<DomainRestriction>(&self.0)
+    pub async fn get_domain_restriction_by_id(&self, domain_id_value: i32) -> Result<DomainRestriction, DieselError> {
+        self.run(move |conn| Self::get_domain_restriction_by_id_(conn, domain_id_value)).await
     }
-    pub fn comment_on_post(&self, new_post: NewComment, body_format: BodyFormat) -> Result<Comment, CreateCommentError> {
+    fn get_domain_restriction_by_id_(conn: &PgConnection, domain_id_value: i32) -> Result<DomainRestriction, DieselError> {
+        use self::domain_restrictions::dsl::*;
+        domain_restrictions.find(domain_id_value).get_result::<DomainRestriction>(conn)
+    }
+    pub async fn comment_on_post(&self, new_post: NewComment, body_format: BodyFormat) -> Result<Comment, CreateCommentError> {
+        self.run(move |conn| Self::comment_on_post_(conn, new_post, body_format)).await
+    }
+    fn comment_on_post_(conn: &PgConnection, new_post: NewComment, body_format: BodyFormat) -> Result<Comment, CreateCommentError> {
         #[derive(Insertable)]
         #[table_name="comments"]
         struct CreateComment<'a> {
@@ -1557,28 +1775,31 @@ impl MoreInterestingConn {
             visible: bool,
         }
         // TODO: make this configurable
-        if self.get_user_comments_count_today(new_post.created_by) > 100_000 {
+        if Self::get_user_comments_count_today_(conn, new_post.created_by) > 100_000 {
             return Err(CreateCommentError::TooManyComments);
         }
         let html_and_stuff = match body_format {
-            BodyFormat::Plain => crate::prettify::prettify_body(&new_post.text, &mut PrettifyData::new(self, new_post.post_id)),
-            BodyFormat::BBCode => crate::prettify::prettify_body_bbcode(&new_post.text, &mut PrettifyData::new(self, new_post.post_id)),
+            BodyFormat::Plain => crate::prettify::prettify_body(&new_post.text, &mut PrettifyData::new(conn, new_post.post_id)),
+            BodyFormat::BBCode => crate::prettify::prettify_body_bbcode(&new_post.text, &mut PrettifyData::new(conn, new_post.post_id)),
         };
-        self.update_comment_count_on_post(new_post.post_id, 1)?;
+        Self::update_comment_count_on_post_(conn, new_post.post_id, 1)?;
         Ok(diesel::insert_into(comments::table)
             .values(CreateComment{
-                text: new_post.text,
+                text: &new_post.text,
                 html: &html_and_stuff.string,
                 post_id: new_post.post_id,
                 created_by: new_post.created_by,
                 visible: new_post.visible,
             })
-            .get_result(&self.0)?)
+            .get_result(conn)?)
     }
-    pub fn update_comment(&self, post_id_value: i32, comment_id_value: i32, text_value: &str, body_format: BodyFormat) -> Result<(), DieselError> {
+    pub async fn update_comment(&self, post_id_value: i32, comment_id_value: i32, text_value: String, body_format: BodyFormat) -> Result<(), DieselError> {
+        self.run(move |conn| Self::update_comment_(conn, post_id_value, comment_id_value, text_value, body_format)).await
+    }
+    fn update_comment_(conn: &PgConnection, post_id_value: i32, comment_id_value: i32, text_value: String, body_format: BodyFormat) -> Result<(), DieselError> {
         let html_and_stuff = match body_format {
-            BodyFormat::Plain => crate::prettify::prettify_body(text_value, &mut PrettifyData::new(self, post_id_value)),
-            BodyFormat::BBCode => crate::prettify::prettify_body_bbcode(text_value, &mut PrettifyData::new(self, post_id_value)),
+            BodyFormat::Plain => crate::prettify::prettify_body(&text_value, &mut PrettifyData::new(conn, post_id_value)),
+            BodyFormat::BBCode => crate::prettify::prettify_body_bbcode(&text_value, &mut PrettifyData::new(conn, post_id_value)),
         };
         use self::comments::dsl::*;
         diesel::update(comments.find(comment_id_value))
@@ -1586,10 +1807,13 @@ impl MoreInterestingConn {
                 text.eq(text_value),
                 html.eq(&html_and_stuff.string)
                 ))
-            .execute(&self.0)
+            .execute(conn)
             .map(|_| ())
     }
-    pub fn get_comments_from_post(&self, post_id_param: i32, user_id_param: i32) -> Result<Vec<CommentInfo>, DieselError> {
+    pub async fn get_comments_from_post(&self, post_id_param: i32, user_id_param: i32) -> Result<Vec<CommentInfo>, DieselError> {
+        self.run(move |conn| Self::get_comments_from_post_(conn, post_id_param, user_id_param)).await
+    }
+    fn get_comments_from_post_(conn: &PgConnection, post_id_param: i32, user_id_param: i32) -> Result<Vec<CommentInfo>, DieselError> {
         use self::comments::dsl::*;
         use self::comment_stars::dsl::*;
         use self::comment_flags::dsl::*;
@@ -1617,13 +1841,16 @@ impl MoreInterestingConn {
             .filter(visible.eq(true))
             .filter(self::comments::dsl::post_id.eq(post_id_param))
             .order_by(self::comments::dsl::created_at)
-            .get_results::<(i32, String, String, bool, i32, NaiveDateTime, i32, Option<i32>, Option<i32>, Option<i32>, String, i32)>(&self.0)?
+            .get_results::<(i32, String, String, bool, i32, NaiveDateTime, i32, Option<i32>, Option<i32>, Option<i32>, String, i32)>(conn)?
             .into_iter()
-            .map(|t| tuple_to_comment_info(self, t))
+            .map(|t| tuple_to_comment_info(conn, t))
             .collect();
         Ok(all)
     }
-    pub fn search_comments_by_user(&self, user_id_param: i32) -> Result<Vec<CommentSearchResult>, DieselError> {
+    pub async fn search_comments_by_user(&self, user_id_param: i32) -> Result<Vec<CommentSearchResult>, DieselError> {
+        self.run(move |conn| Self::search_comments_by_user_(conn, user_id_param)).await
+    }
+    fn search_comments_by_user_(conn: &PgConnection, user_id_param: i32) -> Result<Vec<CommentSearchResult>, DieselError> {
         use self::comments::dsl::*;
         use self::users::dsl::*;
         use self::posts::dsl::*;
@@ -1647,13 +1874,16 @@ impl MoreInterestingConn {
             .filter(self::comments::dsl::created_by.eq(user_id_param))
             .order_by(self::comments::dsl::id.desc())
             .limit(50)
-            .get_results::<(i32, String, i32, Base32, String, NaiveDateTime, i32, String, i32)>(&self.0)?
+            .get_results::<(i32, String, i32, Base32, String, NaiveDateTime, i32, String, i32)>(conn)?
             .into_iter()
             .map(|t| tuple_to_comment_search_results(t))
             .collect();
         Ok(all)
     }
-    pub fn search_comments_by_user_after(&self, user_id_param: i32, after_id_param: i32) -> Result<Vec<CommentSearchResult>, DieselError> {
+    pub async fn search_comments_by_user_after(&self, user_id_param: i32, after_id_param: i32) -> Result<Vec<CommentSearchResult>, DieselError> {
+        self.run(move |conn| Self::search_comments_by_user_after_(conn, user_id_param, after_id_param)).await
+    }
+    fn search_comments_by_user_after_(conn: &PgConnection, user_id_param: i32, after_id_param: i32) -> Result<Vec<CommentSearchResult>, DieselError> {
         use self::comments::dsl::*;
         use self::users::dsl::*;
         use self::posts::dsl::*;
@@ -1678,13 +1908,16 @@ impl MoreInterestingConn {
             .filter(self::comments::dsl::id.lt(after_id_param))
             .order_by(self::comments::dsl::id.desc())
             .limit(50)
-            .get_results::<(i32, String, i32, Base32, String, NaiveDateTime, i32, String, i32)>(&self.0)?
+            .get_results::<(i32, String, i32, Base32, String, NaiveDateTime, i32, String, i32)>(conn)?
             .into_iter()
             .map(|t| tuple_to_comment_search_results(t))
             .collect();
         Ok(all)
     }
-    pub fn get_post_info_from_comment(&self, comment_id_param: i32) -> Result<PostInfo, DieselError> {
+    pub async fn get_post_info_from_comment(&self, comment_id_param: i32) -> Result<PostInfo, DieselError> {
+        self.run(move |conn| Self::get_post_info_from_comment_(conn, comment_id_param)).await
+    }
+    fn get_post_info_from_comment_(conn: &PgConnection, comment_id_param: i32) -> Result<PostInfo, DieselError> {
         use self::posts::dsl::{self as p, *};
         use self::stars::dsl::{self as s, *};
         use self::flags::dsl::{self as f, *};
@@ -1693,7 +1926,7 @@ impl MoreInterestingConn {
         use self::comments::dsl::{self as c, *};
         use self::comment_readpoints::{self as cr, *};
         // This is a bunch of duplicate code.
-        let mut data = PrettifyData::new(self, 0);
+        let mut data = PrettifyData::new(conn, 0);
         Ok(tuple_to_post_info_logged_out(&mut data, posts
             .inner_join(users)
             .inner_join(comments)
@@ -1716,9 +1949,12 @@ impl MoreInterestingConn {
                 p::banner_desc,
             ))
             .filter(self::comments::dsl::id.eq(comment_id_param))
-            .first::<(i32, Base32, String, Option<String>, bool, bool, i32, i32, i32, bool, NaiveDateTime, i32, Option<String>, String, Option<String>, Option<String>)>(&self.0)?, self.get_current_stellar_time()))
+            .first::<(i32, Base32, String, Option<String>, bool, bool, i32, i32, i32, bool, NaiveDateTime, i32, Option<String>, String, Option<String>, Option<String>)>(conn)?, Self::get_current_stellar_time_(conn)))
     }
-    pub fn get_post_starred_by(&self, post_id_param: i32) -> Result<Vec<String>, DieselError> {
+    pub async fn get_post_starred_by(&self, post_id_param: i32) -> Result<Vec<String>, DieselError> {
+        self.run(move |conn| Self::get_post_starred_by_(conn, post_id_param)).await
+    }
+    fn get_post_starred_by_(conn: &PgConnection, post_id_param: i32) -> Result<Vec<String>, DieselError> {
         use self::stars::dsl::*;
         use self::users::dsl::*;
         let all: Vec<String> = stars
@@ -1728,13 +1964,16 @@ impl MoreInterestingConn {
             ))
             .filter(self::stars::dsl::post_id.eq(post_id_param))
             .limit(50)
-            .get_results::<(String,)>(&self.0)?
+            .get_results::<(String,)>(conn)?
             .into_iter()
             .map(|(t,)| t)
             .collect();
         Ok(all)
     }
-    pub fn get_comment_starred_by(&self, comment_id_param: i32) -> Result<Vec<String>, DieselError> {
+    pub async fn get_comment_starred_by(&self, comment_id_param: i32) -> Result<Vec<String>, DieselError> {
+        self.run(move |conn| Self::get_comment_starred_by_(conn, comment_id_param)).await
+    }
+    fn get_comment_starred_by_(conn: &PgConnection, comment_id_param: i32) -> Result<Vec<String>, DieselError> {
         use self::comment_stars::dsl::*;
         use self::users::dsl::*;
         let all: Vec<String> = comment_stars
@@ -1744,75 +1983,92 @@ impl MoreInterestingConn {
             ))
             .filter(self::comment_stars::dsl::comment_id.eq(comment_id_param))
             .limit(50)
-            .get_results::<(String,)>(&self.0)?
+            .get_results::<(String,)>(conn)?
             .into_iter()
             .map(|(t,)| t)
             .collect();
         Ok(all)
     }
-    pub fn get_tag_by_name(&self, name_param: &str) -> Result<Tag, DieselError> {
+    pub async fn get_tag_by_name(&self, name_param: &str) -> Result<Tag, DieselError> {
+        let name_param = name_param.to_owned();
+        self.run(move |conn| Self::get_tag_by_name_(conn, &name_param)).await
+    }
+    fn get_tag_by_name_(conn: &PgConnection, name_param: &str) -> Result<Tag, DieselError> {
         use self::tags::dsl::*;
         tags
             .filter(name.eq(name_param))
-            .get_result::<Tag>(&self.0)
+            .get_result::<Tag>(conn)
     }
-    pub fn create_or_update_tag(&self, new_tag: &NewTag) -> Result<Tag, DieselError> {
+    pub async fn create_or_update_tag(&self, new_tag: &NewTag) -> Result<Tag, DieselError> {
+        let new_tag = new_tag.clone();
+        self.run(move |conn| Self::create_or_update_tag_(conn, &new_tag)).await
+    }
+    fn create_or_update_tag_(conn: &PgConnection, new_tag: &NewTag) -> Result<Tag, DieselError> {
         #[derive(Insertable)]
         #[table_name="tags"]
         struct CreateTag<'a> {
             name: &'a str,
             description: Option<&'a str>,
         }
-        if let Ok(tag) = self.get_tag_by_name(new_tag.name) {
+        if let Ok(tag) = Self::get_tag_by_name_(conn, &new_tag.name) {
             use self::tags::dsl::*;
             diesel::update(tags.find(tag.id))
-                .set(description.eq(new_tag.description))
-                .get_result(&self.0)
+                .set(description.eq(&new_tag.description))
+                .get_result(conn)
         } else {
             diesel::insert_into(tags::table)
                 .values(CreateTag {
-                    name: new_tag.name,
-                    description: new_tag.description,
+                    name: &new_tag.name,
+                    description: new_tag.description.as_ref().map(|x| &x[..]),
                 })
-                .get_result(&self.0)
+                .get_result(conn)
         }
     }
-    pub fn add_domain_synonym(&self, new_domain_synonym: &DomainSynonym) -> Result<(), DieselError> {
+    pub async fn add_domain_synonym(&self, new_domain_synonym: DomainSynonym) -> Result<(), DieselError> {
+        self.run(move |conn| Self::add_domain_synonym_(conn, new_domain_synonym)).await
+    }
+    fn add_domain_synonym_(conn: &PgConnection, new_domain_synonym: DomainSynonym) -> Result<(), DieselError> {
         use self::posts::dsl::*;
         use self::domain_synonyms::dsl::*;
         use self::domains::dsl::*;
-        if let Ok(old_domain) = self.get_domain_by_hostname(&new_domain_synonym.from_hostname) {
+        if let Ok(old_domain) = Self::get_domain_by_hostname_(conn, &new_domain_synonym.from_hostname) {
             if old_domain.hostname == new_domain_synonym.from_hostname {
                 diesel::update(posts.filter(domain_id.eq(old_domain.id)))
                     .set(domain_id.eq(new_domain_synonym.to_domain_id))
-                    .execute(&self.0)?;
+                    .execute(conn)?;
                 diesel::delete(domains.find(old_domain.id))
-                    .execute(&self.0)?;
+                    .execute(conn)?;
             }
         }
-        if let Ok(old_domain_synonym) = domain_synonyms.find(&new_domain_synonym.from_hostname).get_result::<DomainSynonym>(&self.0) {
+        if let Ok(old_domain_synonym) = domain_synonyms.find(&new_domain_synonym.from_hostname).get_result::<DomainSynonym>(conn) {
             diesel::update(domain_synonyms.find(old_domain_synonym.from_hostname))
                 .set(to_domain_id.eq(new_domain_synonym.to_domain_id))
-                .execute(&self.0)
+                .execute(conn)
                 .map(|_| ())
         } else {
             diesel::insert_into(domain_synonyms)
                 .values(new_domain_synonym)
-                .execute(&self.0)
+                .execute(conn)
                 .map(|_| ())
         }
     }
-    pub fn get_all_domain_synonyms(&self) -> Result<Vec<DomainSynonymInfo>, DieselError> {
+    pub async fn get_all_domain_synonyms(&self) -> Result<Vec<DomainSynonymInfo>, DieselError> {
+        self.run(move |conn| Self::get_all_domain_synonyms_(conn)).await
+    }
+    fn get_all_domain_synonyms_(conn: &PgConnection) -> Result<Vec<DomainSynonymInfo>, DieselError> {
         use self::domain_synonyms::dsl::*;
         use self::domains::dsl::*;
         domain_synonyms
             .inner_join(domains)
             .select((from_hostname, hostname))
-            .get_results::<DomainSynonymInfo>(&self.0)
+            .get_results::<DomainSynonymInfo>(conn)
     }
-    pub fn get_all_tags(&self) -> Result<Vec<Tag>, DieselError> {
+    pub async fn get_all_tags(&self) -> Result<Vec<Tag>, DieselError> {
+        self.run(move |conn| Self::get_all_tags_(conn)).await
+    }
+    fn get_all_tags_(conn: &PgConnection) -> Result<Vec<Tag>, DieselError> {
         use self::tags::dsl::*;
-        let mut t = tags.get_results::<Tag>(&self.0)?;
+        let mut t = tags.get_results::<Tag>(conn)?;
         t.sort_by(|a, b| {
             // place all-number tags last
             if a.name.as_bytes()[0] < b'a' && b.name.as_bytes()[0] >= b'a' { return Ordering::Greater };
@@ -1821,21 +2077,30 @@ impl MoreInterestingConn {
         });
         Ok(t)
     }
-    pub fn set_dark_mode(&self, user_id_value: i32, dark_mode_value: bool) -> Result<(), DieselError> {
+    pub async fn set_dark_mode(&self, user_id_value: i32, dark_mode_value: bool) -> Result<(), DieselError> {
+        self.run(move |conn| Self::set_dark_mode_(conn, user_id_value, dark_mode_value)).await
+    }
+    fn set_dark_mode_(conn: &PgConnection, user_id_value: i32, dark_mode_value: bool) -> Result<(), DieselError> {
         use self::users::dsl::*;
         diesel::update(users.find(user_id_value))
             .set(dark_mode.eq(dark_mode_value))
-            .execute(&self.0)
+            .execute(conn)
             .map(|_| ())
     }
-    pub fn set_big_mode(&self, user_id_value: i32, big_mode_value: bool) -> Result<(), DieselError> {
+    pub async fn set_big_mode(&self, user_id_value: i32, dark_mode_value: bool) -> Result<(), DieselError> {
+        self.run(move |conn| Self::set_big_mode_(conn, user_id_value, dark_mode_value)).await
+    }
+    fn set_big_mode_(conn: &PgConnection, user_id_value: i32, big_mode_value: bool) -> Result<(), DieselError> {
         use self::users::dsl::*;
         diesel::update(users.find(user_id_value))
             .set(big_mode.eq(big_mode_value))
-            .execute(&self.0)
+            .execute(conn)
             .map(|_| ())
     }
-    pub fn get_mod_log_recent(&self) -> Result<Vec<ModerationInfo>, DieselError> {
+    pub async fn get_mod_log_recent(&self) -> Result<Vec<ModerationInfo>, DieselError> {
+        self.run(move |conn| Self::get_mod_log_recent_(conn)).await
+    }
+    fn get_mod_log_recent_(conn: &PgConnection) -> Result<Vec<ModerationInfo>, DieselError> {
         use self::moderation::dsl::*;
         Ok(moderation
             .inner_join(users::table)
@@ -1848,13 +2113,16 @@ impl MoreInterestingConn {
             ))
             .order_by(id.desc())
             .limit(50)
-            .get_results::<(i32, json::Value, NaiveDateTime, i32, String)>(&self.0)?
+            .get_results::<(i32, json::Value, NaiveDateTime, i32, String)>(conn)?
             .into_iter()
             .map(|t| tuple_to_moderation(t))
             .collect()
         )
     }
-    pub fn get_mod_log_starting_with(&self, starting_with_id: i32) -> Result<Vec<ModerationInfo>, DieselError> {
+    pub async fn get_mod_log_starting_with(&self, starting_with_id: i32) -> Result<Vec<ModerationInfo>, DieselError> {
+        self.run(move |conn| Self::get_mod_log_starting_with_(conn, starting_with_id)).await
+    }
+    fn get_mod_log_starting_with_(conn: &PgConnection, starting_with_id: i32) -> Result<Vec<ModerationInfo>, DieselError> {
         use self::moderation::dsl::*;
         Ok(moderation
             .inner_join(users::table)
@@ -1868,19 +2136,29 @@ impl MoreInterestingConn {
             .filter(id.lt(starting_with_id))
             .order_by(id.desc())
             .limit(50)
-            .get_results::<(i32, json::Value, NaiveDateTime, i32, String)>(&self.0)?
+            .get_results::<(i32, json::Value, NaiveDateTime, i32, String)>(conn)?
             .into_iter()
             .map(|t| tuple_to_moderation(t))
             .collect()
         )
     }
-    pub fn mod_log_edit_comment(
+    pub async fn mod_log_edit_comment(
         &self,
         user_id_value: i32,
         comment_id_value: i32,
         post_uuid_value: Base32,
-        old_text_value: &str,
-        new_text_value: &str
+        old_text_value: String,
+        new_text_value: String,
+    ) -> Result<(), DieselError> {
+        self.run(move |conn| Self::mod_log_edit_comment_(conn, user_id_value, comment_id_value, post_uuid_value, old_text_value, new_text_value)).await
+    }
+    fn mod_log_edit_comment_(
+        conn: &PgConnection,
+        user_id_value: i32,
+        comment_id_value: i32,
+        post_uuid_value: Base32,
+        old_text_value: String,
+        new_text_value: String,
     ) -> Result<(), DieselError> {
         diesel::insert_into(moderation::table)
             .values(CreateModeration{
@@ -1893,19 +2171,32 @@ impl MoreInterestingConn {
                 }},
                 created_by: user_id_value,
             })
-            .execute(&self.0)
+            .execute(conn)
             .map(|_| ())
     }
-    pub fn mod_log_edit_post(
+    pub async fn mod_log_edit_post(
         &self,
         user_id_value: i32,
         post_uuid_value: Base32,
-        old_title_value: &str,
-        new_title_value: &str,
-        old_url_value: &str,
-        new_url_value: &str,
-        old_excerpt_value: &str,
-        new_excerpt_value: &str,
+        old_title_value: String,
+        new_title_value: String,
+        old_url_value: String,
+        new_url_value: String,
+        old_excerpt_value: String,
+        new_excerpt_value: String,
+    ) -> Result<(), DieselError> {
+        self.run(move |conn| Self::mod_log_edit_post_(conn, user_id_value, post_uuid_value, old_title_value, new_title_value, old_url_value, new_url_value, old_excerpt_value, new_excerpt_value)).await
+    }
+    fn mod_log_edit_post_(
+        conn: &PgConnection,
+        user_id_value: i32,
+        post_uuid_value: Base32,
+        old_title_value: String,
+        new_title_value: String,
+        old_url_value: String,
+        new_url_value: String,
+        old_excerpt_value: String,
+        new_excerpt_value: String,
     ) -> Result<(), DieselError> {
         diesel::insert_into(moderation::table)
             .values(CreateModeration{
@@ -1921,15 +2212,24 @@ impl MoreInterestingConn {
                 }},
                 created_by: user_id_value,
             })
-            .execute(&self.0)
+            .execute(conn)
             .map(|_| ())
     }
-    pub fn mod_log_delete_comment(
+    pub async fn mod_log_delete_comment(
         &self,
         user_id_value: i32,
         comment_id_value: i32,
         post_uuid_value: Base32,
-        old_text_value: &str,
+        old_text_value: String,
+    ) -> Result<(), DieselError> {
+        self.run(move |conn| Self::mod_log_delete_comment_(conn, user_id_value, comment_id_value, post_uuid_value, old_text_value)).await
+    }
+    fn mod_log_delete_comment_(
+        conn: &PgConnection,
+        user_id_value: i32,
+        comment_id_value: i32,
+        post_uuid_value: Base32,
+        old_text_value: String,
     ) -> Result<(), DieselError> {
         diesel::insert_into(moderation::table)
             .values(CreateModeration{
@@ -1941,16 +2241,26 @@ impl MoreInterestingConn {
                 }},
                 created_by: user_id_value,
             })
-            .execute(&self.0)
+            .execute(conn)
             .map(|_| ())
     }
-    pub fn mod_log_delete_post(
+    pub async fn mod_log_delete_post(
         &self,
         user_id_value: i32,
         post_uuid_value: Base32,
-        old_title_value: &str,
-        old_url_value: &str,
-        old_excerpt_value: &str,
+        old_title_value: String,
+        old_url_value: String,
+        old_excerpt_value: String,
+    ) -> Result<(), DieselError> {
+        self.run(move |conn| Self::mod_log_delete_post_(conn, user_id_value, post_uuid_value, old_title_value, old_url_value, old_excerpt_value)).await
+    }
+    fn mod_log_delete_post_(
+        conn: &PgConnection,
+        user_id_value: i32,
+        post_uuid_value: Base32,
+        old_title_value: String,
+        old_url_value: String,
+        old_excerpt_value: String,
     ) -> Result<(), DieselError> {
         diesel::insert_into(moderation::table)
             .values(CreateModeration{
@@ -1963,15 +2273,24 @@ impl MoreInterestingConn {
                 }},
                 created_by: user_id_value,
             })
-            .execute(&self.0)
+            .execute(conn)
             .map(|_| ())
     }
-    pub fn mod_log_approve_comment(
+    pub async fn mod_log_approve_comment(
         &self,
         user_id_value: i32,
         comment_id_value: i32,
         post_uuid_value: Base32,
-        new_text_value: &str,
+        new_text_value: String,
+    ) -> Result<(), DieselError> {
+        self.run(move |conn| Self::mod_log_approve_comment_(conn, user_id_value, comment_id_value, post_uuid_value, new_text_value)).await
+    }
+    fn mod_log_approve_comment_(
+        conn: &PgConnection,
+        user_id_value: i32,
+        comment_id_value: i32,
+        post_uuid_value: Base32,
+        new_text_value: String,
     ) -> Result<(), DieselError> {
         diesel::insert_into(moderation::table)
             .values(CreateModeration{
@@ -1983,16 +2302,26 @@ impl MoreInterestingConn {
                 }},
                 created_by: user_id_value,
             })
-            .execute(&self.0)
+            .execute(conn)
             .map(|_| ())
     }
-    pub fn mod_log_approve_post(
+    pub async fn mod_log_approve_post(
         &self,
         user_id_value: i32,
         post_uuid_value: Base32,
-        new_title_value: &str,
-        new_url_value: &str,
-        new_excerpt_value: &str,
+        old_title_value: String,
+        old_url_value: String,
+        old_excerpt_value: String,
+    ) -> Result<(), DieselError> {
+        self.run(move |conn| Self::mod_log_approve_post_(conn, user_id_value, post_uuid_value, old_title_value, old_url_value, old_excerpt_value)).await
+    }
+    fn mod_log_approve_post_(
+        conn: &PgConnection,
+        user_id_value: i32,
+        post_uuid_value: Base32,
+        new_title_value: String,
+        new_url_value: String,
+        new_excerpt_value: String,
     ) -> Result<(), DieselError> {
         diesel::insert_into(moderation::table)
             .values(CreateModeration{
@@ -2005,15 +2334,24 @@ impl MoreInterestingConn {
                 }},
                 created_by: user_id_value,
             })
-            .execute(&self.0)
+            .execute(conn)
             .map(|_| ())
     }
-    pub fn mod_log_banner_post(
+    pub async fn mod_log_banner_post(
         &self,
         user_id_value: i32,
         post_uuid_value: Base32,
-        banner_title_value: &str,
-        banner_desc_value: &str,
+        banner_title_value: String,
+        banner_desc_value: String,
+    ) -> Result<(), DieselError> {
+        self.run(move |conn| Self::mod_log_banner_post_(conn, user_id_value, post_uuid_value, banner_title_value, banner_desc_value)).await
+    }
+    fn mod_log_banner_post_(
+        conn: &PgConnection,
+        user_id_value: i32,
+        post_uuid_value: Base32,
+        banner_title_value: String,
+        banner_desc_value: String,
     ) -> Result<(), DieselError> {
         diesel::insert_into(moderation::table)
             .values(CreateModeration{
@@ -2025,17 +2363,20 @@ impl MoreInterestingConn {
                 }},
                 created_by: user_id_value,
             })
-            .execute(&self.0)
+            .execute(conn)
             .map(|_| ())
     }
-    pub fn find_moderated_post(&self, user_id_param: i32) -> Option<PostInfo> {
+    pub async fn find_moderated_post(&self, user_id_param: i32) -> Option<PostInfo> {
+        self.run(move |conn| Self::find_moderated_post_(conn, user_id_param)).await
+    }
+    fn find_moderated_post_(conn: &PgConnection, user_id_param: i32) -> Option<PostInfo> {
         use self::posts::dsl::{self as p, *};
         use self::stars::dsl::{self as s, *};
         use self::flags::dsl::{self as f, *};
         use self::post_hides::dsl::{self as ph, *};
         use self::users::dsl::{self as u, *};
         use self::comment_readpoints::{self as cr, *};
-        let mut data = PrettifyData::new(self, 0);
+        let mut data = PrettifyData::new(conn, 0);
         let mut all: Vec<PostInfo> = posts
             .left_outer_join(stars.on(s::post_id.eq(p::id).and(s::user_id.eq(user_id_param))))
             .left_outer_join(flags.on(f::post_id.eq(p::id).and(f::user_id.eq(user_id_param))))
@@ -2069,14 +2410,17 @@ impl MoreInterestingConn {
             .filter(self::users::dsl::trust_level.gt(-2))
             .order_by(self::posts::dsl::created_at.asc())
             .limit(50)
-            .get_results::<(i32, Base32, String, Option<String>, bool, bool, i32, i32, i32, Option<i32>, bool, NaiveDateTime, i32, Option<String>, Option<i32>, Option<i32>, Option<i32>, String, Option<String>, Option<String>)>(&self.0).ok()?
+            .get_results::<(i32, Base32, String, Option<String>, bool, bool, i32, i32, i32, Option<i32>, bool, NaiveDateTime, i32, Option<String>, Option<i32>, Option<i32>, Option<i32>, String, Option<String>, Option<String>)>(conn).ok()?
             .into_iter()
-            .map(|t| tuple_to_post_info(&mut data, t, self.get_current_stellar_time()))
+            .map(|t| tuple_to_post_info(&mut data, t, Self::get_current_stellar_time_(conn)))
             .collect();
         all.sort_by_key(|info| OrderedFloat(-info.hotness));
         all.pop()
     }
-    pub fn find_moderated_comment(&self, user_id_param: i32) -> Option<CommentInfo> {
+    pub async fn find_moderated_comment(&self, user_id_param: i32) -> Option<CommentInfo> {
+        self.run(move |conn| Self::find_moderated_comment_(conn, user_id_param)).await
+    }
+    fn find_moderated_comment_(conn: &PgConnection, user_id_param: i32) -> Option<CommentInfo> {
         use self::comments::dsl::*;
         use self::comment_stars::dsl::*;
         use self::comment_flags::dsl::*;
@@ -2106,80 +2450,104 @@ impl MoreInterestingConn {
             .filter(self::users::dsl::trust_level.gt(-2))
             .order_by(self::comments::dsl::created_at.asc())
             .limit(50)
-            .get_results::<(i32, String, String, bool, i32, NaiveDateTime, i32, Option<i32>, Option<i32>, Option<i32>, String, i32)>(&self.0).ok()?
+            .get_results::<(i32, String, String, bool, i32, NaiveDateTime, i32, Option<i32>, Option<i32>, Option<i32>, String, i32)>(conn).ok()?
             .into_iter()
-            .map(|t| tuple_to_comment_info(self, t))
+            .map(|t| tuple_to_comment_info(conn, t))
             .collect();
         all.pop()
     }
-    pub fn approve_post(&self, post_id_value: i32) -> Result<(), DieselError> {
+    pub async fn approve_post(&self, post_id_value: i32) -> Result<(), DieselError> {
+        self.run(move |conn| Self::approve_post_(conn, post_id_value)).await
+    }
+    fn approve_post_(conn: &PgConnection, post_id_value: i32) -> Result<(), DieselError> {
         use self::posts::dsl::*;
         diesel::update(posts.find(post_id_value))
             .set((
                 visible.eq(true),
-                initial_stellar_time.eq(self.get_current_stellar_time()),
+                initial_stellar_time.eq(Self::get_current_stellar_time_(conn)),
             ))
-            .execute(&self.0)?;
+            .execute(conn)?;
         Ok(())
     }
-    pub fn banner_post(&self, post_id_value: i32, banner_title_value: Option<&str>, banner_desc_value: Option<&str>) -> Result<(), DieselError> {
+    pub async fn banner_post(&self, post_id_value: i32, banner_title_value: Option<String>, banner_desc_value: Option<String>) -> Result<(), DieselError> {
+        self.run(move |conn| Self::banner_post_(conn, post_id_value, banner_title_value, banner_desc_value)).await
+    }
+    fn banner_post_(conn: &PgConnection, post_id_value: i32, banner_title_value: Option<String>, banner_desc_value: Option<String>) -> Result<(), DieselError> {
         use self::posts::dsl::*;
         diesel::update(posts.find(post_id_value))
             .set((
                 banner_title.eq(banner_title_value),
                 banner_desc.eq(banner_desc_value),
             ))
-            .execute(&self.0)?;
+            .execute(conn)?;
         Ok(())
     }
-    pub fn approve_comment(&self, comment_id_value: i32) -> Result<(), DieselError> {
+    pub async fn approve_comment(&self, comment_id_value: i32) -> Result<(), DieselError> {
+        self.run(move |conn| Self::approve_comment_(conn, comment_id_value)).await
+    }
+    fn approve_comment_(conn: &PgConnection, comment_id_value: i32) -> Result<(), DieselError> {
         use self::comments::dsl::*;
         diesel::update(comments.find(comment_id_value))
             .set((
                 visible.eq(true),
             ))
-            .execute(&self.0)?;
+            .execute(conn)?;
         Ok(())
     }
-    pub fn invisible_post(&self, post_id_value: i32) -> Result<(), DieselError> {
+    pub async fn invisible_post(&self, post_id_value: i32) -> Result<(), DieselError> {
+        self.run(move |conn| Self::invisible_post_(conn, post_id_value)).await
+    }
+    fn invisible_post_(conn: &PgConnection, post_id_value: i32) -> Result<(), DieselError> {
         use self::posts::dsl::*;
         diesel::update(posts.find(post_id_value))
             .set((
                 visible.eq(false),
             ))
-            .execute(&self.0)?;
+            .execute(conn)?;
         Ok(())
     }
-    pub fn invisible_comment(&self, comment_id_value: i32) -> Result<(), DieselError> {
+    pub async fn invisible_comment(&self, comment_id_value: i32) -> Result<(), DieselError> {
+        self.run(move |conn| Self::invisible_comment_(conn, comment_id_value)).await
+    }
+    fn invisible_comment_(conn: &PgConnection, comment_id_value: i32) -> Result<(), DieselError> {
         use self::comments::dsl::*;
         diesel::update(comments.find(comment_id_value))
             .set((
                 visible.eq(false),
             ))
-            .execute(&self.0)?;
+            .execute(conn)?;
         Ok(())
     }
-    pub fn delete_post(&self, post_id_value: i32) -> Result<(), DieselError> {
+    pub async fn delete_post(&self, post_id_value: i32) -> Result<(), DieselError> {
+        self.run(move |conn| Self::delete_post_(conn, post_id_value)).await
+    }
+    fn delete_post_(conn: &PgConnection, post_id_value: i32) -> Result<(), DieselError> {
         use self::posts::dsl::*;
         diesel::update(posts.find(post_id_value))
             .set((
                 visible.eq(false),
                 rejected.eq(true),
             ))
-            .execute(&self.0)?;
+            .execute(conn)?;
         Ok(())
     }
-    pub fn delete_comment(&self, comment_id_value: i32) -> Result<(), DieselError> {
+    pub async fn delete_comment(&self, comment_id_value: i32) -> Result<(), DieselError> {
+        self.run(move |conn| Self::delete_comment_(conn, comment_id_value)).await
+    }
+    fn delete_comment_(conn: &PgConnection, comment_id_value: i32) -> Result<(), DieselError> {
         use self::comments::dsl::*;
         diesel::update(comments.find(comment_id_value))
             .set((
                 visible.eq(false),
                 rejected.eq(true),
             ))
-            .execute(&self.0)?;
+            .execute(conn)?;
         Ok(())
     }
-    pub fn user_has_received_a_star(&self, user_id_param: i32) -> bool {
+    pub async fn user_has_received_a_star(&self, user_id_param: i32) -> bool {
+        self.run(move |conn| Self::user_has_received_a_star_(conn, user_id_param)).await
+    }
+    fn user_has_received_a_star_(conn: &PgConnection, user_id_param: i32) -> bool {
         use self::stars::dsl::*;
         use self::posts::dsl::*;
         use self::comments::dsl::*;
@@ -2194,32 +2562,47 @@ impl MoreInterestingConn {
             .inner_join(comments)
             .filter(self::comments::dsl::created_by.eq(user_id_param))
             .inner_join(users.on(self::comment_stars::dsl::user_id.eq(self::users::dsl::id).and(trust_level.ge(1))));
-        select(exists(post_star)).get_result(&self.0).unwrap_or(false) ||
-            select(exists(comment_star)).get_result(&self.0).unwrap_or(false)
+        select(exists(post_star)).get_result(conn).unwrap_or(false) ||
+            select(exists(comment_star)).get_result(conn).unwrap_or(false)
     }
-    pub fn maximum_post_id(&self) -> i32 {
+    pub async fn maximum_post_id(&self) -> i32 {
+        self.run(move |conn| Self::maximum_post_id_(conn)).await
+    }
+    fn maximum_post_id_(conn: &PgConnection) -> i32 {
         use self::posts::dsl::*;
         use diesel::dsl::max;
-        posts.select(max(id)).get_result::<Option<i32>>(&self.0).unwrap_or(Some(0)).unwrap_or(0)
+        posts.select(max(id)).get_result::<Option<i32>>(conn).unwrap_or(Some(0)).unwrap_or(0)
     }
-    pub fn random_post(&self) -> Result<Option<Post>, DieselError> {
+    pub async fn random_post(&self) -> Result<Option<Post>, DieselError> {
+        self.run(move |conn| Self::random_post_(conn)).await
+    }
+    fn random_post_(conn: &PgConnection) -> Result<Option<Post>, DieselError> {
         use diesel::sql_query;
-        sql_query("SELECT * FROM posts ORDER BY RANDOM() LIMIT 1").load(&self.0).map(|mut x: Vec<_>| x.pop())
+        sql_query("SELECT * FROM posts ORDER BY RANDOM() LIMIT 1").load(conn).map(|mut x: Vec<_>| x.pop())
     }
-    pub fn get_post_by_id(&self, post_id_value: i32) -> Result<Post, DieselError> {
+    pub async fn get_post_by_id(&self, post_id_value: i32) -> Result<Post, DieselError> {
+        self.run(move |conn| Self::get_post_by_id_(conn, post_id_value)).await
+    }
+    fn get_post_by_id_(conn: &PgConnection, post_id_value: i32) -> Result<Post, DieselError> {
         use self::posts::dsl::*;
-        posts.find(post_id_value).get_result::<Post>(&self.0)
+        posts.find(post_id_value).get_result::<Post>(conn)
     }
-    pub fn get_post_by_uuid(&self, post_id_value: Base32) -> Result<Post, DieselError> {
+    pub async fn get_post_by_uuid(&self, post_id_value: Base32) -> Result<Post, DieselError> {
+        self.run(move |conn| Self::get_post_by_uuid_(conn, post_id_value)).await
+    }
+    fn get_post_by_uuid_(conn: &PgConnection, post_id_value: Base32) -> Result<Post, DieselError> {
         use self::posts::dsl::*;
-        posts.filter(uuid.eq(post_id_value.into_i64())).get_result::<Post>(&self.0)
+        posts.filter(uuid.eq(post_id_value.into_i64())).get_result::<Post>(conn)
     }
-    pub fn get_legacy_comment_info_from_post(&self, post_id_param: i32, _user_id_param: i32) -> Result<Vec<LegacyCommentInfo>, DieselError> {
+    pub async fn get_legacy_comment_info_from_post(&self, post_id_param: i32, user_id_param: i32) -> Result<Vec<LegacyCommentInfo>, DieselError> {
+        self.run(move |conn| Self::get_legacy_comment_info_from_post_(conn, post_id_param, user_id_param)).await
+    }
+    fn get_legacy_comment_info_from_post_(conn: &PgConnection, post_id_param: i32, _user_id_param: i32) -> Result<Vec<LegacyCommentInfo>, DieselError> {
         use self::legacy_comments::dsl;
         let all: Vec<LegacyCommentInfo> = dsl::legacy_comments
             .filter(dsl::post_id.eq(post_id_param))
             .order_by(dsl::created_at)
-            .get_results::<LegacyComment>(&self.0)?
+            .get_results::<LegacyComment>(conn)?
             .into_iter().map(|LegacyComment { id, post_id, author, text, html, created_at, updated_at } | {
                 let created_at_relative = relative_date(&created_at);
                 LegacyCommentInfo {
@@ -2229,14 +2612,20 @@ impl MoreInterestingConn {
             }).collect();
         Ok(all)
     }
-    pub fn get_legacy_comment_by_id(&self, legacy_comment_id_value: i32) -> Result<LegacyComment, DieselError> {
-        use self::legacy_comments::dsl::*;
-        legacy_comments.find(legacy_comment_id_value).get_result::<LegacyComment>(&self.0)
+    pub async fn get_legacy_comment_by_id(&self, legacy_comment_id_value: i32) -> Result<LegacyComment, DieselError> {
+        self.run(move |conn| Self::get_legacy_comment_by_id_(conn, legacy_comment_id_value)).await
     }
-    pub fn update_legacy_comment(&self, post_id_value: i32, legacy_comment_id_value: i32, text_value: &str, body_format: BodyFormat) -> Result<(), DieselError> {
+    fn get_legacy_comment_by_id_(conn: &PgConnection, legacy_comment_id_value: i32) -> Result<LegacyComment, DieselError> {
+        use self::legacy_comments::dsl::*;
+        legacy_comments.find(legacy_comment_id_value).get_result::<LegacyComment>(conn)
+    }
+    pub async fn update_legacy_comment(&self, post_id_value: i32, legacy_comment_id_value: i32, text_value: String, body_format: BodyFormat) -> Result<(), DieselError> {
+        self.run(move |conn| Self::update_legacy_comment_(conn, post_id_value, legacy_comment_id_value, text_value, body_format)).await
+    }
+    fn update_legacy_comment_(conn: &PgConnection, post_id_value: i32, legacy_comment_id_value: i32, text_value: String, body_format: BodyFormat) -> Result<(), DieselError> {
         let html_and_stuff = match body_format {
-            BodyFormat::Plain => crate::prettify::prettify_body(text_value, &mut PrettifyData::new(self, post_id_value)),
-            BodyFormat::BBCode => crate::prettify::prettify_body_bbcode(text_value, &mut PrettifyData::new(self, post_id_value)),
+            BodyFormat::Plain => crate::prettify::prettify_body(&text_value, &mut PrettifyData::new(conn, post_id_value)),
+            BodyFormat::BBCode => crate::prettify::prettify_body_bbcode(&text_value, &mut PrettifyData::new(conn, post_id_value)),
         };
         use self::legacy_comments::dsl::*;
         diesel::update(legacy_comments.find(legacy_comment_id_value))
@@ -2244,10 +2633,14 @@ impl MoreInterestingConn {
                 text.eq(text_value),
                 html.eq(&html_and_stuff.string)
             ))
-            .execute(&self.0)
+            .execute(conn)
             .map(|_| ())
     }
-    pub fn create_session(&self, user_id: i32, user_agent: &str) -> Result<UserSession, DieselError> {
+    pub async fn create_session(&self, user_id: i32, user_agent: &str) -> Result<UserSession, DieselError> {
+        let user_agent = user_agent.to_owned();
+        self.run(move |conn| Self::create_session_(conn, user_id, &user_agent)).await
+    }
+    fn create_session_(conn: &PgConnection, user_id: i32, user_agent: &str) -> Result<UserSession, DieselError> {
         #[derive(Insertable)]
         #[table_name="user_sessions"]
         struct CreateSession<'a> {
@@ -2260,11 +2653,14 @@ impl MoreInterestingConn {
             .values(CreateSession {
                 uuid, user_agent, user_id
             })
-            .get_result::<UserSession>(&self.0)
+            .get_result::<UserSession>(conn)
     }
-    pub fn get_session_by_uuid(&self, base32: Base32) -> Result<UserSession, DieselError> {
+    pub async fn get_session_by_uuid(&self, base32: Base32) -> Result<UserSession, DieselError> {
+        self.run(move |conn| Self::get_session_by_uuid_(conn, base32)).await
+    }
+    fn get_session_by_uuid_(conn: &PgConnection, base32: Base32) -> Result<UserSession, DieselError> {
         use self::user_sessions::dsl::*;
-        user_sessions.filter(uuid.eq(base32.into_i64())).get_result(&self.0)
+        user_sessions.filter(uuid.eq(base32.into_i64())).get_result(conn)
     }
 }
 
@@ -2302,7 +2698,7 @@ fn tuple_to_post_info(data: &mut PrettifyData, (id, uuid, title, url, visible, p
     }
 }
 
-fn tuple_to_comment_info(conn: &MoreInterestingConn, (id, text, html, visible, post_id, created_at, created_by, starred_comment_id, flagged_comment_id, hidden_comment_id, created_by_username, created_by_identicon): (i32, String, String, bool, i32, NaiveDateTime, i32, Option<i32>, Option<i32>, Option<i32>, String, i32)) -> CommentInfo {
+fn tuple_to_comment_info(conn: &PgConnection, (id, text, html, visible, post_id, created_at, created_by, starred_comment_id, flagged_comment_id, hidden_comment_id, created_by_username, created_by_identicon): (i32, String, String, bool, i32, NaiveDateTime, i32, Option<i32>, Option<i32>, Option<i32>, String, i32)) -> CommentInfo {
     let created_at_relative = relative_date(&created_at);
     let created_by_username_urlencode = utf8_percent_encode(&created_by_username, NON_ALPHANUMERIC).to_string();
     let created_by_identicon = Base32::from(created_by_identicon as i64);
@@ -2311,7 +2707,7 @@ fn tuple_to_comment_info(conn: &MoreInterestingConn, (id, text, html, visible, p
         created_at, created_at_relative,
         created_by_username_urlencode,
         created_by_identicon,
-        starred_by: conn.get_comment_starred_by(id).unwrap_or(Vec::new()),
+        starred_by: MoreInterestingConn::get_comment_starred_by_(conn, id).unwrap_or(Vec::new()),
         starred_by_me: starred_comment_id.is_some(),
         flagged_by_me: flagged_comment_id.is_some(),
         hidden_by_me: hidden_comment_id.is_some(),
@@ -2362,16 +2758,15 @@ pub fn relative_date(dt: &NaiveDateTime) -> String {
 }
 
 pub struct PrettifyData<'a> {
-    conn: &'a MoreInterestingConn,
+    conn: &'a PgConnection,
     post_id: i32,
     tag_cache: HashSet<String>,
     has_user_cache: HashSet<String>,
     domain_map_cache: HashMap<String, String>,
 }
 impl<'a> PrettifyData<'a> {
-    pub fn new(conn: &'a MoreInterestingConn, post_id: i32) -> PrettifyData<'a> {
-        let tag_cache: HashSet<String> = conn
-            .get_all_tags()
+    pub fn new(conn: &'a PgConnection, post_id: i32) -> PrettifyData<'a> {
+        let tag_cache: HashSet<String> = MoreInterestingConn::get_all_tags_(conn)
             .unwrap_or(Vec::new())
             .into_iter()
             .map(|t| t.name)
@@ -2388,7 +2783,7 @@ impl<'a> prettify::Data for PrettifyData<'a> {
         if self.post_id == 0 {
             false
         } else {
-            if let Ok(comment) = self.conn.get_comment_by_id(comment_id) {
+            if let Ok(comment) = MoreInterestingConn::get_comment_by_id_(self.conn, comment_id) {
                 comment.post_id == self.post_id
             } else {
                 false
@@ -2402,7 +2797,7 @@ impl<'a> prettify::Data for PrettifyData<'a> {
         if self.has_user_cache.contains(username) {
             true
         } else {
-            let has_user = self.conn.get_user_by_username(username).is_ok();
+            let has_user = MoreInterestingConn::get_user_by_username_(self.conn, username).is_ok();
             if has_user {
                 self.has_user_cache.insert(username.to_string());
             }
@@ -2413,7 +2808,7 @@ impl<'a> prettify::Data for PrettifyData<'a> {
         let domain_map_cache = &mut self.domain_map_cache;
         let conn = self.conn;
         domain_map_cache.entry(hostname.to_string()).or_insert_with(|| {
-            conn.get_domain_by_hostname(hostname)
+            MoreInterestingConn::get_domain_by_hostname_(conn, hostname)
                 .map(|domain| domain.hostname)
                 .unwrap_or_else(|_| hostname.to_owned())
         }).clone()
