@@ -837,8 +837,8 @@ impl MoreInterestingConn {
                     ))
                     .filter(search_index.matches(plainto_tsquery(&search.keywords)))
                     .order_by(ts_rank_cd(search_index, plainto_tsquery(&search.keywords)).desc())
-                    .offset(search.search_page as i64 * 75)
-                    .limit(75)
+                    .offset(search.search_page as i64 * 50)
+                    .limit(50)
                     .get_results::<(i32, Base32, String, Option<String>, bool, bool, i32, i32, i32, Option<i32>, bool, NaiveDateTime, i32, Option<String>, Option<i32>, Option<i32>, Option<i32>, String, Option<String>, Option<String>)>(conn)?
                     .into_iter()
                     .map(|t| tuple_to_post_info(&mut data, t, Self::get_current_stellar_time_(conn)))
@@ -867,8 +867,8 @@ impl MoreInterestingConn {
                     ))
                     .filter(search_index.matches(plainto_tsquery(&search.keywords)))
                     .order_by(ts_rank_cd(search_index, plainto_tsquery(&search.keywords)).desc())
-                    .offset(search.search_page as i64 * 75)
-                    .limit(75)
+                    .offset(search.search_page as i64 * 50)
+                    .limit(50)
                     .get_results::<(i32, Base32, String, Option<String>, bool, bool, i32, i32, i32, bool, NaiveDateTime, i32, Option<String>, String, Option<String>, Option<String>)>(conn)?
                     .into_iter()
                     .map(|t| tuple_to_post_info_logged_out(&mut data, t, Self::get_current_stellar_time_(conn)))
@@ -916,8 +916,8 @@ impl MoreInterestingConn {
                     p::banner_title,
                     p::banner_desc,
                 ))
-                .offset(search_page as i64 * 75)
-                .limit(75)
+                .offset(search_page as i64 * 50)
+                .limit(50)
                 .get_results::<(i32, Base32, String, Option<String>, bool, bool, i32, i32, i32, Option<i32>, bool, NaiveDateTime, i32, Option<String>, Option<i32>, Option<i32>, Option<i32>, String, Option<String>, Option<String>)>(conn)?
                 .into_iter()
                 .map(|t| tuple_to_post_info(&mut data, t, Self::get_current_stellar_time_(conn)))
@@ -1001,7 +1001,7 @@ impl MoreInterestingConn {
             .filter(p::id.ne(post_info.id))
             .filter(psi::search_index.matches(to_tsquery(&word_list_short)))
             .order_by(ts_rank(psi::search_index, to_tsquery(&word_list)).desc())
-            .limit(100)
+            .limit(50)
             .get_results::<(i32, Base32, String, Option<String>, bool, bool, i32, i32, i32, Option<i32>, bool, NaiveDateTime, i32, Option<String>, Option<i32>, Option<i32>, Option<i32>, String, Option<String>, Option<String>)>(conn)?
             .into_iter()
             .map(|t| tuple_to_post_info(&mut data, t, Self::get_current_stellar_time_(conn)))
@@ -1051,7 +1051,7 @@ impl MoreInterestingConn {
             .filter(private.eq(false))
             .filter(p::submitted_by.eq(user_info_id_param))
             .order_by((initial_stellar_time.desc(), p::created_at.desc()))
-            .limit(75)
+            .limit(50)
             .get_results::<(i32, Base32, String, Option<String>, bool, bool, i32, i32, i32, Option<i32>, bool, NaiveDateTime, i32, Option<String>, Option<i32>, Option<i32>, Option<i32>, String, Option<String>, Option<String>)>(conn)?
             .into_iter()
             .map(|t| tuple_to_post_info(&mut data, t, Self::get_current_stellar_time_(conn)))

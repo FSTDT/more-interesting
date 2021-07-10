@@ -415,7 +415,7 @@ struct IndexParams {
     title: Option<String>,
     after: Option<Base32>,
     page: Option<i32>,
-    subscriptions: bool,
+    subscriptions: Option<bool>,
     before_date: Option<String>,
     after_date: Option<String>,
     user: Option<String>,
@@ -481,7 +481,7 @@ async fn parse_index_params(conn: &MoreInterestingConn, user: &User, params: Opt
     if let Some(after_date) = params.as_ref().and_then(|params| params.after_date.as_ref()).and_then(|d| d.parse::<NaiveDate>().ok()) {
         search.after_date = Some(after_date);
     }
-    if params.map(|p| p.subscriptions).unwrap_or(false) {
+    if params.and_then(|p| p.subscriptions).unwrap_or(false) {
         search.subscriptions = true;
     }
     Some((search, tags))
