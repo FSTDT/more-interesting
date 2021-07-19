@@ -1260,7 +1260,7 @@ impl MoreInterestingConn {
         if new_post.title.chars().filter(|&c| c != ' ' && c != '\n').count() > 500 && !url.is_none() {
             return Err(CreatePostError::TooLong);
         }
-        if new_post.excerpt.as_ref().map(|x| &x[..]).unwrap_or("").chars().filter(|&c| c != ' ' && c != '\n').count() > 1750 && !url.is_none() {
+        if new_post.excerpt.as_ref().map(|x| &x[..]).unwrap_or("").chars().filter(|&c| c != ' ' && c != '\n').count() > 2000 && !url.is_none() {
             return Err(CreatePostError::TooLong);
         }
         if let Some(ref domain) = domain {
