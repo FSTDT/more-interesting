@@ -1275,7 +1275,9 @@ impl MoreInterestingConn {
         self.run(move |conn| Self::update_post_(conn, post_id_value, bump, new_post, body_format)).await
     }
     fn update_post_(conn: &PgConnection, post_id_value: i32, bump: bool, new_post: NewPost, body_format: BodyFormat) -> Result<(), DieselError> {
-        let title_html_and_stuff = crate::prettify::prettify_title(&new_post.title, "", &mut PrettifyData::new(conn, 0));
+        let (url_value, domain) = Self::get_post_domain_url_(conn, new_post.url);
+        let url_str = url_value.as_ref().map(|u| &u[..]).unwrap_or("");
+        let title_html_and_stuff = crate::prettify::prettify_title(&new_post.title, url_str, &mut PrettifyData::new(conn, 0));
         let excerpt_html_and_stuff = if let Some(e) = &new_post.excerpt {
             let body = match body_format {
                 BodyFormat::Plain => crate::prettify::prettify_body(&e, &mut PrettifyData::new(conn, 0)),
@@ -1287,7 +1289,6 @@ impl MoreInterestingConn {
         };
         use self::posts::dsl::*;
         use self::post_tagging::dsl::*;
-        let (url_value, domain) = Self::get_post_domain_url_(conn, new_post.url);
         diesel::update(posts.find(post_id_value))
             .set((
                 title.eq(new_post.title),
