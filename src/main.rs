@@ -1119,7 +1119,12 @@ async fn get_comments(conn: MoreInterestingConn, login: Option<LoginSession>, uu
         } else {
             return Err(Status::NotFound);
         };
-        let posts = if let Ok(posts) = conn.get_post_info_recent_by_user(user.id, user_info.id).await {
+        let search = PostSearch {
+            for_user_id: user_info.id,
+            order_by: PostSearchOrderBy::Newest,
+            .. PostSearch::with_my_user_id(user.id)
+        };
+        let posts = if let Ok(posts) = conn.search_posts(&search).await {
             posts
         } else {
             return Err(Status::InternalServerError);

@@ -199,6 +199,7 @@ table! {
         banner_title -> Nullable<Varchar>,
         banner_desc -> Nullable<Varchar>,
         private -> Bool,
+        title_html -> Nullable<Varchar>,
     }
 }
 
