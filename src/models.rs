@@ -699,6 +699,9 @@ impl MoreInterestingConn {
         Ok(all)
     }
     pub async fn is_subscribed(&self, post_id_value: i32, user_id_value: i32) -> Result<bool, DieselError> {
+        if user_id_value == 0 {
+            return Ok(false);
+        }
         self.run(move |conn| Self::is_subscribed_(conn, post_id_value, user_id_value)).await
     }
     fn is_subscribed_(conn: &PgConnection, post_id_value: i32, user_id_value: i32) -> Result<bool, DieselError> {
@@ -882,6 +885,48 @@ impl MoreInterestingConn {
                     .map(|t| tuple_to_post_info_logged_out(&mut data, t, Self::get_current_stellar_time_(conn)))
                     .collect()
             }
+        } else if search.my_user_id == 0 {
+            if search.keywords != "" {
+                let ids = post_search_index
+                    .filter(search_index.matches(plainto_tsquery(&search.keywords)))
+                    .select(crate::schema::post_search_index::dsl::post_id);
+                query = query.filter(p::id.eq_any(ids));
+            } else if search.after_post_id != 0 {
+                query = query.filter(p::id.lt(search.after_post_id));
+            }
+            let search_page = if search.keywords == "" {
+                0
+            } else {
+                search.search_page
+            };
+            query
+                .inner_join(users)
+                .select((
+                    p::id,
+                    p::uuid,
+                    p::title,
+                    p::title_html,
+                    p::url,
+                    p::visible,
+                    p::private,
+                    p::initial_stellar_time,
+                    p::score,
+                    p::comment_count,
+                    p::authored_by_submitter,
+                    p::created_at,
+                    p::submitted_by,
+                    p::excerpt,
+                    p::excerpt_html,
+                    u::username,
+                    p::banner_title,
+                    p::banner_desc,
+                ))
+                .offset(search_page as i64 * 50)
+                .limit(50)
+                .get_results::<(i32, Base32, String, Option<String>, Option<String>, bool, bool, i32, i32, i32, bool, NaiveDateTime, i32, Option<String>, Option<String>, String, Option<String>, Option<String>)>(conn)?
+                .into_iter()
+                .map(|t| tuple_to_post_info_logged_out(&mut data, t, Self::get_current_stellar_time_(conn)))
+                .collect()
         } else {
             if search.keywords != "" {
                 let ids = post_search_index
