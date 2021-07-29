@@ -2184,6 +2184,15 @@ Disallow: /
 
 User-agent: serpstatbot
 Disallow: /
+
+User-agent: DotBot
+Disallow: /
+
+User-agent: omgili
+Disallow: /
+
+User-agent: moreover
+Disallow: /
 ", crawl_delay)
 }
 
