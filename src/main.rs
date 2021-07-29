@@ -914,7 +914,9 @@ async fn create(login: Option<LoginSession>, conn: MoreInterestingConn, post: Fo
         }
         user
     } else if config.enable_anonymous_submissions {
-        if let Err(_) = conn.get_user_by_username("anonymous").await {
+        if let Ok(user) = conn.get_user_by_username("anonymous").await {
+            user
+        } else {
             let p: [char; 16] = rand::random();
             let mut password = String::new();
             password.extend(p.iter());
@@ -926,8 +928,6 @@ async fn create(login: Option<LoginSession>, conn: MoreInterestingConn, post: Fo
             conn.change_user_trust_level(user.id, -1).await.map_err(|_| Status::InternalServerError)?;
             conn.change_user_banned(user.id, true).await.map_err(|_| Status::InternalServerError)?;
             user
-        } else {
-            return Err(Status::InternalServerError);
         }
     } else {
         return Err(Status::BadRequest);
