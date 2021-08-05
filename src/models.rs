@@ -811,6 +811,11 @@ impl MoreInterestingConn {
             query = query.filter(p::title.like(format!("%{}%", &search.title)));
         }
         let mut data = PrettifyData::new(conn, 0);
+        let current_stellar_time = if search.order_by == PostSearchOrderBy::Hottest {
+            Self::get_current_stellar_time_(conn)
+        } else {
+            0
+        };
         let mut all: Vec<PostInfo> = if search.keywords != "" && search.order_by == PostSearchOrderBy::Hottest {
             if search.my_user_id != 0 {
                 query
@@ -850,7 +855,7 @@ impl MoreInterestingConn {
                     .limit(50)
                     .get_results::<(i32, Base32, String, Option<String>, Option<String>, bool, bool, i32, i32, i32, Option<i32>, bool, NaiveDateTime, i32, Option<String>, Option<String>, Option<i32>, Option<i32>, Option<i32>, String, Option<String>, Option<String>)>(conn)?
                     .into_iter()
-                    .map(|t| tuple_to_post_info(&mut data, t, Self::get_current_stellar_time_(conn)))
+                    .map(|t| tuple_to_post_info(&mut data, t, current_stellar_time))
                     .collect()
             } else {
                 query
@@ -882,7 +887,7 @@ impl MoreInterestingConn {
                     .limit(50)
                     .get_results::<(i32, Base32, String, Option<String>, Option<String>, bool, bool, i32, i32, i32, bool, NaiveDateTime, i32, Option<String>, Option<String>, String, Option<String>, Option<String>)>(conn)?
                     .into_iter()
-                    .map(|t| tuple_to_post_info_logged_out(&mut data, t, Self::get_current_stellar_time_(conn)))
+                    .map(|t| tuple_to_post_info_logged_out(&mut data, t, current_stellar_time))
                     .collect()
             }
         } else if search.my_user_id == 0 {
@@ -925,7 +930,7 @@ impl MoreInterestingConn {
                 .limit(50)
                 .get_results::<(i32, Base32, String, Option<String>, Option<String>, bool, bool, i32, i32, i32, bool, NaiveDateTime, i32, Option<String>, Option<String>, String, Option<String>, Option<String>)>(conn)?
                 .into_iter()
-                .map(|t| tuple_to_post_info_logged_out(&mut data, t, Self::get_current_stellar_time_(conn)))
+                .map(|t| tuple_to_post_info_logged_out(&mut data, t, current_stellar_time))
                 .collect()
         } else {
             if search.keywords != "" {
@@ -975,7 +980,7 @@ impl MoreInterestingConn {
                 .limit(50)
                 .get_results::<(i32, Base32, String, Option<String>, Option<String>, bool, bool, i32, i32, i32, Option<i32>, bool, NaiveDateTime, i32, Option<String>, Option<String>, Option<i32>, Option<i32>, Option<i32>, String, Option<String>, Option<String>)>(conn)?
                 .into_iter()
-                .map(|t| tuple_to_post_info(&mut data, t, Self::get_current_stellar_time_(conn)))
+                .map(|t| tuple_to_post_info(&mut data, t, current_stellar_time))
                 .collect()
         };
         if let (PostSearchOrderBy::Hottest, "") = (search.order_by, &search.keywords[..]) {
@@ -1022,6 +1027,7 @@ impl MoreInterestingConn {
         let word_list = words.iter().map(|word| &word.word[..]).collect::<Vec<&str>>().join("&");
         // Now actually find the "similar" posts.
         let mut data = PrettifyData::new(conn, 0);
+        let current_stellar_time = Self::get_current_stellar_time_(conn);
         let all: Vec<PostInfo> = posts
             .left_outer_join(stars.on(s::post_id.eq(self::posts::dsl::id).and(s::user_id.eq(user_id_param))))
             .left_outer_join(flags.on(f::post_id.eq(p::id).and(f::user_id.eq(user_id_param))))
@@ -1061,7 +1067,7 @@ impl MoreInterestingConn {
             .limit(50)
             .get_results::<(i32, Base32, String, Option<String>, Option<String>, bool, bool, i32, i32, i32, Option<i32>, bool, NaiveDateTime, i32, Option<String>, Option<String>, Option<i32>, Option<i32>, Option<i32>, String, Option<String>, Option<String>)>(conn)?
             .into_iter()
-            .map(|t| tuple_to_post_info(&mut data, t, Self::get_current_stellar_time_(conn)))
+            .map(|t| tuple_to_post_info(&mut data, t, current_stellar_time))
             .collect();
         Ok(all)
     }
