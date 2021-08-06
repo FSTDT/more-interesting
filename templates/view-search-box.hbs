@@ -1,4 +1,4 @@
-<details class=details-dialog-outer>
+<details class="details-dialog-outer search-box-outer">
     <summary class=details-dialog-summary title=Search>
         <svg
             xmlns="http://www.w3.org/2000/svg"
@@ -17,7 +17,7 @@
         <desc>Search</desc>
         </svg>
     </summary>
-    <details-dialog>
+    <details-dialog class=search-box>
         <form action='./' method=GET>
             <label>Search <input {{#if keywords_param}}value="{{keywords_param}}"{{/if}} name=q autofocus type=search></label>
             <div class=form-footer>

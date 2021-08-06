@@ -987,6 +987,23 @@ details-dialog {
     width: 448px;
 }
 
+@media (min-width: 65em) {
+    .search-box-outer {
+        position: relative;
+    }
+    details-dialog.search-box {
+        position: absolute;
+        transform: translateX(0);
+        margin: 0;
+        top: 100%;
+        left: auto;
+        right: -3em;
+    }
+    details[open].search-box-outer > .details-dialog-summary::before {
+        opacity: 0;
+    }
+}
+
 .inline-form {
     display: inline;
 }
