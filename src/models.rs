@@ -648,21 +648,23 @@ impl MoreInterestingConn {
     }
     fn set_readpoint_(conn: &PgConnection, post_id_value: i32, user_id_value: i32, comment_id_value: i32) -> Result<(), DieselError> {
         use self::comment_readpoints::dsl::*;
-        let r = diesel::insert_into(comment_readpoints)
-            .values(ReadPoint {
-                user_id: user_id_value,
-                post_id: post_id_value,
-                comment_readpoint: comment_id_value,
-            })
-            .execute(conn);
-        if r.is_err() {
-            diesel::update(
+        let r = diesel::update(
                 comment_readpoints
                 .filter(user_id.eq(user_id_value))
                 .filter(post_id.eq(post_id_value))
             )
             .set(comment_readpoint.eq(comment_id_value))
-            .execute(conn)?;
+            .get_result::<ReadPoint>(conn);
+        if let Err(diesel::result::Error::NotFound) = r {
+            diesel::insert_into(comment_readpoints)
+                .values(ReadPoint {
+                    user_id: user_id_value,
+                    post_id: post_id_value,
+                    comment_readpoint: comment_id_value,
+                })
+                .execute(conn)?;
+        } else if let Err(e) = r {
+            return Err(e);
         }
         Ok(())
     }
