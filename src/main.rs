@@ -434,7 +434,10 @@ async fn parse_index_params(conn: &MoreInterestingConn, user: &User, params: Opt
     if let Some(tag_names) = params.as_ref().and_then(|params| params.tag.as_ref()) {
         if tag_names.contains("|") {
             for tag_name in tag_names.split("|") {
-                if let Ok(tag) = conn.get_tag_by_name(tag_name).await {
+                if tag_name == "" {
+                    continue;
+                }
+                if let Ok(tag) = conn.get_tag_by_name(tag_name.trim()).await {
                     search.or_tags.push(tag.id);
                     tags.push(tag);
                 } else {
@@ -443,6 +446,9 @@ async fn parse_index_params(conn: &MoreInterestingConn, user: &User, params: Opt
             }
         } else {
             for tag_name in tag_names.split(" ") {
+                if tag_name == "" {
+                    continue;
+                }
                 if let Ok(tag) = conn.get_tag_by_name(tag_name).await {
                     search.and_tags.push(tag.id);
                     tags.push(tag);
@@ -491,8 +497,14 @@ async fn parse_index_params(conn: &MoreInterestingConn, user: &User, params: Opt
 async fn index(conn: MoreInterestingConn, login: Option<LoginSession>, flash: Option<FlashMessage<'_>>, params: Option<IndexParams>, config: &State<SiteConfig>, customization: Customization) -> Option<content::Html<Template>> {
     let (user, session) = login.map(|l| (l.user, l.session)).unwrap_or((User::default(), UserSession::default()));
 
-    let tag_param = params.as_ref().and_then(|params| Some(params.tag.as_ref()?.to_string()));
-    let domain = params.as_ref().and_then(|params| Some(params.domain.as_ref()?.to_string()));
+    let mut tag_param = params.as_ref().and_then(|params| Some(params.tag.as_ref()?.to_string()));
+    if tag_param == Some(String::new()) {
+        tag_param = None;
+    }
+    let mut domain = params.as_ref().and_then(|params| Some(params.domain.as_ref()?.to_string()));
+    if domain == Some(String::new()) {
+        domain = None;
+    }
     let (search, tags) = parse_index_params(&conn, &user, params).await?;
     let keywords_param = if search.keywords == "" { None } else { Some(search.keywords.clone()) };
     let title_param = if search.title == "" { None } else { Some(search.title.clone()) };
@@ -512,6 +524,32 @@ async fn index(conn: MoreInterestingConn, login: Option<LoginSession>, flash: Op
         tags, session, tag_param, domain, keywords_param,
         title_param,
         notifications, is_private,
+        ..default()
+    }))
+}
+
+#[get("/search?<params..>")]
+async fn advanced_search(conn: MoreInterestingConn, login: Option<LoginSession>, flash: Option<FlashMessage<'_>>, params: Option<IndexParams>, config: &State<SiteConfig>, customization: Customization) -> Option<content::Html<Template>> {
+    let (user, session) = login.map(|l| (l.user, l.session)).unwrap_or((User::default(), UserSession::default()));
+
+    let tag_param = params.as_ref().and_then(|params| Some(params.tag.as_ref()?.to_string()));
+    let domain = params.as_ref().and_then(|params| Some(params.domain.as_ref()?.to_string()));
+    let (search, tags) = parse_index_params(&conn, &user, params).await?;
+    let keywords_param = if search.keywords == "" { None } else { Some(search.keywords.clone()) };
+    let title_param = if search.title == "" { None } else { Some(search.title.clone()) };
+    let before_date_param = search.before_date;
+    let after_date_param = search.after_date;
+    let notifications = conn.list_notifications(user.id).await.unwrap_or(Vec::new());
+    Some(render_html("search", &TemplateContext {
+        title: Cow::Borrowed("Advanced Search"),
+        alert: flash.map(|f| f.message().to_owned()),
+        config: config.inner().clone(),
+        next_search_page: search.search_page + 1,
+        customization, before_date_param, after_date_param,
+        user,
+        tags, session, tag_param, domain, keywords_param,
+        title_param,
+        notifications,
         ..default()
     }))
 }
@@ -2327,7 +2365,7 @@ fn launch() -> rocket::Rocket<rocket::Build> {
                 }
             })
         }))
-        .mount("/", routes![index, login_form, login, logout, create_link_form, create_post_form, create, submit_preview, get_comments, vote, signup, get_settings, create_invite, invite_tree, change_password, post_comment, vote_comment, get_admin_tags, admin_tags, get_tags, edit_post, get_edit_post, edit_comment, get_edit_comment, set_dark_mode, set_big_mode, mod_log, get_mod_queue, moderate_post, moderate_comment, get_public_signup, random, redirect_legacy_id, latest, rss, top, banner_post, robots_txt, search_comments, new, get_admin_domains, admin_domains, create_message_form, create_message, subscriptions, post_subscriptions, get_reply_comment, preview_comment, get_admin_customization, admin_customization, conv_legacy_id, get_tags_json, get_admin_flags, get_admin_comment_flags, faq, identicon])
+        .mount("/", routes![index, advanced_search, login_form, login, logout, create_link_form, create_post_form, create, submit_preview, get_comments, vote, signup, get_settings, create_invite, invite_tree, change_password, post_comment, vote_comment, get_admin_tags, admin_tags, get_tags, edit_post, get_edit_post, edit_comment, get_edit_comment, set_dark_mode, set_big_mode, mod_log, get_mod_queue, moderate_post, moderate_comment, get_public_signup, random, redirect_legacy_id, latest, rss, top, banner_post, robots_txt, search_comments, new, get_admin_domains, admin_domains, create_message_form, create_message, subscriptions, post_subscriptions, get_reply_comment, preview_comment, get_admin_customization, admin_customization, conv_legacy_id, get_tags_json, get_admin_flags, get_admin_comment_flags, faq, identicon])
         .mount("/assets", FileServer::from("assets"))
         .attach(Template::custom(|engines| {
             engines.handlebars.register_helper("count", Box::new(count_helper));

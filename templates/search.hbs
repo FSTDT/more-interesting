@@ -1,0 +1,36 @@
+{{#*inline "page"}}
+<div class=tab-bar>
+    <label for=search-form class=active-tab>Advanced Search</label>
+</div>
+<form action='./' method=GET class=tab-box id=search-form>
+    <label>Search <input {{#if keywords_param}}value="{{keywords_param}}"{{/if}} name=q autofocus type=search></label>
+    <label for=tags-typeahead-input>Tags</label> <div class=typeahead-outer>
+        <input id=tags-typeahead-input name=tag is=tags-typeahead type=search>
+    </div>
+    <label>{{#if customization.title_label}}{{customization.title_label}}{{else}}Title{{/if}} <input name=title type=search></label>
+    <label>Domain <input name=domain type=search></label>
+    <table style=width:100%><tr>
+        <td><label>Start date<input type=date name=after_date {{#if after_date_param}}value="{{after_date_param}}"{{/if}}></label>
+        <td style=text-align:center>&mdash;<td>
+        <label>End date <input type=date name=before_date {{#if before_date_param}}value="{{before_date_param}}"{{/if}}></label>
+    </table>
+    <div class=form-footer id=search-footer>
+        <button class=button-default>Search</button>
+    </div>
+    <script>(function() {
+        var search_footer = document.getElementById("search-footer");
+        var back = document.createElement("button");
+        back.type = "button";
+        back.onclick = function() { window.history.back(); };
+        back.appendChild(document.createTextNode("Cancel"));
+        search_footer.appendChild(back);
+    })()</script>
+</form>
+<article>
+    <header class="article-header"><div class="article-header-inner">Tips and tricks</div></header>
+    <main class="main-mini">
+        <p>Tags separated by spaces will require both to match, and tags separated by pipes will match if either match. For example, <code>fundie racist</code> will match quotes that are both fundie and racist, while <code>fundie|racist</code> will match quotes that are either fundie or racist.
+    </main>
+</article>
+{{/inline}}
+{{~> layout~}}

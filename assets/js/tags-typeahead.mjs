@@ -116,8 +116,8 @@ export class TagsTypeaheadElement extends HTMLInputElement {
             case "return":
             case "tab":
                 if (!this._menu) return;
-                var tag_split_last = /([#, \t])(?!.*[#, \t])/g;
-                var tag_split = /[#, \t]+/g;
+                var tag_split_last = /([#, \t\|])(?!.*[#, \t\|])/g;
+                var tag_split = /[#, \t\|]+/g;
                 var currentTagParts = this.value.split(tag_split);
                 var currentTag = currentTagParts.length > 1 ? currentTagParts[currentTagParts.length-1] : this.value;
                 var availableTags = Object.keys(this._tags).filter(tag => {
@@ -171,8 +171,8 @@ export class TagsTypeaheadElement extends HTMLInputElement {
         this._menu.id = "tags-typeahead";
         this._menu.setAttribute("tabindex", "-1");
         this.parentNode.appendChild(this._menu);
-        var tag_split = /[#, \t]+/;
-        var tag_split_last = /([#, \t])(?!.*[#, \t])/g;
+        var tag_split = /[#, \t\|]+/;
+        var tag_split_last = /([#, \t\|])(?!.*[#, \t\|])/g;
         var currentTagParts = this.value.split(tag_split);
         var currentTag = currentTagParts.length > 1 ? currentTagParts[currentTagParts.length-1] : this.value;
         var availableTags = Object.keys(this._tags).filter(tag => {

@@ -20,12 +20,10 @@
     <details-dialog>
         <form action='./' method=GET>
             <label>Search <input {{#if keywords_param}}value="{{keywords_param}}"{{/if}} name=q autofocus type=search></label>
-            <details><summary>Advanced</summary>
-            <label>{{#if customization.title_label}}{{customization.title_label}}{{else}}Title{{/if}} <input name=title type=search></label>            <label>Domain <input name=domain type=search></label>
-            </details>
             <div class=form-footer>
                 <button class=button-default>Search</button>
                 <a href="" onclick="return !window.DetailsDialogElement" class=button data-close-dialog>Cancel</a>
+                <button type=submit class=button formaction=search style=float:right onclick="if(!this.form||!this.formAction){var f=document.forms['comment-form'];f.action=this.getAttribute('formaction');var inp=document.createElement('input');inp.name='preview';inp.value='edit';inp.type='hidden';f.appendChild(inp);f.submit();return false}">Advanced</a>
             </div>
         </form>
     </details-dialog>
