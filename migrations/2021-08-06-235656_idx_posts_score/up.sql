@@ -1,0 +1,1 @@
+CREATE INDEX idx_posts_score ON posts (score DESC);
