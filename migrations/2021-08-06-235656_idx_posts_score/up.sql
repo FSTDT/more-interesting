@@ -1,1 +1,1 @@
-CREATE INDEX idx_posts_score ON posts (score DESC);
+CREATE INDEX idx_posts_score ON posts (score DESC, created_at DESC);
