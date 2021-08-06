@@ -1,0 +1,1 @@
+CREATE INDEX idx_posts_updated_at ON posts (updated_at DESC);
