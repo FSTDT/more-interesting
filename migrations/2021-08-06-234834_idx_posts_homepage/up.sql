@@ -1,0 +1,1 @@
+CREATE INDEX idx_posts_homepage ON posts (initial_stellar_time DESC, created_at DESC);
