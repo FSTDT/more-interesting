@@ -357,10 +357,20 @@ select,
     padding: 0.25em 0.5em;
     -webkit-user-select: none;
     user-select: none;
+    image-rendering: crisp-edges;
+    image-rendering: -moz-crisp-edges; /* Firefox before version 65 */
+    image-rendering: -webkit-optimize-contrast; /* Safari */
+    -ms-interpolation-mode: nearest-neighbor; /* EdgeHTML Edge and Trident */
+    image-rendering: pixelated; /* Chrome */
 }
 
 .tab, .active-tab {
     border-image: url("data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAgAAAAICAYAAADED76LAAAABmJLR0QA/wD/AP+gvaeTAAAACXBIWXMAAA7EAAAOxAGVKw4bAAAAB3RJTUUH5AgOBRsPruzbJgAAAD5JREFUGFdj+E8AMICIt28/4MRwBQxooLi4+LiwsMhbQgreU0FBaWkpGAMFkDEjiJaSkmZg4OPjx4l5eHgZABb/da9RvMGFAAAAAElFTkSuQmCC") 2;
+    image-rendering: crisp-edges;
+    image-rendering: -moz-crisp-edges; /* Firefox before version 65 */
+    image-rendering: -webkit-optimize-contrast; /* Safari */
+    -ms-interpolation-mode: nearest-neighbor; /* EdgeHTML Edge and Trident */
+    image-rendering: pixelated; /* Chrome */
 }
 
 .tab-box {
@@ -383,10 +393,20 @@ html.dark .active-tab {
     border-bottom-color: #0f1126;
     border-right-color: #0f1126;
     border-image: url("data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAgAAAAICAYAAADED76LAAAABHNCSVQICAgIfAhkiAAAAAlwSFlzAAAOxAAADsQBlSsOGwAAABl0RVh0U29mdHdhcmUAd3d3Lmlua3NjYXBlLm9yZ5vuPBoAAABASURBVBhXYyguLv6PDzOACDPLSJwYroABDfALqh1nZGR+S0jBeyooEBBS/w/CQIE/aPgfExPrB6Baxv+4McN/ANClS9zIVZoLAAAAAElFTkSuQmCC") 2;
+    image-rendering: crisp-edges;
+    image-rendering: -moz-crisp-edges; /* Firefox before version 65 */
+    image-rendering: -webkit-optimize-contrast; /* Safari */
+    -ms-interpolation-mode: nearest-neighbor; /* EdgeHTML Edge and Trident */
+    image-rendering: pixelated; /* Chrome */
 }
 
 html.dark .tab, html.dark .active-tab {
     border-image: url("data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAgAAAAICAYAAADED76LAAAABmJLR0QA/wD/AP+gvaeTAAAACXBIWXMAAA7EAAAOxAGVKw4bAAAAB3RJTUUH5AgOBR84cj27LQAAAD1JREFUGFdjKC4u/o8PM4AIM8tInBiugAEN8AuqHWdkZH5LSMF7KioACjACMUgChhmZmFgZkExgZMDEDAwALQJDtIA0HH0AAAAASUVORK5CYII=") 2;
+    image-rendering: crisp-edges;
+    image-rendering: -moz-crisp-edges; /* Firefox before version 65 */
+    image-rendering: -webkit-optimize-contrast; /* Safari */
+    -ms-interpolation-mode: nearest-neighbor; /* EdgeHTML Edge and Trident */
+    image-rendering: pixelated; /* Chrome */
 }
 
 input,
@@ -407,6 +427,11 @@ details[open] > .details-menu-summary,
     position: relative;
     top: 1px;
     left: 1px;
+    image-rendering: crisp-edges;
+    image-rendering: -moz-crisp-edges; /* Firefox before version 65 */
+    image-rendering: -webkit-optimize-contrast; /* Safari */
+    -ms-interpolation-mode: nearest-neighbor; /* EdgeHTML Edge and Trident */
+    image-rendering: pixelated; /* Chrome */
 }
 
 html.dark input,
@@ -423,6 +448,11 @@ html.dark .details-dialog-summary:active {
     border-top-color: #0f1126;
     border-left-color: #0f1126;
     border-image: url("data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAgAAAAICAYAAADED76LAAAABHNCSVQICAgIfAhkiAAAAAlwSFlzAAAOxAAADsQBlSsOGwAAABl0RVh0U29mdHdhcmUAd3d3Lmlua3NjYXBlLm9yZ5vuPBoAAABGSURBVBjTY2BgYPhPADP85xdUw4nhChjQgJlFxPH8/MK3hBS8p4ICU4uI/yBsZhn5BwVbRPzLzi74wFBUVPQfFy4uLv4PAOyYS1KSeGvQAAAAAElFTkSuQmCC") 2;
+    image-rendering: crisp-edges;
+    image-rendering: -moz-crisp-edges; /* Firefox before version 65 */
+    image-rendering: -webkit-optimize-contrast; /* Safari */
+    -ms-interpolation-mode: nearest-neighbor; /* EdgeHTML Edge and Trident */
+    image-rendering: pixelated; /* Chrome */
 }
 
 html.dark button[disabled],
@@ -780,6 +810,11 @@ details-dialog, .details-menu-inner, .inner-banner, .typeahead-inner {
     padding: 0.25em 0.5em;
     margin: 0.5em 0;
     overflow: hidden;
+    image-rendering: crisp-edges;
+    image-rendering: -moz-crisp-edges; /* Firefox before version 65 */
+    image-rendering: -webkit-optimize-contrast; /* Safari */
+    -ms-interpolation-mode: nearest-neighbor; /* EdgeHTML Edge and Trident */
+    image-rendering: pixelated; /* Chrome */
 }
 
 .typeahead-outer {
@@ -795,6 +830,11 @@ details-dialog, .details-menu-inner, .inner-banner, .typeahead-inner {
 
 html.dark details-dialog, html.dark .details-menu-inner, html.dark .inner-banner, html.dark .typeahead-inner {
     border-image: url("data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAgAAAAICAYAAADED76LAAAABHNCSVQICAgIfAhkiAAAAAlwSFlzAAAOxAAADsQBlSsOGwAAABl0RVh0U29mdHdhcmUAd3d3Lmlua3NjYXBlLm9yZ5vuPBoAAABASURBVBhXYyguLv6PDzOACDPLSJwYroABDfALqh1nZGR+S0jBeyooEBBS/w/CQIE/aPgfExPrB6Baxv+4McN/ANClS9zIVZoLAAAAAElFTkSuQmCC") 2;
+    image-rendering: crisp-edges;
+    image-rendering: -moz-crisp-edges; /* Firefox before version 65 */
+    image-rendering: -webkit-optimize-contrast; /* Safari */
+    -ms-interpolation-mode: nearest-neighbor; /* EdgeHTML Edge and Trident */
+    image-rendering: pixelated; /* Chrome */
 }
 
 .inner-banner {
@@ -1039,6 +1079,11 @@ details:not([open]) > .big-img {
     font-size: 0.75em;
     text-align: center;
     margin-right: 0.25em;
+    image-rendering: crisp-edges;
+    image-rendering: -moz-crisp-edges; /* Firefox before version 65 */
+    image-rendering: -webkit-optimize-contrast; /* Safari */
+    -ms-interpolation-mode: nearest-neighbor; /* EdgeHTML Edge and Trident */
+    image-rendering: pixelated; /* Chrome */
 }
 details[open] > .img-lightbox:before {
     content: "-";
