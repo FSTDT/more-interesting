@@ -56,6 +56,10 @@ export class DetailsMenuBarElement extends HTMLElement {
             summary.addEventListener("click", function(e) { e.preventDefault() });
             summary.addEventListener("mouseup", this._eventRelease.bind(d));
         }
+        details = this.querySelectorAll(".details-dialog-outer");
+        for (let d of details) {
+            d.addEventListener("toggle", this._eventToggleDialog.bind(d));
+        }
     }
     _eventTopClick(e) {
         e.preventDefault();
@@ -351,6 +355,21 @@ export class DetailsMenuBarElement extends HTMLElement {
         if (this.open) {
             this.open = false;
         }
+    }
+    _eventToggleDialog(e) {
+        // only one menu should ever be open at a time
+        // this is very similar to what WAI does, but WAI does this tracking on a per-bar level
+        // while More Interesting's behavior is page-global
+        // GitHub's behavior also globally prevents you from opening more than one menu,
+        // but they require two clicks to switch between them, while this implementation only requires one
+        if (currentlyOpen && currentlyOpen !== this && this.open) {
+            currentlyOpen.open = false;
+        }
+        setTimeout( () => {
+            if (this.open) {
+                currentlyOpen = this;
+            }
+        });
     }
     _eventToggle(e) {
         // only one menu should ever be open at a time

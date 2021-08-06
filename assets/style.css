@@ -999,8 +999,42 @@ details-dialog {
         left: auto;
         right: -3em;
     }
+    details.search-box-outer > .details-dialog-summary {
+        z-index: 200;
+    }
+    details[open].search-box-outer > .details-dialog-summary {
+        z-index: 100;
+    }
     details[open].search-box-outer > .details-dialog-summary::before {
         opacity: 0;
+        z-index: auto;
+    }
+    details.search-box-outer > .details-dialog-summary:active,
+    details[open].search-box-outer > .details-dialog-summary {
+        border: solid 2px #eee;
+        border-top-color: #0c0c0d;
+        border-left-color: #0c0c0d;
+        border-image: url("data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAgAAAAICAYAAADED76LAAAABHNCSVQICAgIfAhkiAAAAAlwSFlzAAAOxAAADsQBlSsOGwAAABl0RVh0U29mdHdhcmUAd3d3Lmlua3NjYXBlLm9yZ5vuPBoAAABFSURBVBhXY+Dh4f2PDzOAiKKiov/FxcVYMVwBAxp4+/bD8X///r0lpOA9FRS8evX2/+vX7/4DBf6g4X9///79wPCfAAAACjiEnsLDGAsAAAAASUVORK5CYII=") 2;
+        position: relative;
+        top: 1px;
+        left: 1px;
+        image-rendering: crisp-edges;
+        image-rendering: -moz-crisp-edges; /* Firefox before version 65 */
+        image-rendering: -webkit-optimize-contrast; /* Safari */
+        -ms-interpolation-mode: nearest-neighbor; /* EdgeHTML Edge and Trident */
+        image-rendering: pixelated; /* Chrome */
+    }
+    html.dark details.search-box-outer > .details-dialog-summary:active,
+    html.dark details[open].search-box-outer > .details-dialog-summary {
+        border: solid 2px #575765;
+        border-top-color: #0f1126;
+        border-left-color: #0f1126;
+        border-image: url("data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAgAAAAICAYAAADED76LAAAABHNCSVQICAgIfAhkiAAAAAlwSFlzAAAOxAAADsQBlSsOGwAAABl0RVh0U29mdHdhcmUAd3d3Lmlua3NjYXBlLm9yZ5vuPBoAAABGSURBVBjTY2BgYPhPADP85xdUw4nhChjQgJlFxPH8/MK3hBS8p4ICU4uI/yBsZhn5BwVbRPzLzi74wFBUVPQfFy4uLv4PAOyYS1KSeGvQAAAAAElFTkSuQmCC") 2;
+        image-rendering: crisp-edges;
+        image-rendering: -moz-crisp-edges; /* Firefox before version 65 */
+        image-rendering: -webkit-optimize-contrast; /* Safari */
+        -ms-interpolation-mode: nearest-neighbor; /* EdgeHTML Edge and Trident */
+        image-rendering: pixelated; /* Chrome */
     }
 }
 
