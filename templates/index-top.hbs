@@ -126,7 +126,7 @@
 {{/if}}
 <ajax-form>
 {{~#each posts~}}
-{{~#if this.banner_title}}<p class=post-banner>{{{this.banner_title}}}</p>{{#if this.banner_desc}}<p class=post-banner-desc>{{{this.banner_desc}}}</p>{{/if}}{{/if}}<article><h3 class=article-header>{{{this.title_html}}}</h3><main>{{{this.excerpt_html}}}</main><footer class=footer-container><div class=footer-main><a href="@{{this.submitted_by_username_urlencode}}">{{this.submitted_by_username}}</a> submitted <a href="{{this.uuid}}" is=local-date title="{{this.created_at}}+00:00">{{this.created_at_relative}} <span class=hide-small>ago</span></a> and got <a href="{{this.uuid}}#comments">{{this.comment_count}} comments</a></div><form class=footer-aside><button disabled name="add_star"><span>{{this.score}}</span> <img width=12 height=12 class=good-img src=assets/star.svg alt="Stars"></button></form></footer></article>
+{{~#if this.banner_title}}<p class=post-banner>{{{this.banner_title}}}</p>{{#if this.banner_desc}}<p class=post-banner-desc>{{{this.banner_desc}}}</p>{{/if}}{{/if}}<article><h3 class=article-header>{{{this.title_html}}}</h3><main>{{{this.excerpt_html}}}</main><footer class=footer-container><div class=footer-main><a href="@{{this.submitted_by_username_urlencode}}">{{this.submitted_by_username}}</a> submitted <a href="{{this.uuid}}" is=local-date title="{{this.created_at}}+00:00">{{this.created_at_relative}}<span class=hide-small> ago</span></a> and got <a href="{{this.uuid}}#comments">{{this.comment_count}} comments</a></div><form class=footer-aside><button disabled name="add_star"><span>{{this.score}}</span> <img width=12 height=12 class=good-img src=assets/star.svg alt="Stars"></button></form></footer></article>
 {{~/each}}
 </ajax-form>
 {{/inline}}

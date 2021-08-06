@@ -42,7 +42,7 @@
             </button>
             <a href="@{{posts.0.submitted_by_username_urlencode}}">{{posts.0.submitted_by_username}}</a>
             submitted
-            <a is=local-date href="" title="{{posts.0.created_at}}+00:00">{{posts.0.created_at_relative}} <span class=hide-small>ago</span></a>
+            <a is=local-date href="" title="{{posts.0.created_at}}+00:00">{{posts.0.created_at_relative}}<span class=hide-small> ago</span></a>
             <details class=details-dialog-outer id=sp-{{posts.0.uuid}}>{{> view-star}}</details>
             </div>
             <details-menu-bar class=footer-aside>
@@ -72,7 +72,7 @@
             <aside id="{{this.id}}">
                 <header class=aside-header>
                     old comment by {{this.author}}
-                    <span class="top-header-link top-header-aside"><a class=top-header-link is=local-date href="#{{this.id}}" title="{{this.created_at}}+00:00">{{this.created_at_relative}} <span class=hide-small>ago</span> #{{this.id}}</a></span>
+                    <span class="top-header-link top-header-aside"><a class=top-header-link is=local-date href="#{{this.id}}" title="{{this.created_at}}+00:00">{{this.created_at_relative}}<span class=hide-small> ago</span> #{{this.id}}</a></span>
                 </header>
                 <main>{{{this.html}}}</main>
             </aside>
@@ -82,7 +82,7 @@
                 <header class=aside-header>
                     <img width=15 height=15 class=identicon src=identicon/{{this.created_by_identicon}}>
                     <a href="@{{this.created_by_username_urlencode}}" class=top-header-link>{{this.created_by_username}}</a>
-                    <span class="top-header-link top-header-aside"><a class=top-header-link is=local-date href="#{{this.id}}" title="{{this.created_at}}+00:00">{{this.created_at_relative}} <span class=hide-small>ago</span> #{{this.id}}</a></span>
+                    <span class="top-header-link top-header-aside"><a class=top-header-link is=local-date href="#{{this.id}}" title="{{this.created_at}}+00:00">{{this.created_at_relative}}<span class=hide-small> ago</span> #{{this.id}}</a></span>
                 </header>
                 <main>{{{this.html}}}</main>
                 <form action="vote-comment?redirect={{../posts.0.uuid}}&U={{../session.uuid}}" method=POST><button class=hide-button title=Show name=add_hide_comment value={{this.id}}><b>-</b></button>

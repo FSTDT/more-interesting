@@ -20,6 +20,16 @@ function lastVisibleChild(el) {
     return lastVisibleSibling(el.lastElementChild);
 }
 
+function isChildOf(el, parent) {
+    while (el) {
+        if (el == parent) {
+            return true;
+        }
+        el = el.parentNode;
+    }
+    return false;
+}
+
 document.querySelector("body").classList.add("js");
 
 let currentlyOpen = null;
@@ -57,15 +67,39 @@ export class DetailsMenuBarElement extends HTMLElement {
     _eventTouchStart(e) {
         this.open = !this.open;
         this._touched = true;
+        if (e.touches && e.touches[0] && e.touches[0].touchType === "stylus" && this.open) {
+            e.preventDefault();
+        }
     }
     _eventTouchMove(e) {
-        this._moved = true;
-        this._touched = true;
-        this.open = false;
+        // Treat a stylus like a mouse
+        if (e.touches && e.touches[0] && e.touches[0].touchType === "stylus" && this.open) {
+            this._moved = false;
+            this._stylus = true;
+            var el = document.elementFromPoint(e.touches[0].clientX, e.touches[0].clientY);
+            if (isChildOf(el, this)) {
+                el.focus();
+            }
+            e.preventDefault();
+        } else {
+            delete this._stylus;
+            this._moved = true;
+            this._touched = true;
+            this.open = false;
+        }
     }
     _eventTouchEnd(e) {
         e.preventDefault();
         delete this._touched;
+        if (this._stylus) {
+            delete this._stylus;
+            var el = this.querySelector(":focus");;
+            var summary = this.querySelector("summary");
+            if (el !== summary) {
+                el.click();
+                this.open = false;
+            }
+        }
         if (this._moved) {
             delete this._moved;
             this.open = false;
