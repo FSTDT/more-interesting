@@ -1,0 +1,1 @@
+CREATE INDEX idx_posts_userprofile ON posts (submitted_by, initial_stellar_time DESC);
