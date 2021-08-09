@@ -53,7 +53,9 @@ export class DetailsMenuBarElement extends HTMLElement {
             summary.addEventListener("touchstart", this._eventTouchStart.bind(d));
             summary.addEventListener("touchmove", this._eventTouchMove.bind(d));
             summary.addEventListener("touchend", this._eventTouchEnd.bind(d));
-            summary.addEventListener("click", function(e) { e.preventDefault() });
+            summary.addEventListener("click", function(e) {
+              if (d._clicked) { e.preventDefault(); delete d._clicked }
+            });
             summary.addEventListener("mouseup", this._eventRelease.bind(d));
         }
         details = this.querySelectorAll(".details-dialog-outer");
@@ -67,6 +69,7 @@ export class DetailsMenuBarElement extends HTMLElement {
         if (!this._touched) {
             this.open = !this.open;
         }
+        this._clicked = true;
     }
     _eventTouchStart(e) {
         this.open = !this.open;
