@@ -53,14 +53,22 @@ export class DetailsMenuBarElement extends HTMLElement {
             summary.addEventListener("touchstart", this._eventTouchStart.bind(d));
             summary.addEventListener("touchmove", this._eventTouchMove.bind(d));
             summary.addEventListener("touchend", this._eventTouchEnd.bind(d));
-            summary.addEventListener("click", function(e) {
-              if (d._clicked) { e.preventDefault(); delete d._clicked }
-            });
+            summary.addEventListener("click", this._eventClickSummary.bind(d));
             summary.addEventListener("mouseup", this._eventRelease.bind(d));
         }
         details = this.querySelectorAll(".details-dialog-outer");
         for (let d of details) {
             d.addEventListener("toggle", this._eventToggleDialog.bind(d));
+        }
+    }
+    _eventClickSummary(e) {
+        e.preventDefault();
+        if (this._clicked) {
+          delete this._clicked;
+        } else {
+          this.open = !this.open;
+          let inner = this.querySelector(".details-menu-inner");
+          firstVisibleChild(inner).focus();
         }
     }
     _eventTopClick(e) {
@@ -134,6 +142,8 @@ export class DetailsMenuBarElement extends HTMLElement {
                 this.open = false;
                 e.preventDefault();
                 e.stopPropagation();
+                var summary = this.querySelector("summary");
+                summary.focus();
                 break;
             case "arrowdown":
             case "down":
