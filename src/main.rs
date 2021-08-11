@@ -1179,7 +1179,7 @@ async fn get_comments(conn: MoreInterestingConn, login: Option<LoginSession>, uu
             ..default()
         }));
     }
-    if uuid.len() > 0 && uuid.as_bytes()[0] == b'+' {
+    if uuid.len() > 0 && uuid.as_bytes()[0] == b'+' && user.id != 0 {
         let uuid = &uuid[1..];
         let uuid = if let Ok(uuid) = Base32::from_str(uuid) {
             uuid
