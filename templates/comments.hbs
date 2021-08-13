@@ -46,8 +46,8 @@
             <details class=details-dialog-outer id=sp-{{posts.0.uuid}}>{{> view-star}}</details>
             </div>
             <details-menu-bar class=footer-aside>
-                <a href="#comment-form" class="button hide-small" onclick="document.getElementById('comment-text').focus();return false">↩ Comment</a>
-                <details class="details-menu-outer backwards">
+                <a href="#comment-form" class="button overflow" onclick="document.getElementById('{{posts.0.uuid}}-menu').open = false;document.getElementById('comment-text').focus();return false">↩ Comment</a>
+                <details class="details-menu-outer backwards" id="{{posts.0.uuid}}-menu">
                 <summary class="details-menu-summary backwards" aria-haspopup=menu role=button>More</summary>
                 <div class="details-menu-inner backwards" role=menu>
                     <a href="{{posts.0.uuid}}" class=details-menu-item>Permalink</a>

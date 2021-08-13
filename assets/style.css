@@ -766,6 +766,9 @@ aside {
     html body .hide-small {
         display: none !important;
     }
+    html body .overflow {
+        display: none !important;
+    }
 }
 
 html.dark article, html.dark aside {

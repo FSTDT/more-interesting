@@ -60,6 +60,47 @@ export class DetailsMenuBarElement extends HTMLElement {
         for (let d of details) {
             d.addEventListener("toggle", this._eventToggleDialog.bind(d));
         }
+        this.overflow = Array.prototype.filter.call(this.querySelectorAll(".overflow"), (o, i) => {
+            let menu = o.nextElementSibling.querySelector(".details-menu-inner");
+            if (menu) {
+                o._more_interesting_class = o.className;
+                o._more_interesting_menu = menu;
+                o._more_interesting_button = o.nextElementSibling;
+                o._more_interesting_collapsed = false;
+                o._more_interesting_bar = this;
+                return true;
+            } else {
+                return false;
+            }
+        });
+        this.overflowTimer = this._overflowTimer.bind(this);
+        this.resetOverflowTimer = this._resetOverflowTimer.bind(this);
+        this.overflowTimeout = setTimeout(this.overflowTimer, 500);
+        window.addEventListener("resize", this.resetOverflowTimer);
+    }
+    _resetOverflowTimer() {
+        if (this.overflowTimeout !== -1) {
+            clearTimeout(this.overflowTimeout);
+        }
+        this.overflowTimeout = setTimeout(this.overflowTimer, 500);
+    }
+    _overflowTimer() {
+        this.overflowTimeout = -1;
+        for (let o of this.overflow) {
+            if (o._more_interesting_collapsed) {
+                o.className = o._more_interesting_class;
+                o._more_interesting_menu.removeChild(o);
+                o._more_interesting_bar.insertBefore(o, o._more_interesting_button);
+                o._more_interesting_bar.insertBefore(document.createTextNode(" "), o._more_interesting_button);
+                o._more_interesting_collapsed = false;
+            }
+            if (o.offsetHeight == 0) {
+                o._more_interesting_collapsed = true;
+                o.className = "details-menu-item";
+                o._more_interesting_bar.removeChild(o);
+                o._more_interesting_menu.insertBefore(o, o._more_interesting_menu.firstElementChild);
+            }
+        }
     }
     _eventClickSummary(e) {
         e.preventDefault();
