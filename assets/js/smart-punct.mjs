@@ -1,46 +1,3 @@
-
-// Unicode fractions.
-// Thanks, http://unicodefractions.com/
-const mapping_fractions = {
-    "1/2": "½",
-    "1/3": "⅓",
-    "2/3": "⅔",
-    "1/4": "¼",
-    "3/4": "¾",
-    "1/5": "⅕",
-    "2/5": "⅖",
-    "3/5": "⅗",
-    "4/5": "⅘",
-    "1/6": "⅙",
-    "5/6": "⅚",
-    "1/7": "⅐",
-    "1/8": "⅛",
-    "3/8": "⅜",
-    "5/8": "⅝",
-    "7/8": "⅞",
-    "1/9": "⅑",
-    "1/10": "⅒",
-};
-
-function mapFraction(context, ss, next) {
-    for (let fraction_ascii in mapping_fractions) {
-        if (context.endsWith(fraction_ascii)) {
-            const fraction_value = mapping_fractions[fraction_ascii];
-            this.value = this.value.substr(0, ss - fraction_ascii.length) + fraction_value + next + this.value.substr(ss);
-            this.setSelectionRange(ss - fraction_ascii.length + 2, ss - fraction_ascii.length + 2);
-            return true;
-        }
-    }
-    const matches = /[0-9]+\/[0-9]+$/.exec(context);
-    if (matches !== null && matches.length !== 0) {
-        const fraction_value = matches[0].replace("/", "\u2044");
-        this.value = this.value.substr(0, ss - matches[0].length) + fraction_value + next + this.value.substr(ss);
-        this.setSelectionRange(ss + 1, ss + 1);
-        return true;
-    }
-    return false;
-}
-
 function keyDown(e) {
     const ss = this.selectionStart;
     const se = this.selectionEnd;
@@ -118,10 +75,6 @@ function keyDown(e) {
                 // When followed by an unmatched quote mark, these should be rendered as the
                 // "inches" sign
                 nextChar = prime;
-                if (this.mapFraction(context, ss, prime)) {
-                    e.preventDefault();
-                    return;
-                }
             } else {
                 // otherwise, end quote
                 nextChar = goodEndQuote;
@@ -138,10 +91,6 @@ function keyDown(e) {
                 // When followed by an unmatched quote mark, these should be rendered as the
                 // "inches" sign
                 nextChar = prime;
-                if (this.mapFraction(context, ss, prime)) {
-                    e.preventDefault();
-                    return;
-                }
             } else {
                 // otherwise, end quote
                 nextChar = goodEndQuote;
@@ -169,16 +118,16 @@ function keyDown(e) {
         } else if (/^\W$/.test(e.key) || e.key.toLowerCase() === 'enter' || e.key.toLowerCase() === 'return') {
             // whitelist of abbreviations that need apostrophes
             const results = /(^|\W)[‘’′'](tis|twas|cause|em|n[‘’′']|[0-9]+[a-zA-Z]+)$/i.exec(context);
+            const resultsEndQuote = / +[“”"]$/.exec(context);
             if (results !== null && results.length !== 0) {
                 this.value = this.value.substr(0, ss - results[0].length) + results[1] + "’" + results[2].replace(/[‘’′]/, "’") + this.value.substr(ss);
                 this.setSelectionRange(ss, se);
                 return;
-            } else {
-                const next = (e.key.toLowerCase() === 'enter' || e.key.toLowerCase() === 'return') ? '\n' : e.key;
-                if (this.mapFraction(context, ss, next)) {
-                    e.preventDefault();
-                    return;
-                }
+            } else if (resultsEndQuote !== null && resultsEndQuote.length !== 0 && (e.key.toLowerCase() === 'enter' || e.key.toLowerCase() === 'return')) {
+                this.value = this.value.substr(0, ss - resultsEndQuote[0].length) + "”\n" + this.value.substr(ss);
+                this.setSelectionRange(ss, se);
+                e.preventDefault();
+                return;
             }
         } else if (/\w[‘’′']$/.test(context)) {
             // abbreviations and possessives
@@ -218,7 +167,6 @@ class SmartPunctInputElement extends HTMLInputElement {
     constructor() {
         super();
         this.addEventListener("keydown", keyDown);
-        this.mapFraction = mapFraction;
     }
 }
 
@@ -233,7 +181,6 @@ class SmartPunctTextAreaElement extends HTMLTextAreaElement {
     constructor() {
         super();
         this.addEventListener("keydown", keyDown);
-        this.mapFraction = mapFraction;
     }
 }
 
