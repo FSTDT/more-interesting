@@ -1246,6 +1246,7 @@ dependencies = [
  "diesel",
  "diesel_full_text_search",
  "env_logger",
+ "futures",
  "kuchiki",
  "lazy_static",
  "log",
