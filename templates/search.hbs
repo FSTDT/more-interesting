@@ -7,8 +7,10 @@
     <label for=tags-typeahead-input>Tags</label> <div class=typeahead-outer>
         <input id=tags-typeahead-input name=tag is=tags-typeahead type=search>
     </div>
+    <label for=domains-typeahead-input>Domains</label> <div class=typeahead-outer>
+        <input id=domains-typeahead-input name=domain is=tags-typeahead data-type=domain type=search>
+    </div>
     <label>{{#if customization.title_label}}{{customization.title_label}}{{else}}Title{{/if}} <input name=title type=search></label>
-    <label>Domain <input name=domain type=search></label>
     <table style=width:100%><tr>
         <td><label>Start date<input type=date name=after_date {{#if after_date_param}}value="{{after_date_param}}"{{/if}}></label>
         <td style=text-align:center>&mdash;<td>

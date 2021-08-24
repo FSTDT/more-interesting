@@ -1485,6 +1485,16 @@ async fn get_tags_json(conn: MoreInterestingConn) -> Option<content::Json<String
     Some(content::Json(json))
 }
 
+#[get("/domains.json?<search>")]
+async fn get_domains_json(conn: MoreInterestingConn, search: String) -> Option<content::Json<String>> {
+    let domains = conn.search_domains(search).await.unwrap_or(Vec::new());
+    let domains_map: serde_json::Map<String, serde_json::Value> = domains.into_iter().map(|domain| {
+        (domain.hostname, String::new().into())
+    }).collect();
+    let json = serde_json::to_string(&domains_map).ok()?;
+    Some(content::Json(json))
+}
+
 #[get("/tags")]
 async fn get_tags(conn: MoreInterestingConn, login: Option<LoginSession>, config: &State<SiteConfig>, customization: Customization) -> content::Html<Template> {
     let (user, session) = login.map(|l| (l.user, l.session)).unwrap_or((User::default(), UserSession::default()));
@@ -2365,7 +2375,7 @@ fn launch() -> rocket::Rocket<rocket::Build> {
                 }
             })
         }))
-        .mount("/", routes![index, advanced_search, login_form, login, logout, create_link_form, create_post_form, create, submit_preview, get_comments, vote, signup, get_settings, create_invite, invite_tree, change_password, post_comment, vote_comment, get_admin_tags, admin_tags, get_tags, edit_post, get_edit_post, edit_comment, get_edit_comment, set_dark_mode, set_big_mode, mod_log, get_mod_queue, moderate_post, moderate_comment, get_public_signup, random, redirect_legacy_id, latest, rss, top, banner_post, robots_txt, search_comments, new, get_admin_domains, admin_domains, create_message_form, create_message, subscriptions, post_subscriptions, get_reply_comment, preview_comment, get_admin_customization, admin_customization, conv_legacy_id, get_tags_json, get_admin_flags, get_admin_comment_flags, faq, identicon])
+        .mount("/", routes![index, advanced_search, login_form, login, logout, create_link_form, create_post_form, create, submit_preview, get_comments, vote, signup, get_settings, create_invite, invite_tree, change_password, post_comment, vote_comment, get_admin_tags, admin_tags, get_tags, edit_post, get_edit_post, edit_comment, get_edit_comment, set_dark_mode, set_big_mode, mod_log, get_mod_queue, moderate_post, moderate_comment, get_public_signup, random, redirect_legacy_id, latest, rss, top, banner_post, robots_txt, search_comments, new, get_admin_domains, admin_domains, create_message_form, create_message, subscriptions, post_subscriptions, get_reply_comment, preview_comment, get_admin_customization, admin_customization, conv_legacy_id, get_tags_json, get_domains_json, get_admin_flags, get_admin_comment_flags, faq, identicon])
         .mount("/assets", FileServer::from("assets"))
         .attach(Template::custom(|engines| {
             engines.handlebars.register_helper("count", Box::new(count_helper));

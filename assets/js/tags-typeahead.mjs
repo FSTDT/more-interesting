@@ -1,7 +1,7 @@
 export class TagsTypeaheadElement extends HTMLInputElement {
     constructor() {
         super();
-        this._tags = null;
+        this._data = null;
         this._menu = null;
         this._index = 0;
         if (window.fetch) {
@@ -14,27 +14,50 @@ export class TagsTypeaheadElement extends HTMLInputElement {
             this.addEventListener("keydown", this._keydown.bind(this));
             this.addEventListener("paste", this._change.bind(this));
             this.addEventListener("change", this._change.bind(this));
-            fetch("tags.json", {
-                method: "get",
-                credentials: "include"
-            })
-            .then(r => {
-                if (r.ok) {
-                    return r.json();
-                } else {
-                    window.log("failed to load tags", r);
-                    return null;
-                }
-            })
-            .then(json => {
-                this._tags = json;
-                if (this === document.activeElement) {
-                    this._change();
-                }
-            }, e => {
-                window.log("errored while loading tags", e);
-            });
+            this._dataType = this.getAttribute("data-type");
+            if (!this._dataType) {
+                this._dataType = "tag";
+            }
+            if (this.getAttribute("data-type") === "tag") {
+                this._loadData();
+            }
         }
+    }
+    _loadData() {
+        var url, value;
+        if (this._dataType === "tag") {
+            url = "tags.json";
+        } else if (this._dataType === "domain") {
+            value = this.value.replace(/^www\./, "");
+            if (value.length >= 3) {
+                url = "domains.json?search=" + encodeURIComponent(value.substr(0, 3));
+            } else {
+                return;
+            }
+        } else {
+            alert("Unexpected data-type=" + this._dataType);
+            throw new Exception("Unexpected data-type=" + this._dataType);
+        }
+        fetch(url, {
+            method: "get",
+            credentials: "include"
+        })
+        .then(r => {
+            if (r.ok) {
+                return r.json();
+            } else {
+                window.log("failed to load " + this._dataType, r);
+                return null;
+            }
+        })
+        .then(json => {
+            this._data = json;
+            if (this === document.activeElement) {
+                this._change();
+            }
+        }, e => {
+            window.log("errored while loading " + this._dataType, e);
+        });
     }
     _blur() {
         if (this._menu) {
@@ -54,7 +77,11 @@ export class TagsTypeaheadElement extends HTMLInputElement {
         }, 100);
     }
     _keydown(e) {
-        if (!this._tags || this !== document.activeElement) {
+        if (!this._data) {
+            this._loadData();
+            return;
+        }
+        if (this !== document.activeElement) {
             return;
         }
         switch (e.key.toLowerCase()) {
@@ -85,7 +112,7 @@ export class TagsTypeaheadElement extends HTMLInputElement {
             case "pgdb":
             case "pagedown":
                 this._index += 4;
-                var availableTags = Object.keys(this._tags).filter(tag => {
+                var availableTags = Object.keys(this._data).filter(tag => {
                     return !currentTag || tag.indexOf(currentTag) !== -1;
                 });
                 if (this._index >= availableTags.length) {
@@ -120,7 +147,7 @@ export class TagsTypeaheadElement extends HTMLInputElement {
                 var tag_split = /[#, \t\|]+/g;
                 var currentTagParts = this.value.split(tag_split);
                 var currentTag = currentTagParts.length > 1 ? currentTagParts[currentTagParts.length-1] : this.value;
-                var availableTags = Object.keys(this._tags).filter(tag => {
+                var availableTags = Object.keys(this._data).filter(tag => {
                     return !currentTag || tag.indexOf(currentTag) !== -1;
                 });
                 availableTags.sort(function(a, b) {
@@ -152,7 +179,17 @@ export class TagsTypeaheadElement extends HTMLInputElement {
         }
     }
     _change() {
-        if (!this._tags || this !== document.activeElement) {
+        if (!this._data) {
+            this._loadData();
+            return;
+        }
+        if (this !== document.activeElement) {
+            return;
+        }
+        if (this._dataType === "domain" && this.value.length < 3) {
+            this._data = null;
+            this.parentNode.removeChild(this._menu);
+            this._menu = null;
             return;
         }
         if (this._menu) {
@@ -175,7 +212,7 @@ export class TagsTypeaheadElement extends HTMLInputElement {
         var tag_split_last = /([#, \t\|])(?!.*[#, \t\|])/g;
         var currentTagParts = this.value.split(tag_split);
         var currentTag = currentTagParts.length > 1 ? currentTagParts[currentTagParts.length-1] : this.value;
-        var availableTags = Object.keys(this._tags).filter(tag => {
+        var availableTags = Object.keys(this._data).filter(tag => {
             return !currentTag || tag.indexOf(currentTag) !== -1;
         });
         availableTags.sort(function(a, b) {
@@ -245,7 +282,7 @@ export class TagsTypeaheadElement extends HTMLInputElement {
             }
         }
         if (availableTags.length === 0) {
-            this._menu.innerHTML = "<span class=details-menu-item>No tags found</span>";
+            this._menu.innerHTML = "<span class=details-menu-item>No " + this._dataType + " found</span>";
         }
         this.setAttribute("aria-activedescendant", "tags-typeahead-" + this._index);
     }

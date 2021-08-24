@@ -810,7 +810,8 @@ impl MoreInterestingConn {
             query = query.filter(p::submitted_by.eq(search.for_user_id));
         }
         if search.title != "" {
-            query = query.filter(p::title.like(format!("%{}%", &search.title)));
+            let title_query = Self::escape_like_query(&search.title);
+            query = query.filter(p::title.like(format!("%{}%", &title_query)));
         }
         let mut data = PrettifyData::new(conn, 0);
         let current_stellar_time = if search.order_by == PostSearchOrderBy::Hottest {
@@ -2098,6 +2099,33 @@ impl MoreInterestingConn {
             a.name.cmp(&b.name)
         });
         Ok(t)
+    }
+    pub async fn search_domains(&self, query: String) -> Result<Vec<Domain>, DieselError> {
+        self.run(move |conn| Self::search_domains_(conn, query)).await
+    }
+    fn search_domains_(conn: &PgConnection, query: String) -> Result<Vec<Domain>, DieselError> {
+        use self::domains::dsl::*;
+        let query = Self::escape_like_query(&query);
+        let mut t = domains
+            .filter(hostname.like(format!("%{}%", &query)))
+            .limit(50)
+            .get_results::<Domain>(conn)?;
+        t.sort_by(|a, b| {
+            // place all-number domains last
+            if a.hostname.as_bytes()[0] < b'a' && b.hostname.as_bytes()[0] >= b'a' { return Ordering::Greater };
+            if b.hostname.as_bytes()[0] < b'a' && a.hostname.as_bytes()[0] >= b'a' { return Ordering::Less };
+            a.hostname.cmp(&b.hostname)
+        });
+        Ok(t)
+    }
+    fn escape_like_query(query: &str) -> String {
+        // https://www.postgresql.org/docs/8.3/functions-matching.html
+        query.chars().flat_map(|x| {
+            match x {
+                '\\' | '%' | '_' => vec!['\\', x],
+                _ => vec![x],
+            }
+        }).collect()
     }
     pub async fn set_dark_mode(&self, user_id_value: i32, dark_mode_value: bool) -> Result<(), DieselError> {
         self.run(move |conn| Self::set_dark_mode_(conn, user_id_value, dark_mode_value)).await
