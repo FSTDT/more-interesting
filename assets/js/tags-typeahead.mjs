@@ -36,7 +36,8 @@ export class TagsTypeaheadElement extends HTMLInputElement {
             value = value[value.length - 1];
             value = value.replace(/^www\./, "");
             if (value.length >= 3) {
-                url = "domains.json?search=" + encodeURIComponent(value.substr(0, 3));
+                value = this._hugeResults ? value : value.substr(0, 3);
+                url = "domains.json?search=" + encodeURIComponent(value);
             } else {
                 return;
             }
@@ -209,6 +210,13 @@ export class TagsTypeaheadElement extends HTMLInputElement {
         if (this._index === -2) {
             return;
         }
+        var availableTags = Object.keys(this._data).filter(tag => {
+            return !currentTag || tag.indexOf(currentTag) !== -1;
+        });
+        if (this._hugeResults || (availableTags.length > 500 && this._dataType === "domain")) {
+            this._loadData();
+            this._hugeResults = true;
+        }
         this.parentNode.setAttribute("aria-expanded", "true");
         this.setAttribute("aria-controls", "tags-typeahead");
         this.setAttribute("autocomplete", "off");
@@ -218,9 +226,6 @@ export class TagsTypeaheadElement extends HTMLInputElement {
         this._menu.id = "tags-typeahead";
         this._menu.setAttribute("tabindex", "-1");
         this.parentNode.appendChild(this._menu);
-        var availableTags = Object.keys(this._data).filter(tag => {
-            return !currentTag || tag.indexOf(currentTag) !== -1;
-        });
         availableTags.sort(function(a, b) {
             if (a[0] < 'a' && b[0] >= 'a') return 1;
             if (b[0] < 'a' && a[0] >= 'a') return -1;
