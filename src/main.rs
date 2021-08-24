@@ -468,7 +468,7 @@ async fn parse_index_params(conn: &MoreInterestingConn, user: &User, params: Opt
         }
     }
     if let Some(domain_names) = params.as_ref().and_then(|params| params.domain.as_ref()) {
-        for domain_name in domain_names.split("|").filter(|&d| d != "") {
+        for domain_name in domain_names.split("|").flat_map(|d| d.split(" ")).map(|d| d.trim()).filter(|&d| d != "") {
             if let Ok(domain) = conn.get_domain_by_hostname(domain_name).await {
                 search.or_domains.push(domain.id);
             } else {

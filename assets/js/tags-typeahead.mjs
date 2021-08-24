@@ -28,7 +28,13 @@ export class TagsTypeaheadElement extends HTMLInputElement {
         if (this._dataType === "tag") {
             url = "tags.json";
         } else if (this._dataType === "domain") {
-            value = this.value.replace(/^www\./, "");
+            var tag_split = /[#, \t\|]+/;
+            value = this.value.split(tag_split);
+            if (value.length === 0) {
+                return;
+            }
+            value = value[value.length - 1];
+            value = value.replace(/^www\./, "");
             if (value.length >= 3) {
                 url = "domains.json?search=" + encodeURIComponent(value.substr(0, 3));
             } else {
@@ -186,7 +192,11 @@ export class TagsTypeaheadElement extends HTMLInputElement {
         if (this !== document.activeElement) {
             return;
         }
-        if (this._dataType === "domain" && this.value.length < 3) {
+        var tag_split = /[#, \t\|]+/;
+        var tag_split_last = /([#, \t\|])(?!.*[#, \t\|])/g;
+        var currentTagParts = this.value.split(tag_split);
+        var currentTag = currentTagParts.length > 1 ? currentTagParts[currentTagParts.length-1] : this.value;
+        if (this._dataType === "domain" && currentTag.length < 3) {
             this._data = null;
             this.parentNode.removeChild(this._menu);
             this._menu = null;
@@ -208,10 +218,6 @@ export class TagsTypeaheadElement extends HTMLInputElement {
         this._menu.id = "tags-typeahead";
         this._menu.setAttribute("tabindex", "-1");
         this.parentNode.appendChild(this._menu);
-        var tag_split = /[#, \t\|]+/;
-        var tag_split_last = /([#, \t\|])(?!.*[#, \t\|])/g;
-        var currentTagParts = this.value.split(tag_split);
-        var currentTag = currentTagParts.length > 1 ? currentTagParts[currentTagParts.length-1] : this.value;
         var availableTags = Object.keys(this._data).filter(tag => {
             return !currentTag || tag.indexOf(currentTag) !== -1;
         });
