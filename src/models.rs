@@ -2108,7 +2108,7 @@ impl MoreInterestingConn {
         let query = Self::escape_like_query(&query);
         let mut t = domains
             .filter(hostname.like(format!("%{}%", &query)))
-            .limit(50)
+            .limit(200)
             .get_results::<Domain>(conn)?;
         t.sort_by(|a, b| {
             // place all-number domains last
