@@ -57,7 +57,7 @@
     <p class=post-banner-desc>{{{this.banner_desc}}}</p>
 {{/if}}
 <article id={{this.uuid}} class="{{#if this.blog_post}}blog-post{{/if}}">
-    <h2 class=article-header>{{{this.title_html}}}</h2>
+    <h2 class=article-header>{{{this.title_html}}}{{#if this.blog_post}} <a class="blog-tag-article-header-inner" href=blog>blog</a>{{/if}}</h2>
     {{#if this.excerpt_html}}
         <main>{{{this.excerpt_html}}}</main>
     {{/if}}
