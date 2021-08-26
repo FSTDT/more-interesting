@@ -188,7 +188,7 @@ table! {
         initial_stellar_time -> Int4,
         score -> Int4,
         comment_count -> Int4,
-        authored_by_submitter -> Bool,
+        blog_post -> Bool,
         created_at -> Timestamp,
         submitted_by -> Int4,
         excerpt -> Nullable<Varchar>,

@@ -29,19 +29,19 @@
         {{#if posts.0.banner_desc}}
             <p class=post-banner-desc>{{{posts.0.banner_desc}}}</p>
         {{/if}}
-        <article>
-            <h2 class=article-header>{{#if posts.0.private}}<span class=article-header-inner>🔒 </span>{{/if}}{{{posts.0.title_html}}}</h2>
+        <article class="{{#if posts.0.blog_post}}blog-post{{/if}}">
+            <h2 class=article-header>{{#if posts.0.private}}<span class=article-header-inner>🔒 </span>{{/if}}{{{posts.0.title_html}}}{{#if posts.0.blog_post}} <a class="blog-tag-article-header-inner" href=blog>blog</a>{{/if}}</h2>
             {{#if posts.0.excerpt_html}}
                 <main>{{{posts.0.excerpt_html}}}</main>
             {{/if}}
             <form action="vote?redirect={{posts.0.uuid}}&U={{session.uuid}}" method=POST>
             <footer class=footer-container>
             <div class=footer-main>
-            <button{{#if user.id}} title="{{#if posts.0.starred_by_me}}Remove star{{else}}Add star{{/if}}"{{else}} disabled title="Log in to vote"{{/if}} name="{{#if posts.0.starred_by_me}}rm_star{{else}}add_star{{/if}}" value={{posts.0.uuid}}>
+            <button{{#if user.id}} title="{{#if posts.0.starred_by_me}}Remove star{{else}}Add star{{/if}}"{{else}} disabled title="Log in to vote"{{/if}} class="{{#if posts.0.blog_post}}blog-post-star{{/if}}" name="{{#if posts.0.starred_by_me}}rm_star{{else}}add_star{{/if}}" value={{posts.0.uuid}}>
                 <img width=12 height=12 class=good-img src=assets/{{#if posts.0.starred_by_me}}star_active.svg{{else}}star.svg{{/if}} alt="{{#if posts.0.starred_by_me}}Remove star{{else}}Add star{{/if}}">
             </button>
             <a href="@{{posts.0.submitted_by_username_urlencode}}">{{posts.0.submitted_by_username}}</a>
-            submitted
+            {{#if posts.0.blog_post}}authored{{else}}submitted{{/if}}
             <a is=local-date href="" title="{{posts.0.created_at}}+00:00">{{posts.0.created_at_relative}}<span class=hide-small> ago</span></a>
             <details class=details-dialog-outer id=sp-{{posts.0.uuid}}>{{> view-star}}</details>
             </div>

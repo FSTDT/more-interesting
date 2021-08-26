@@ -8,11 +8,11 @@
     <input type=hidden name=title value="{{posts.0.title}}">
     <input type=hidden name=url value="{{posts.0.url}}">
     <input type=hidden name=excerpt value="{{excerpt}}">
-    <input type=hidden name=blog_post value=false>
+    <input type=hidden name=blog_post value=true>
 </form>
 <div class=tab-box>
 {{#each posts~}}
-<article id=preview>
+<article id=preview class=blog-post>
     <h2 class=article-header>{{{this.title_html}}}</h2>
     {{#if this.excerpt_html}}
         <main>{{{this.excerpt_html}}}</main>
@@ -23,7 +23,7 @@
         <img width=12 height=12 class=good-img src=assets/star.svg alt="Cannot add star to preview">
     </button>
     <a href="@{{this.submitted_by_username_urlencode}}">{{this.submitted_by_username}}</a>
-    submitted
+    authored
     <span is=local-date title="{{this.created_at}}+00:00">{{this.created_at_relative}} <span class=hide-small>ago</span></span>
     </div>
     <details-menu-bar class=footer-aside>

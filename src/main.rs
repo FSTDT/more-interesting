@@ -115,6 +115,7 @@ struct TemplateContext {
     next_search_page: i32,
     title: Cow<'static, str>,
     posts: Vec<PostInfo>,
+    extra_blog_posts: Vec<PostInfo>,
     starred_by: Vec<String>,
     comments: Vec<CommentInfo>,
     legacy_comments: Vec<LegacyCommentInfo>,
@@ -506,6 +507,10 @@ async fn index(conn: MoreInterestingConn, login: Option<LoginSession>, flash: Op
         domain = None;
     }
     let (search, tags) = parse_index_params(&conn, &user, params).await?;
+    let search = PostSearch {
+        blog_post: Some(false),
+        .. search
+    };
     let keywords_param = if search.keywords == "" { None } else { Some(search.keywords.clone()) };
     let title_param = if search.title == "" { None } else { Some(search.title.clone()) };
     let is_home = tag_param.is_none() && domain.is_none() && keywords_param.is_none();
@@ -515,6 +520,16 @@ async fn index(conn: MoreInterestingConn, login: Option<LoginSession>, flash: Op
     let notifications = conn.list_notifications(user.id).await.unwrap_or(Vec::new());
     let is_private = keywords_param.is_some() && (search.after_post_id != 0 || search.search_page != 0);
     let title = Cow::Owned(customization.title.clone());
+    let mut extra_blog_posts = if is_home {
+        let search = PostSearch {
+            blog_post: Some(true),
+            .. search
+        };
+        conn.search_posts(&search).await.ok()?
+    } else {
+        Vec::new()
+    };
+    extra_blog_posts.truncate(5);
     Some(render_html("index", &TemplateContext {
         alert: flash.map(|f| f.message().to_owned()),
         config: config.inner().clone(),
@@ -522,6 +537,37 @@ async fn index(conn: MoreInterestingConn, login: Option<LoginSession>, flash: Op
         customization, before_date_param, after_date_param,
         title, user, posts, is_home,
         tags, session, tag_param, domain, keywords_param,
+        title_param, extra_blog_posts,
+        notifications, is_private,
+        ..default()
+    }))
+}
+
+#[get("/blog?<params..>")]
+async fn blog_index(conn: MoreInterestingConn, login: Option<LoginSession>, flash: Option<FlashMessage<'_>>, params: Option<IndexParams>, config: &State<SiteConfig>, customization: Customization) -> Option<content::Html<Template>> {
+    let (user, session) = login.map(|l| (l.user, l.session)).unwrap_or((User::default(), UserSession::default()));
+
+    let (search, tags) = parse_index_params(&conn, &user, params).await?;
+    let search = PostSearch {
+        blog_post: Some(true),
+        order_by: PostSearchOrderBy::Newest,
+        .. search
+    };
+    let keywords_param = if search.keywords == "" { None } else { Some(search.keywords.clone()) };
+    let title_param = if search.title == "" { None } else { Some(search.title.clone()) };
+    let before_date_param = search.before_date;
+    let after_date_param = search.after_date;
+    let posts = conn.search_posts(&search).await.ok()?;
+    let notifications = conn.list_notifications(user.id).await.unwrap_or(Vec::new());
+    let is_private = keywords_param.is_some() && (search.after_post_id != 0 || search.search_page != 0);
+    let title = Cow::Owned(customization.title.clone());
+    Some(render_html("blog", &TemplateContext {
+        alert: flash.map(|f| f.message().to_owned()),
+        config: config.inner().clone(),
+        next_search_page: search.search_page + 1,
+        customization, before_date_param, after_date_param,
+        title, user, posts,
+        session, keywords_param,
         title_param,
         notifications, is_private,
         ..default()
@@ -597,6 +643,7 @@ async fn top(conn: MoreInterestingConn, login: Option<LoginSession>, flash: Opti
     let after_date_param = search.after_date;
     let search = PostSearch {
         order_by: PostSearchOrderBy::Top,
+        blog_post: Some(false),
         .. search
     };
     let keywords_param = if search.keywords == "" { None } else { Some(search.keywords.clone()) };
@@ -629,6 +676,7 @@ async fn subscriptions(conn: MoreInterestingConn, login: Option<LoginSession>, f
     let search = PostSearch {
         order_by: PostSearchOrderBy::Latest,
         subscriptions: true,
+        blog_post: None,
         .. search
     };
     let keywords_param = if search.keywords == "" { None } else { Some(search.keywords.clone()) };
@@ -689,6 +737,7 @@ async fn new(conn: MoreInterestingConn, login: Option<LoginSession>, flash: Opti
     let after_date_param = search.after_date;
     let search = PostSearch {
         order_by: PostSearchOrderBy::Newest,
+        blog_post: Some(false),
         .. search
     };
     let keywords_param = if search.keywords == "" { None } else { Some(search.keywords.clone()) };
@@ -720,6 +769,7 @@ async fn latest(conn: MoreInterestingConn, login: Option<LoginSession>, params: 
     let after_date_param = search.after_date;
     let search = PostSearch {
         order_by: PostSearchOrderBy::Latest,
+        blog_post: Some(false),
         .. search
     };
     let keywords_param = if search.keywords == "" { None } else { Some(search.keywords.clone()) };
@@ -745,6 +795,7 @@ async fn latest(conn: MoreInterestingConn, login: Option<LoginSession>, params: 
 async fn rss(conn: MoreInterestingConn, config: &State<SiteConfig>, customization: Customization) -> Option<content::Custom<Template>> {
     let search = PostSearch {
         order_by: PostSearchOrderBy::Newest,
+        blog_post: Some(false),
         .. PostSearch::with_my_user_id(0)
     };
     let posts = conn.search_posts(&search).await.ok()?;
@@ -799,30 +850,8 @@ async fn create_post_form(login: Option<LoginSession>, config: &State<SiteConfig
     })
 }
 
-#[get("/submit")]
-async fn create_link_form(login: Option<LoginSession>, config: &State<SiteConfig>, customization: Customization, flash: Option<FlashMessage<'_>>) -> content::Html<Template> {
-    let (user, session) = login.map(|l| (l.user, l.session)).unwrap_or((User::default(), UserSession::default()));
-    render_html("submit", &TemplateContext {
-        title: Cow::Borrowed("submit"),
-        config: config.inner().clone(),
-        alert: flash.map(|f| f.message().to_owned()),
-        customization,
-        user, session,
-        ..default()
-    })
-}
-
-#[derive(FromForm)]
-struct NewPostForm {
-    title: String,
-    tags: Option<String>,
-    url: Option<String>,
-    excerpt: Option<String>,
-    no_preview: Option<bool>,
-}
-
-#[post("/preview-submit", data = "<post>")]
-async fn submit_preview(login: Option<LoginSession>, customization: Customization, conn: MoreInterestingConn, post: Form<NewPostForm>, config: &State<SiteConfig>) -> Result<content::Html<Template>, Status> {
+#[post("/preview-post", data = "<post>")]
+async fn post_preview(login: Option<LoginSession>, customization: Customization, conn: MoreInterestingConn, post: Form<NewPostForm>, config: &State<SiteConfig>) -> Result<content::Html<Template>, Status> {
     lazy_static!{
         static ref TAGS_SPLIT: Regex = Regex::new(r"[#, \t]+").unwrap();
     }
@@ -855,7 +884,7 @@ async fn submit_preview(login: Option<LoginSession>, customization: Customizatio
         (Utc::now().naive_utc() - user.created_at) > Duration::seconds(60 * 60 * 24 * 7) {
         conn.change_user_trust_level(user.id, 2).await.expect("if voting works, then so should switching trust level")
     }
-    let NewPostForm { title, url, excerpt, tags, no_preview } = &*post;
+    let NewPostForm { title, url, excerpt, tags, no_preview, blog_post } = &*post;
     let mut title = title.clone();
     for tag in TAGS_SPLIT.split(tags.as_ref().map(|x| &x[..]).unwrap_or("")) {
         if tag == "" { continue }
@@ -893,7 +922,149 @@ async fn submit_preview(login: Option<LoginSession>, customization: Customizatio
         score: 0,
         comment_count: 0,
         comment_readpoint: None,
-        authored_by_submitter: false,
+        blog_post: *blog_post,
+        created_at: Utc::now().naive_utc(),
+        created_at_relative: relative_date(&Utc::now().naive_utc()),
+        submitted_by: user.id,
+        submitted_by_username,
+        submitted_by_username_urlencode,
+        starred_by_me: false,
+        flagged_by_me: false,
+        hidden_by_me: false,
+        banner_title: Some("Preview".to_string()),
+        banner_desc: None,
+    };
+    if no_preview.is_some() {
+        let mut title = String::new();
+        let mut tags = String::new();
+        let mut first = true;
+        for part in post_info.title.split('#') {
+            if first {
+                title = part.to_owned();
+                first = false;
+            } else {
+                tags = tags + &part;
+            }
+        }
+        post_info.title = title;
+        post_info.title_html = tags;
+        return Ok(render_html("post", &TemplateContext {
+            posts: vec![post_info],
+            title: Cow::Borrowed("post"),
+            config: config.inner().clone(),
+            excerpt: excerpt.map(ToOwned::to_owned),
+            customization,
+            user, session,
+            ..default()
+        }))
+    }
+    Ok(render_html("preview-post", &TemplateContext {
+        posts: vec![post_info],
+        config: config.inner().clone(),
+        title: Cow::Borrowed("post"),
+        excerpt: excerpt.map(ToOwned::to_owned),
+        customization,
+        user, session,
+        ..default()
+    }))
+}
+
+#[get("/submit")]
+async fn create_link_form(login: Option<LoginSession>, config: &State<SiteConfig>, customization: Customization, flash: Option<FlashMessage<'_>>) -> content::Html<Template> {
+    let (user, session) = login.map(|l| (l.user, l.session)).unwrap_or((User::default(), UserSession::default()));
+    render_html("submit", &TemplateContext {
+        title: Cow::Borrowed("submit"),
+        config: config.inner().clone(),
+        alert: flash.map(|f| f.message().to_owned()),
+        customization,
+        user, session,
+        ..default()
+    })
+}
+
+#[derive(FromForm)]
+struct NewPostForm {
+    title: String,
+    tags: Option<String>,
+    url: Option<String>,
+    excerpt: Option<String>,
+    no_preview: Option<bool>,
+    blog_post: bool,
+}
+
+#[post("/preview-submit", data = "<post>")]
+async fn submit_preview(login: Option<LoginSession>, customization: Customization, conn: MoreInterestingConn, post: Form<NewPostForm>, config: &State<SiteConfig>) -> Result<content::Html<Template>, Status> {
+    lazy_static!{
+        static ref TAGS_SPLIT: Regex = Regex::new(r"[#, \t]+").unwrap();
+    }
+    let (user, session) = login.map(|l| (Some(l.user), l.session)).unwrap_or((None, UserSession::default()));
+    let user = if let Some(user) = user {
+        if user.banned {
+            return Err(Status::InternalServerError);
+        }
+        user
+    } else if config.enable_anonymous_submissions {
+        if let Ok(user) = conn.get_user_by_username("anonymous").await {
+            user
+        } else {
+            let p: [char; 16] = rand::random();
+            let mut password = String::new();
+            password.extend(p.iter());
+            let user = conn.register_user(NewUser{
+                username: "anonymous".to_owned(),
+                password,
+                invited_by: None,
+            }).await.map_err(|_| Status::InternalServerError)?;
+            conn.change_user_trust_level(user.id, -1).await.map_err(|_| Status::InternalServerError)?;
+            conn.change_user_banned(user.id, true).await.map_err(|_| Status::InternalServerError)?;
+            user
+        }
+    } else {
+        return Err(Status::BadRequest);
+    };
+    if user.trust_level == 1 &&
+        (Utc::now().naive_utc() - user.created_at) > Duration::seconds(60 * 60 * 24 * 7) {
+        conn.change_user_trust_level(user.id, 2).await.expect("if voting works, then so should switching trust level")
+    }
+    let NewPostForm { title, url, excerpt, tags, no_preview, blog_post } = &*post;
+    let mut title = title.clone();
+    for tag in TAGS_SPLIT.split(tags.as_ref().map(|x| &x[..]).unwrap_or("")) {
+        if tag == "" { continue }
+        if conn.get_tag_by_name(tag).await.is_err() {
+            continue;
+        }
+        title += " #";
+        title += tag;
+    }
+    let title = &title[..];
+    let url = url.as_ref().and_then(|u| {
+        if u == "" {
+            None
+        } else if !u.contains(":") && !u.starts_with("//") {
+            Some(format!("https://{}", u))
+        } else {
+            Some(u.to_owned())
+        }
+    });
+    let excerpt = excerpt.as_ref().and_then(|k| if k == "" { None } else { Some(&k[..]) });
+    let body_html = conn.prettify_body(0, excerpt.unwrap_or(""), config.body_format).await;
+    let title_html = conn.prettify_title(0, &title, &url.as_ref().unwrap_or(&String::new())[..]).await;
+    let submitted_by_username_urlencode = utf8_percent_encode(&user.username, NON_ALPHANUMERIC).to_string();
+    let submitted_by_username = user.username.clone();
+    let mut post_info = PostInfo {
+        title: title.to_owned(),
+        url,
+        title_html: title_html,
+        excerpt_html: Some(body_html),
+        uuid: Base32::from(0i64),
+        id: 0,
+        visible: true,
+        private: false,
+        hotness: 0.0,
+        score: 0,
+        comment_count: 0,
+        comment_readpoint: None,
+        blog_post: *blog_post,
         created_at: Utc::now().naive_utc(),
         created_at_relative: relative_date(&Utc::now().naive_utc()),
         submitted_by: user.id,
@@ -974,7 +1145,7 @@ async fn create(login: Option<LoginSession>, conn: MoreInterestingConn, post: Fo
         (Utc::now().naive_utc() - user.created_at) > Duration::seconds(60 * 60 * 24 * 7) {
         conn.change_user_trust_level(user.id, 2).await.expect("if voting works, then so should switching trust level")
     }
-    let NewPostForm { title, url, excerpt, tags, .. } = &*post;
+    let NewPostForm { title, url, excerpt, tags, blog_post, .. } = &*post;
     let mut title = title.clone();
     for tag in TAGS_SPLIT.split(tags.as_ref().map(|x| &x[..]).unwrap_or("")) {
         if tag == "" { continue }
@@ -998,6 +1169,7 @@ async fn create(login: Option<LoginSession>, conn: MoreInterestingConn, post: Fo
         submitted_by: user.id,
         visible: user.trust_level > 0i32,
         private: false,
+        blog_post: *blog_post,
         title, excerpt, url,
     }, config.body_format, user.username != "anonymous").await {
         Ok(post) => Ok(Flash::success(Redirect::to(post.uuid.to_string()), "Post created")),
@@ -1062,6 +1234,7 @@ async fn create_message(login: LoginSession, conn: MoreInterestingConn, post: Fo
         submitted_by: user.id,
         visible: true,
         private: true,
+        blog_post: false,
         title, excerpt
     }, config.body_format, false).await {
         Ok(post) => {
@@ -1160,6 +1333,7 @@ async fn get_comments(conn: MoreInterestingConn, login: Option<LoginSession>, uu
         let search = PostSearch {
             for_user_id: user_info.id,
             order_by: PostSearchOrderBy::Newest,
+            blog_post: None,
             .. PostSearch::with_my_user_id(user.id)
         };
         let posts = if let Ok(posts) = conn.search_posts(&search).await {
@@ -1785,6 +1959,7 @@ async fn edit_post(conn: MoreInterestingConn, login: ModeratorSession, form: For
             excerpt,
             visible: login.user.trust_level >= 3,
             private: post_info.private,
+            blog_post: post_info.blog_post,
         }, config.body_format).await {
             Ok(_) => {
                 if !post_info.private {
@@ -2375,7 +2550,7 @@ fn launch() -> rocket::Rocket<rocket::Build> {
                 }
             })
         }))
-        .mount("/", routes![index, advanced_search, login_form, login, logout, create_link_form, create_post_form, create, submit_preview, get_comments, vote, signup, get_settings, create_invite, invite_tree, change_password, post_comment, vote_comment, get_admin_tags, admin_tags, get_tags, edit_post, get_edit_post, edit_comment, get_edit_comment, set_dark_mode, set_big_mode, mod_log, get_mod_queue, moderate_post, moderate_comment, get_public_signup, random, redirect_legacy_id, latest, rss, top, banner_post, robots_txt, search_comments, new, get_admin_domains, admin_domains, create_message_form, create_message, subscriptions, post_subscriptions, get_reply_comment, preview_comment, get_admin_customization, admin_customization, conv_legacy_id, get_tags_json, get_domains_json, get_admin_flags, get_admin_comment_flags, faq, identicon])
+        .mount("/", routes![index, blog_index, advanced_search, login_form, login, logout, create_link_form, create_post_form, create, post_preview, submit_preview, get_comments, vote, signup, get_settings, create_invite, invite_tree, change_password, post_comment, vote_comment, get_admin_tags, admin_tags, get_tags, edit_post, get_edit_post, edit_comment, get_edit_comment, set_dark_mode, set_big_mode, mod_log, get_mod_queue, moderate_post, moderate_comment, get_public_signup, random, redirect_legacy_id, latest, rss, top, banner_post, robots_txt, search_comments, new, get_admin_domains, admin_domains, create_message_form, create_message, subscriptions, post_subscriptions, get_reply_comment, preview_comment, get_admin_customization, admin_customization, conv_legacy_id, get_tags_json, get_domains_json, get_admin_flags, get_admin_comment_flags, faq, identicon])
         .mount("/assets", FileServer::from("assets"))
         .attach(Template::custom(|engines| {
             engines.handlebars.register_helper("count", Box::new(count_helper));

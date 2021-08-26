@@ -8,6 +8,7 @@
 <form action="submit{{#if user.id}}?U={{session.uuid}}{{/if}}" method=POST id=submit-form class=tab-box>
     <label>URL <input name=url required autofocus id=url-form value="{{#if posts.0}}{{posts.0.url}}{{/if}}"></label>
     <label>Fundie name <input name=title is=smart-punct-input value="{{#if posts.0}}{{posts.0.title}}{{/if}}"></label>
+    <input type=hidden name=blog_post value=false>
     <label for=tags-typeahead-input>Tags</label> <div class=typeahead-outer>
         <input id=tags-typeahead-input name=tags is=tags-typeahead value="{{#if posts.0}}{{posts.0.title_html}}{{/if}}">
     </div>

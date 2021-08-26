@@ -29,9 +29,19 @@
 {{/inline}}
 {{#*inline "page"}}
 {{#if is_home}}
+<div class=side-by-side>
     {{# if customization.front_notice_html}}
         <div class=inner-banner>{{{customization.front_notice_html}}}</div>
     {{/if}}
+    <div class=subordinate-banner>
+        <h3 style=margin-top:0><a href=blog style=color:inherit;background:none>Newest blog posts</a></h3>
+        <ul>
+        {{#each extra_blog_posts}}
+        <li><a href="{{this.uuid}}">{{this.title}}</a></li>
+        {{/each}}
+        </ul>
+    </div>
+</div>
 {{/if}}
 {{#each tags}}
 <header class=tight-headline>

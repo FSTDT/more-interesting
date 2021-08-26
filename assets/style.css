@@ -793,6 +793,31 @@ html.dark.hairlines article, html.dark.hairlines aside {
     line-height: inherit;
 }
 
+article.blog-post {
+    border: none;
+}
+
+.blog-post .article-header {
+    margin: 0;
+    border-bottom: solid 1px #aaa;
+    padding-top: 0;
+}
+.blog-post .article-header-inner {
+    padding: 0;
+    overflow: visible;
+    font-size: 1.5em;
+}
+.blog-post .article-header-inner a {
+    color: inherit;
+    background: none;
+}
+html.hairlines .article-header, html.hairlines .article-header {
+    border-width: 0.5px;
+}
+html.dark.hairlines .article-header, html.dark.hairlines .article-header {
+    border-color: #888;
+}
+
 .article-header-inner {
     padding: 0.5em;
     padding: calc(0.5em - 1px);
@@ -802,6 +827,20 @@ html.dark.hairlines article, html.dark.hairlines aside {
     overflow: hidden;
     margin: 0 -0.25em -0.5em;
     margin: 0 calc(-0.25em + 1px) -0.5em;
+}
+
+.blog-tag-article-header-inner {
+    font-size: inherit;
+    color: #fff;
+    background: #666;
+    padding: 0.25em;
+    margin: 0.25em;
+    vertical-align: text-bottom;
+}
+
+html.dark .blog-tag-article-header-inner {
+    color: #000;
+    background: #ccc;
 }
 
 details-dialog, .details-menu-inner, .inner-banner, .typeahead-inner {
@@ -818,6 +857,11 @@ details-dialog, .details-menu-inner, .inner-banner, .typeahead-inner {
     image-rendering: -webkit-optimize-contrast; /* Safari */
     -ms-interpolation-mode: nearest-neighbor; /* EdgeHTML Edge and Trident */
     image-rendering: pixelated; /* Chrome */
+}
+
+.subordinate-banner {
+    padding: 0.25em 0.5em 0 0.5em;
+    margin: 0.5em 0;
 }
 
 .typeahead-outer {
@@ -841,7 +885,7 @@ html.dark details-dialog, html.dark .details-menu-inner, html.dark .inner-banner
 }
 
 .inner-banner {
-    margin-bottom: 2em;
+    margin-bottom: 0.5em;
 }
 
 details-dialog {
@@ -1038,6 +1082,16 @@ details-dialog {
         image-rendering: -webkit-optimize-contrast; /* Safari */
         -ms-interpolation-mode: nearest-neighbor; /* EdgeHTML Edge and Trident */
         image-rendering: pixelated; /* Chrome */
+    }
+    .side-by-side {
+        display: flex;
+    }
+    .side-by-side div:first-child {
+        margin-right: 1em;
+        flex: 2;
+    }
+    .side-by-side div {
+        flex: 1;
     }
 }
 

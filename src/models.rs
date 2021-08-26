@@ -91,7 +91,7 @@ pub struct Post {
     pub initial_stellar_time: i32,
     pub score: i32,
     pub comment_count: i32,
-    pub authored_by_submitter: bool,
+    pub blog_post: bool,
     pub created_at: NaiveDateTime,
     pub submitted_by: i32,
     pub excerpt: Option<String>,
@@ -192,6 +192,7 @@ pub struct NewPost {
     pub submitted_by: i32,
     pub visible: bool,
     pub private: bool,
+    pub blog_post: bool,
 }
 
 #[derive(Serialize)]
@@ -206,7 +207,7 @@ pub struct PostInfo {
     pub hotness: f64,
     pub score: i32,
     pub comment_count: i32,
-    pub authored_by_submitter: bool,
+    pub blog_post: bool,
     pub created_at: NaiveDateTime,
     pub created_at_relative: String,
     pub submitted_by: i32,
@@ -476,6 +477,7 @@ pub struct PostSearch {
     pub after_post_id: i32,
     pub search_page: i32,
     pub subscriptions: bool,
+    pub blog_post: Option<bool>,
     pub before_date: Option<NaiveDate>,
     pub after_date: Option<NaiveDate>,
 }
@@ -509,6 +511,7 @@ impl PostSearch {
             after_post_id: 0,
             search_page: 0,
             subscriptions: false,
+            blog_post: None,
             before_date: None,
             after_date: None,
         }
@@ -793,6 +796,9 @@ impl MoreInterestingConn {
         } else {
             query = query.filter(private.eq(false));
         }
+        if let Some(blog_post_value) = search.blog_post {
+            query = query.filter(p::blog_post.eq(blog_post_value));
+        }
         let mut before_date = search.before_date;
         let mut after_date = search.after_date;
         if before_date < after_date {
@@ -840,7 +846,7 @@ impl MoreInterestingConn {
                         p::score,
                         p::comment_count,
                         cr::comment_readpoint.nullable(),
-                        p::authored_by_submitter,
+                        p::blog_post,
                         p::created_at,
                         p::submitted_by,
                         p::excerpt,
@@ -875,7 +881,7 @@ impl MoreInterestingConn {
                         p::initial_stellar_time,
                         p::score,
                         p::comment_count,
-                        p::authored_by_submitter,
+                        p::blog_post,
                         p::created_at,
                         p::submitted_by,
                         p::excerpt,
@@ -920,7 +926,7 @@ impl MoreInterestingConn {
                     p::initial_stellar_time,
                     p::score,
                     p::comment_count,
-                    p::authored_by_submitter,
+                    p::blog_post,
                     p::created_at,
                     p::submitted_by,
                     p::excerpt,
@@ -967,7 +973,7 @@ impl MoreInterestingConn {
                     p::score,
                     p::comment_count,
                     cr::comment_readpoint.nullable(),
-                    p::authored_by_submitter,
+                    p::blog_post,
                     p::created_at,
                     p::submitted_by,
                     p::excerpt,
@@ -1050,7 +1056,7 @@ impl MoreInterestingConn {
                 p::score,
                 p::comment_count,
                 cr::comment_readpoint.nullable(),
-                p::authored_by_submitter,
+                p::blog_post,
                 p::created_at,
                 p::submitted_by,
                 p::excerpt,
@@ -1104,7 +1110,7 @@ impl MoreInterestingConn {
                 p::score,
                 p::comment_count,
                 cr::comment_readpoint.nullable(),
-                p::authored_by_submitter,
+                p::blog_post,
                 p::created_at,
                 p::submitted_by,
                 p::excerpt,
@@ -1253,13 +1259,16 @@ impl MoreInterestingConn {
             excerpt_html: Option<&'a str>,
             visible: bool,
             private: bool,
+            blog_post: bool,
             domain_id: Option<i32>,
         }
+        let uuid: i64 = rand::random();
+        let uuid_string = Base32::from(uuid).to_string();
         let mut visible = new_post.visible;
         let (url, domain) = Self::get_post_domain_url_(conn, new_post.url.as_ref().cloned());
-        let url_str = url.as_ref().map(|u| &u[..]).unwrap_or("");
+        let url_str = url.as_ref().map(|u| &u[..]).unwrap_or(&uuid_string);
         let title_html_and_stuff = crate::prettify::prettify_title(&new_post.title, url_str, &mut PrettifyData::new(conn, 0));
-        if title_html_and_stuff.hash_tags.is_empty() && !new_post.private {
+        if title_html_and_stuff.hash_tags.is_empty() && !new_post.private && !new_post.blog_post {
             return Err(CreatePostError::RequireTag);
         }
         // TODO: make this configurable
@@ -1275,10 +1284,10 @@ impl MoreInterestingConn {
         } else {
             None
         };
-        if new_post.title.chars().filter(|&c| c != ' ' && c != '\n').count() > 500 && !url.is_none() {
+        if new_post.title.chars().filter(|&c| c != ' ' && c != '\n').count() > 500 {
             return Err(CreatePostError::TooLong);
         }
-        if new_post.excerpt.as_ref().map(|x| &x[..]).unwrap_or("").chars().filter(|&c| c != ' ' && c != '\n').count() > 2000 && !url.is_none() {
+        if new_post.excerpt.as_ref().map(|x| &x[..]).unwrap_or("").chars().filter(|&c| c != ' ' && c != '\n').count() > 2000 && !new_post.private && !new_post.blog_post {
             return Err(CreatePostError::TooLong);
         }
         if let Some(ref domain) = domain {
@@ -1300,12 +1309,13 @@ impl MoreInterestingConn {
             .values(CreatePost {
                 title: &new_post.title,
                 title_html: Some(&title_html_and_stuff.string[..]),
-                uuid: rand::random(),
+                uuid,
                 submitted_by: new_post.submitted_by,
                 initial_stellar_time: Self::get_current_stellar_time_(conn),
                 excerpt: new_post.excerpt.as_ref().map(|x| &x[..]),
                 excerpt_html: excerpt_html_and_stuff.as_ref().map(|e| &e.string[..]),
                 private: new_post.private,
+                blog_post: new_post.blog_post,
                 domain_id: domain.map(|d| d.id),
                 url: url.as_ref().cloned(),
                 visible,
@@ -1352,6 +1362,7 @@ impl MoreInterestingConn {
                 excerpt_html.eq(excerpt_html_and_stuff.as_ref().map(|x| &x.string[..])),
                 visible.eq(new_post.visible),
                 private.eq(new_post.private),
+                blog_post.eq(new_post.blog_post),
                 domain_id.eq(domain.map(|d| d.id))
             ))
             .execute(conn)?;
@@ -1361,6 +1372,7 @@ impl MoreInterestingConn {
                     initial_stellar_time.eq(Self::get_current_stellar_time_(conn)),
                     visible.eq(new_post.visible),
                     private.eq(new_post.private),
+                    blog_post.eq(new_post.blog_post),
                 ))
                 .execute(conn)?;
         }
@@ -1962,7 +1974,7 @@ impl MoreInterestingConn {
                 p::initial_stellar_time,
                 p::score,
                 p::comment_count,
-                p::authored_by_submitter,
+                p::blog_post,
                 p::created_at,
                 p::submitted_by,
                 p::excerpt,
@@ -2108,7 +2120,7 @@ impl MoreInterestingConn {
         let query = Self::escape_like_query(&query);
         let mut t = domains
             .filter(hostname.like(format!("%{}%", &query)))
-            .limit(200)
+            .limit(1000)
             .get_results::<Domain>(conn)?;
         t.sort_by(|a, b| {
             // place all-number domains last
@@ -2445,7 +2457,7 @@ impl MoreInterestingConn {
                 p::score,
                 p::comment_count,
                 cr::comment_readpoint.nullable(),
-                p::authored_by_submitter,
+                p::blog_post,
                 p::created_at,
                 p::submitted_by,
                 p::excerpt,
@@ -2722,11 +2734,11 @@ fn tuple_to_notification_info((post_uuid, post_title, comment_count, from_userna
     }
 }
 
-fn tuple_to_post_info_logged_out(data: &mut PrettifyData, (id, uuid, title, title_html, url, visible, private, initial_stellar_time, score, comment_count, authored_by_submitter, created_at, submitted_by, excerpt, excerpt_html, submitted_by_username, banner_title, banner_desc): (i32, Base32, String, Option<String>, Option<String>, bool, bool, i32, i32, i32, bool, NaiveDateTime, i32, Option<String>, Option<String>, String, Option<String>, Option<String>), current_stellar_time: i32) -> PostInfo {
-    tuple_to_post_info(data, (id, uuid, title, title_html, url, visible, private, initial_stellar_time, score, comment_count, None, authored_by_submitter, created_at, submitted_by, excerpt, excerpt_html, None, None, None, submitted_by_username, banner_title, banner_desc), current_stellar_time)
+fn tuple_to_post_info_logged_out(data: &mut PrettifyData, (id, uuid, title, title_html, url, visible, private, initial_stellar_time, score, comment_count, blog_post, created_at, submitted_by, excerpt, excerpt_html, submitted_by_username, banner_title, banner_desc): (i32, Base32, String, Option<String>, Option<String>, bool, bool, i32, i32, i32, bool, NaiveDateTime, i32, Option<String>, Option<String>, String, Option<String>, Option<String>), current_stellar_time: i32) -> PostInfo {
+    tuple_to_post_info(data, (id, uuid, title, title_html, url, visible, private, initial_stellar_time, score, comment_count, None, blog_post, created_at, submitted_by, excerpt, excerpt_html, None, None, None, submitted_by_username, banner_title, banner_desc), current_stellar_time)
 }
 
-fn tuple_to_post_info(data: &mut PrettifyData, (id, uuid, title, title_html, url, visible, private, initial_stellar_time, score, comment_count, comment_readpoint, authored_by_submitter, created_at, submitted_by, excerpt, excerpt_html, starred_post_id, flagged_post_id, hidden_post_id, submitted_by_username, banner_title, banner_desc): (i32, Base32, String, Option<String>, Option<String>, bool, bool, i32, i32, i32, Option<i32>, bool, NaiveDateTime, i32, Option<String>, Option<String>, Option<i32>, Option<i32>, Option<i32>, String, Option<String>, Option<String>), current_stellar_time: i32) -> PostInfo {
+fn tuple_to_post_info(data: &mut PrettifyData, (id, uuid, title, title_html, url, visible, private, initial_stellar_time, score, comment_count, comment_readpoint, blog_post, created_at, submitted_by, excerpt, excerpt_html, starred_post_id, flagged_post_id, hidden_post_id, submitted_by_username, banner_title, banner_desc): (i32, Base32, String, Option<String>, Option<String>, bool, bool, i32, i32, i32, Option<i32>, bool, NaiveDateTime, i32, Option<String>, Option<String>, Option<i32>, Option<i32>, Option<i32>, String, Option<String>, Option<String>), current_stellar_time: i32) -> PostInfo {
     let link_url = if let Some(ref url) = url {
         url.clone()
     } else {
@@ -2751,7 +2763,7 @@ fn tuple_to_post_info(data: &mut PrettifyData, (id, uuid, title, title_html, url
     let created_at_relative = relative_date(&created_at);
     let submitted_by_username_urlencode = utf8_percent_encode(&submitted_by_username, NON_ALPHANUMERIC).to_string();
     PostInfo {
-        id, uuid, title, url, visible, private, score, authored_by_submitter,
+        id, uuid, title, url, visible, private, score, blog_post,
         submitted_by, submitted_by_username, comment_count, title_html,
         comment_readpoint,
         excerpt_html, banner_title, banner_desc,
@@ -2760,7 +2772,7 @@ fn tuple_to_post_info(data: &mut PrettifyData, (id, uuid, title, title_html, url
         flagged_by_me: flagged_post_id.is_some(),
         hidden_by_me: hidden_post_id.is_some(),
         submitted_by_username_urlencode,
-        hotness: compute_hotness(initial_stellar_time, current_stellar_time, score, authored_by_submitter)
+        hotness: compute_hotness(initial_stellar_time, current_stellar_time, score, blog_post)
     }
 }
 
@@ -2800,9 +2812,9 @@ fn tuple_to_moderation((id, payload, created_at, created_by, created_by_username
     }
 }
 
-fn compute_hotness(initial_stellar_time: i32, current_stellar_time: i32, score: i32, authored_by_submitter: bool) -> f64 {
+fn compute_hotness(initial_stellar_time: i32, current_stellar_time: i32, score: i32, blog_post: bool) -> f64 {
     let gravity = 1.33;
-    let boost = if authored_by_submitter { 0.33 } else { 0.0 };
+    let boost = if blog_post { 0.33 } else { 0.0 };
     let stellar_age = max(current_stellar_time - initial_stellar_time, 0) as f64;
     (boost + (score as f64) + 1.0) / (stellar_age + 1.0).powf(gravity)
 }
