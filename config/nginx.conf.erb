@@ -34,7 +34,7 @@ http {
 	client_max_body_size 50m;
 
 	upstream app_server {
-		server localhost:3001 fail_timeout=0 max_fails=3;
+		server localhost:3001 fail_timeout=3 max_fails=10;
  	}
 
 	map $http_user_agent $isbot_ua {
