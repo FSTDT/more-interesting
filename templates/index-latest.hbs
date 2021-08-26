@@ -124,8 +124,6 @@
 </nav>
 </header>
 {{/if}}
-{{~> view-index~}}{{#if (last posts)~}}
-<p><a href="latest?after={{last posts}}{{#if keywords_param}}{{#if title_param}}&title={{urlencode title_param}}{{/if}}&q={{urlencode keywords_param}}{{/if}}{{#if tag_param}}&tag={{tag_param}}{{/if}}{{#if domain}}&domain={{domain}}{{/if}}{{#if user_param}}&user={{user_param}}{{/if}}">Next page</a></p>
-{{~/if~}}
+{{~> view-index~}}
 {{/inline}}
 {{~> layout~}}

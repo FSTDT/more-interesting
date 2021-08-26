@@ -7,9 +7,8 @@
 {{else}}
 <h2>Blogs</h2>
 {{/if}}
-{{~> view-index~}}
-{{~#if keywords_param}}
-<p><a href=".?page={{next_search_page}}&q={{urlencode keywords_param}}{{#if title_param}}&title={{urlencode title_param}}{{/if}}{{#if tag_param}}&tag={{tag_param}}{{/if}}{{#if domain}}&domain={{domain}}{{/if}}">Next page</a></p>
+{{~> view-index~}}{{#if (last posts)~}}
+<p><a href="blog?after={{last posts}}{{#if keywords_param}}{{#if title_param}}&title={{urlencode title_param}}{{/if}}&q={{urlencode keywords_param}}{{/if}}{{#if tag_param}}&tag={{tag_param}}{{/if}}{{#if domain}}&domain={{domain}}{{/if}}{{#if user_param}}&user={{user_param}}{{/if}}">Next page</a></p>
 {{~/if~}}
 {{/inline}}
 {{~> layout~}}
