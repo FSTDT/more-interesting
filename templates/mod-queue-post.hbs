@@ -1,12 +1,12 @@
 {{#*inline "page"}}
-        <article>
-            <header class=article-header>{{{posts.0.title_html}}}</header>
+        <article class="{{#if posts.0.blog_post}}blog-post{{/if}}">
+            <header class=article-header>{{{posts.0.title_html}}}{{#if posts.0.blog_post}} <a class="blog-tag-article-header-inner" href=blog>blog</a>{{/if}}</header>
             {{#if posts.0.excerpt_html}}
                 <main>{{{posts.0.excerpt_html}}}</main>
             {{/if}}
             <footer class=footer-container>
                 <div class=footer-main>
-                <a href="@{{posts.0.submitted_by_username_urlencode}}">{{posts.0.submitted_by_username}}</a> submitted
+                <a href="@{{posts.0.submitted_by_username_urlencode}}">{{posts.0.submitted_by_username}}</a> {{#if posts.0.blog_post}}authored{{else}}submitted{{/if}}
                 <a is=local-date href="{{posts.0.uuid}}" title="{{posts.0.created_at}}+00:00">{{posts.0.created_at_relative}}</a>
                 {{#if starred_by}}
                     starred by
