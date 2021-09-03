@@ -803,11 +803,15 @@ article.blog-post {
     padding-top: 0;
 }
 .blog-post .article-header-inner {
+    overflow: visible;
+}
+.blog-post .article-header-inner:first-child {
     padding: 0;
     overflow: visible;
-    font-size: 1.5em;
+    display: block;
 }
-.blog-post .article-header-inner a {
+.blog-post .article-header-inner:first-child a {
+    font-size: 1.5em;
     color: inherit;
     background: none;
 }
@@ -830,12 +834,10 @@ html.dark.hairlines .article-header, html.dark.hairlines .article-header {
 }
 
 .blog-tag-article-header-inner {
-    font-size: inherit;
+    padding: 0.5em;
+    padding: calc(0.5em - 1px);
     color: #fff;
     background: #666;
-    padding: 0.25em;
-    margin: 0.25em;
-    vertical-align: text-bottom;
 }
 
 html.dark .blog-tag-article-header-inner {
