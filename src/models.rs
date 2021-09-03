@@ -103,6 +103,8 @@ pub struct Post {
     pub banner_desc: Option<String>,
     pub private: bool,
     pub title_html: Option<String>,
+    // TODO: remove this
+    pub authored_by_submitter: bool,
 }
 
 #[derive(Clone, Queryable, Serialize)]

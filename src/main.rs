@@ -507,11 +507,11 @@ async fn index(conn: MoreInterestingConn, login: Option<LoginSession>, flash: Op
         domain = None;
     }
     let (search, tags) = parse_index_params(&conn, &user, params).await?;
+    let keywords_param = if search.keywords == "" { None } else { Some(search.keywords.clone()) };
     let search = PostSearch {
-        blog_post: Some(false),
+        blog_post: Some(tag_param.is_some() || keywords_param.is_some()),
         .. search
     };
-    let keywords_param = if search.keywords == "" { None } else { Some(search.keywords.clone()) };
     let title_param = if search.title == "" { None } else { Some(search.title.clone()) };
     let is_home = tag_param.is_none() && domain.is_none() && keywords_param.is_none();
     let before_date_param = search.before_date;
