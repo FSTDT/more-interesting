@@ -131,7 +131,7 @@ pub fn prettify_body<D: Data>(text: &str, data: &mut D) -> Output {
                     ret_val.push_str(&html);
                     ret_val.push_str("</a>");
                 } else if contents.starts_with('#') {
-                    maybe_write_number_sign(&contents[1..], data, &mut ret_val, None);
+                    maybe_write_number_sign(&contents[1..], data, &mut ret_val, None, false);
                 } else if contents == "table" {
                     ret_val.push_str("<a href=assets/how-to-table.html>table</a>");
                     for _ in 0..brackets_count {
@@ -191,7 +191,7 @@ pub fn prettify_body<D: Data>(text: &str, data: &mut D) -> Output {
             }
             b'#' => {
                 let contents = scan_lexical_token(&text[1..], false);
-                maybe_write_number_sign(contents, data, &mut ret_val, None);
+                maybe_write_number_sign(contents, data, &mut ret_val, None, false);
                 text = &text[(1 + contents.len())..];
             }
             _ if starts_with_url_protocol(text) => {
@@ -320,7 +320,7 @@ pub fn prettify_body_bbcode<D: Data>(text: &str, data: &mut D) -> Output {
                     ret_val.push_str(&html);
                     ret_val.push_str("</a>");
                 } else if contents.starts_with('#') {
-                    maybe_write_number_sign(&contents[1..], data, &mut ret_val, None);
+                    maybe_write_number_sign(&contents[1..], data, &mut ret_val, None, false);
                 } else if contents == "table" {
                     ret_val.push_str("<a href=assets/how-to-table.html>table</a>");
                     for _ in 0..brackets_count {
@@ -679,7 +679,7 @@ pub fn prettify_body_bbcode<D: Data>(text: &str, data: &mut D) -> Output {
             }
             b'#' => {
                 let contents = scan_lexical_token(&text[1..], false);
-                maybe_write_number_sign(contents, data, &mut ret_val, None);
+                maybe_write_number_sign(contents, data, &mut ret_val, None, false);
                 text = &text[(1 + contents.len())..];
             }
             // bare links
@@ -741,7 +741,7 @@ pub fn prettify_body_bbcode<D: Data>(text: &str, data: &mut D) -> Output {
 }
 
 /// Prettify a title line: similar to `prettify_body`, but without paragraph breaks
-pub fn prettify_title<D: Data>(text: &str, url: &str, data: &mut D) -> Output {
+pub fn prettify_title<D: Data>(text: &str, url: &str, data: &mut D, blog_post: bool) -> Output {
     let text = SPACES.replace_all(text, " ");
     let mut text = &text[..];
     let mut ret_val = Output::with_capacity(text.len());
@@ -758,7 +758,7 @@ pub fn prettify_title<D: Data>(text: &str, url: &str, data: &mut D) -> Output {
                 if contents.starts_with('@') {
                     maybe_write_username(&contents[1..], data, &mut ret_val, Some(&link));
                 } else if contents.starts_with('#') {
-                    maybe_write_number_sign(&contents[1..], data, &mut ret_val, Some(&link));
+                    maybe_write_number_sign(&contents[1..], data, &mut ret_val, Some(&link), blog_post);
                 } else {
                     ret_val.push_str(&escape(&text[brackets_count..count]).to_string());
                 }
@@ -778,7 +778,7 @@ pub fn prettify_title<D: Data>(text: &str, url: &str, data: &mut D) -> Output {
             }
             b'#' => {
                 let contents = scan_lexical_token(&text[1..], false);
-                maybe_write_number_sign(contents, data, &mut ret_val, Some(&link));
+                maybe_write_number_sign(contents, data, &mut ret_val, Some(&link), blog_post);
                 text = &text[(1 + contents.len())..];
             }
             b' ' => {
@@ -816,7 +816,8 @@ pub fn prettify_title<D: Data>(text: &str, url: &str, data: &mut D) -> Output {
     if let Ok(url) = Url::parse(url) {
         if let Some(host) = url.host_str().map(|hostname| data.get_domain_canonical(hostname)) {
             let host = escape(&host).to_string();
-            ret_val.push_str("</span> <span class=article-header-inner><a class=domain-link href=\"./?domain=");
+            ret_val.push_str("</span> <span class=article-header-inner><a class=domain-link href=\"");
+            ret_val.push_str(if blog_post { "blog?domain=" } else { "./?domain=" });
             ret_val.push_str(&host);
             ret_val.push_str("\">");
             ret_val.push_str(&host);
@@ -862,16 +863,17 @@ fn starts_with_url_protocol(s: &str) -> bool {
     false
 }
 
-fn maybe_write_number_sign<D: Data>(number_without_sign: &str, data: &mut D, out: &mut Output, embedded: Option<&str>) {
+fn maybe_write_number_sign<D: Data>(number_without_sign: &str, data: &mut D, out: &mut Output, embedded: Option<&str>, blog_post: bool) {
     let html = escape(number_without_sign).to_string();
     match data.check_number_sign(number_without_sign) {
         NumberSign::Tag(tag) => {
             out.hash_tags.push(tag.to_owned());
             if embedded.is_some() {
-                out.push_str("</a></span><span class=article-header-inner><a class=inner-link href=\"./?tag=");
+                out.push_str("</a></span><span class=article-header-inner><a class=inner-link href=\"");
             } else {
-                out.push_str("<a href=\"./?tag=");
+                out.push_str("<a href=\"");
             }
+            out.push_str(if blog_post { "blog?tag=" } else { "./?tag=" });
             out.push_str(&html);
             out.push_str("\">#");
             out.push_str(&html);

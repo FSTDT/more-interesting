@@ -110,10 +110,24 @@ struct StarTemplateContext {
     customization: Customization,
 }
 
+#[derive(Serialize)]
+#[serde(tag = "ty", content = "inner", rename_all = "snake_case")]
+enum ModQueueItem {
+    Post {
+        post: PostInfo,
+        comments: Vec<CommentInfo>,
+    },
+    Comment {
+        post: PostInfo,
+        comment: CommentInfo,
+    },
+}
+
 #[derive(Serialize, Default)]
 struct TemplateContext {
     next_search_page: i32,
     title: Cow<'static, str>,
+    mod_queue: Vec<ModQueueItem>,
     posts: Vec<PostInfo>,
     extra_blog_posts: Vec<PostInfo>,
     starred_by: Vec<String>,
@@ -509,7 +523,7 @@ async fn index(conn: MoreInterestingConn, login: Option<LoginSession>, flash: Op
     let (search, tags) = parse_index_params(&conn, &user, params).await?;
     let keywords_param = if search.keywords == "" { None } else { Some(search.keywords.clone()) };
     let search = PostSearch {
-        blog_post: Some(tag_param.is_some() || keywords_param.is_some()),
+        blog_post: Some(false),
         .. search
     };
     let title_param = if search.title == "" { None } else { Some(search.title.clone()) };
@@ -930,7 +944,7 @@ async fn post_preview(login: Option<LoginSession>, customization: Customization,
     });
     let excerpt = excerpt.as_ref().and_then(|k| if k == "" { None } else { Some(&k[..]) });
     let body_html = conn.prettify_body(0, excerpt.unwrap_or(""), config.body_format).await;
-    let title_html = conn.prettify_title(0, &title, &url.as_ref().unwrap_or(&String::new())[..]).await;
+    let title_html = conn.prettify_title(0, &title, &url.as_ref().unwrap_or(&String::new())[..], true).await;
     let submitted_by_username_urlencode = utf8_percent_encode(&user.username, NON_ALPHANUMERIC).to_string();
     let submitted_by_username = user.username.clone();
     let mut post_info = PostInfo {
@@ -1072,7 +1086,7 @@ async fn submit_preview(login: Option<LoginSession>, customization: Customizatio
     });
     let excerpt = excerpt.as_ref().and_then(|k| if k == "" { None } else { Some(&k[..]) });
     let body_html = conn.prettify_body(0, excerpt.unwrap_or(""), config.body_format).await;
-    let title_html = conn.prettify_title(0, &title, &url.as_ref().unwrap_or(&String::new())[..]).await;
+    let title_html = conn.prettify_title(0, &title, &url.as_ref().unwrap_or(&String::new())[..], false).await;
     let submitted_by_username_urlencode = utf8_percent_encode(&user.username, NON_ALPHANUMERIC).to_string();
     let submitted_by_username = user.username.clone();
     let mut post_info = PostInfo {
@@ -2145,54 +2159,35 @@ async fn change_password(conn: MoreInterestingConn, login: LoginSession, form: F
 async fn get_mod_queue(conn: MoreInterestingConn, login: ModeratorSession, flash: Option<FlashMessage<'_>>, config: &State<SiteConfig>, customization: Customization) -> Result<content::Html<Template>, Status> {
     let user = login.user;
     let session = login.session;
-    let mod_a_comment: bool = rand::random();
-    if mod_a_comment {
-        if let Some(comment_info) = conn.find_moderated_comment(user.id).await {
-            let post_info = conn.get_post_info_from_comment(comment_info.id).await.unwrap();
-            return Ok(render_html("mod-queue-comment", &TemplateContext {
-                title: Cow::Borrowed("moderate comment"),
-                alert: flash.map(|f| f.message().to_owned()),
-                config: config.inner().clone(),
-                customization,
-                comments: vec![comment_info],
-                posts: vec![post_info],
-                user, session,
-                ..default()
-            }))
-        }
+    let mut queue = Vec::new();
+    for comment in conn.find_moderated_comments(user.id).await.unwrap_or(Vec::new()) {
+        let post = conn.get_post_info_from_comment(comment.id).await.map_err(|_| Status::NotFound)?;
+        queue.push(ModQueueItem::Comment {
+            post,
+            comment,
+        });
     }
-    if let Some(post_info) = conn.find_moderated_post(user.id).await {
-        let comments = conn.get_comments_from_post(post_info.id, user.id).await.unwrap_or_else(|e| {
+    for post in conn.find_moderated_posts(user.id).await.unwrap_or(Vec::new()) {
+        let comments = conn.get_comments_from_post(post.id, user.id).await.unwrap_or_else(|e| {
             warn!("Failed to get comments: {:?}", e);
             Vec::new()
         });
-        return Ok(render_html("mod-queue-post", &TemplateContext {
-            title: Cow::Borrowed("moderate post"),
-            alert: flash.map(|f| f.message().to_owned()),
-            config: config.inner().clone(),
-            customization,
-            posts: vec![post_info],
-            user, session, comments,
-            ..default()
-        }))
+        queue.push(ModQueueItem::Post {
+            post,
+            comments,
+        });
     }
-    if let Some(comment_info) = conn.find_moderated_comment(user.id).await {
-        let post_info = conn.get_post_info_from_comment(comment_info.id).await.unwrap();
-        return Ok(render_html("mod-queue-comment", &TemplateContext {
-            title: Cow::Borrowed("moderate comment"),
-            alert: flash.map(|f| f.message().to_owned()),
-            config: config.inner().clone(),
-            customization,
-            comments: vec![comment_info],
-            posts: vec![post_info],
-            user, session,
-            ..default()
-        }))
-    }
-    Ok(render_html("mod-queue-empty", &TemplateContext {
-        title: Cow::Borrowed("moderator queue is empty!"),
+    queue.sort_by_key(|item| {
+        match item {
+            ModQueueItem::Post { post, .. } => post.created_at,
+            ModQueueItem::Comment { comment, .. } => comment.created_at,
+        }
+    });
+    Ok(render_html("mod-queue", &TemplateContext {
+        title: Cow::Borrowed("mod queue"),
         alert: flash.map(|f| f.message().to_owned()),
         config: config.inner().clone(),
+        mod_queue: queue,
         customization,
         user, session,
         ..default()

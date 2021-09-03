@@ -524,12 +524,12 @@ impl PostSearch {
 pub struct MoreInterestingConn(PgConnection);
 
 impl MoreInterestingConn {
-    pub async fn prettify_title(&self, post_id: i32, title: &str, url: &str) -> String {
+    pub async fn prettify_title(&self, post_id: i32, title: &str, url: &str, blog_post: bool) -> String {
         let title = title.to_owned();
         let url = url.to_owned();
         self.run(move |conn| {
             let mut data = PrettifyData::new(conn, post_id);
-            crate::prettify::prettify_title(&title, &url, &mut data).string
+            crate::prettify::prettify_title(&title, &url, &mut data, blog_post).string
         }).await
     }
     pub async fn prettify_body(&self, post_id: i32, excerpt: &str, body_format: BodyFormat) -> String {
@@ -1269,7 +1269,7 @@ impl MoreInterestingConn {
         let mut visible = new_post.visible;
         let (url, domain) = Self::get_post_domain_url_(conn, new_post.url.as_ref().cloned());
         let url_str = url.as_ref().map(|u| &u[..]).unwrap_or(&uuid_string);
-        let title_html_and_stuff = crate::prettify::prettify_title(&new_post.title, url_str, &mut PrettifyData::new(conn, 0));
+        let title_html_and_stuff = crate::prettify::prettify_title(&new_post.title, url_str, &mut PrettifyData::new(conn, 0), new_post.blog_post);
         if title_html_and_stuff.hash_tags.is_empty() && !new_post.private && !new_post.blog_post {
             return Err(CreatePostError::RequireTag);
         }
@@ -1343,7 +1343,7 @@ impl MoreInterestingConn {
     fn update_post_(conn: &PgConnection, post_id_value: i32, bump: bool, new_post: NewPost, body_format: BodyFormat) -> Result<(), DieselError> {
         let (url_value, domain) = Self::get_post_domain_url_(conn, new_post.url);
         let url_str = url_value.as_ref().map(|u| &u[..]).unwrap_or("");
-        let title_html_and_stuff = crate::prettify::prettify_title(&new_post.title, url_str, &mut PrettifyData::new(conn, 0));
+        let title_html_and_stuff = crate::prettify::prettify_title(&new_post.title, url_str, &mut PrettifyData::new(conn, 0), new_post.blog_post);
         let excerpt_html_and_stuff = if let Some(e) = &new_post.excerpt {
             let body = match body_format {
                 BodyFormat::Plain => crate::prettify::prettify_body(&e, &mut PrettifyData::new(conn, 0)),
@@ -2430,10 +2430,10 @@ impl MoreInterestingConn {
             .execute(conn)
             .map(|_| ())
     }
-    pub async fn find_moderated_post(&self, user_id_param: i32) -> Option<PostInfo> {
-        self.run(move |conn| Self::find_moderated_post_(conn, user_id_param)).await
+    pub async fn find_moderated_posts(&self, user_id_param: i32) -> Result<Vec<PostInfo>, DieselError> {
+        self.run(move |conn| Self::find_moderated_posts_(conn, user_id_param)).await
     }
-    fn find_moderated_post_(conn: &PgConnection, user_id_param: i32) -> Option<PostInfo> {
+    fn find_moderated_posts_(conn: &PgConnection, user_id_param: i32) -> Result<Vec<PostInfo>, DieselError> {
         use self::posts::dsl::{self as p, *};
         use self::stars::dsl::{self as s, *};
         use self::flags::dsl::{self as f, *};
@@ -2476,17 +2476,18 @@ impl MoreInterestingConn {
             .filter(self::users::dsl::trust_level.gt(-2))
             .order_by(self::posts::dsl::created_at.asc())
             .limit(50)
-            .get_results::<(i32, Base32, String, Option<String>, Option<String>, bool, bool, i32, i32, i32, Option<i32>, bool, NaiveDateTime, i32, Option<String>, Option<String>, Option<i32>, Option<i32>, Option<i32>, String, Option<String>, Option<String>)>(conn).ok()?
+            .get_results::<(i32, Base32, String, Option<String>, Option<String>, bool, bool, i32, i32, i32, Option<i32>, bool, NaiveDateTime, i32, Option<String>, Option<String>, Option<i32>, Option<i32>, Option<i32>, String, Option<String>, Option<String>)>(conn)?
             .into_iter()
             .map(|t| tuple_to_post_info(&mut data, t, Self::get_current_stellar_time_(conn)))
             .collect();
         all.sort_by_key(|info| OrderedFloat(-info.hotness));
-        all.pop()
+        all.truncate(10);
+        Ok(all)
     }
-    pub async fn find_moderated_comment(&self, user_id_param: i32) -> Option<CommentInfo> {
-        self.run(move |conn| Self::find_moderated_comment_(conn, user_id_param)).await
+    pub async fn find_moderated_comments(&self, user_id_param: i32) -> Result<Vec<CommentInfo>, DieselError> {
+        self.run(move |conn| Self::find_moderated_comments_(conn, user_id_param)).await
     }
-    fn find_moderated_comment_(conn: &PgConnection, user_id_param: i32) -> Option<CommentInfo> {
+    fn find_moderated_comments_(conn: &PgConnection, user_id_param: i32) -> Result<Vec<CommentInfo>, DieselError> {
         use self::comments::dsl::*;
         use self::comment_stars::dsl::*;
         use self::comment_flags::dsl::*;
@@ -2516,11 +2517,12 @@ impl MoreInterestingConn {
             .filter(self::users::dsl::trust_level.gt(-2))
             .order_by(self::comments::dsl::created_at.asc())
             .limit(50)
-            .get_results::<(i32, String, String, bool, i32, NaiveDateTime, i32, Option<i32>, Option<i32>, Option<i32>, String, i32)>(conn).ok()?
+            .get_results::<(i32, String, String, bool, i32, NaiveDateTime, i32, Option<i32>, Option<i32>, Option<i32>, String, i32)>(conn)?
             .into_iter()
             .map(|t| tuple_to_comment_info(conn, t))
             .collect();
-        all.pop()
+        all.truncate(10);
+        Ok(all)
     }
     pub async fn approve_post(&self, post_id_value: i32) -> Result<(), DieselError> {
         self.run(move |conn| Self::approve_post_(conn, post_id_value)).await
@@ -2750,7 +2752,7 @@ fn tuple_to_post_info(data: &mut PrettifyData, (id, uuid, title, title_html, url
     let title_html = if let Some(title_html) = title_html {
         title_html
     } else {
-        title_html_output = prettify_title(&title, &link_url, data);
+        title_html_output = prettify_title(&title, &link_url, data, blog_post);
         title_html_output.string
     };
     let excerpt_html_output;

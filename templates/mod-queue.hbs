@@ -1,0 +1,110 @@
+{{#*inline "page"}}
+<div class=alert>{{(count mod_queue)}} items found in the moderation queue</div>
+{{#each mod_queue}}
+  {{#if (eq this.ty "post")}}
+  <h2>Moderate post</h2>
+    {{#with this.inner.post}}
+        <article class="{{#if this.blog_post}}blog-post{{/if}}">
+            <header class=article-header>{{{this.title_html}}}{{#if this.blog_post}} <a class="blog-tag-article-header-inner" href=blog>blog</a>{{/if}}</header>
+            {{#if this.excerpt_html}}
+                <main>{{{this.excerpt_html}}}</main>
+            {{/if}}
+            <footer class=footer-container>
+                <div class=footer-main>
+                <a href="@{{this.submitted_by_username_urlencode}}">{{this.submitted_by_username}}</a> {{#if this.blog_post}}authored{{else}}submitted{{/if}}
+                <a is=local-date href="{{this.uuid}}" title="{{this.created_at}}+00:00">{{this.created_at_relative}}</a>
+                {{#if starred_by}}
+                    starred by
+                    {{#each starred_by}}
+                        <a href="@{{urlencode this}}">{{this}}</a>
+                        {{#unless @last}},{{/unless}}
+                    {{/each}}
+                {{/if}} and got
+                <a href="{{this.uuid}}#comments">{{this.comment_count}} comments</a>
+                </div>
+                <form class=footer-aside action="moderate-post?U={{../../session.uuid}}" method=POST>
+                    <input type="hidden" name="post" value="{{this.uuid}}">
+                        <button name="action" value="approve" class=button-default>Approve</button>
+                        <a href="edit-post?post={{this.uuid}}" class=button>Edit</a>
+                        <button name="action" value="delete">Delete</button>
+                </form>
+            </footer>
+        </article>
+    {{/with}}
+    {{#each this.inner.comments}}
+        <aside id="{{this.id}}">
+            <header class=aside-header>
+                <img width=15 height=15 class=identicon src=identicon/{{comments.0.created_by_identicon}}>
+                <a href="@{{comments.0.created_by_username_urlencode}}" class=top-header-link>{{comments.0.created_by_username}} commented</a>
+                <a is=local-date href="#{{this.id}}" class="top-header-link top-header-aside" title="{{comments.0.created_at}}+00:00">{{comments.0.created_at_relative}} #{{comments.0.id}}</a>
+            </header>
+            <main>{{{comments.0.html}}}</main>
+            <footer class=footer-container>
+                <div class=footer-main>
+                {{#if comments.0.starred_by}}
+                    starred by
+                    {{#each comments.0.starred_by}}
+                        <a href="@{{urlencode this}}">{{this}}</a>
+                        {{#unless @last}},{{/unless}}
+                    {{/each}}
+                {{/if}}
+                </div>
+                <div class=footer-aside>
+                    <button disabled>More</button>
+                </div>
+            </footer>
+        </aside>
+    {{/each}}
+  {{/if}}
+  {{#if (eq this.ty "comment")}}
+  <h2>Moderate Comment</h2>
+    {{#with this.inner.post}}
+        {{#if this.banner_title}}
+            <p class=post-banner>{{{this.banner_title}}}</p>
+        {{/if}}
+        {{#if this.banner_desc}}
+            <p class=post-banner-desc>{{{this.banner_desc}}}</p>
+        {{/if}}
+        <details><summary>Post</summary><article>
+            <header class=article-header>{{{this.title_html}}}</header>
+            {{#if this.excerpt_html}}
+                <main>{{{this.excerpt_html}}}</main>
+            {{/if}}
+            <footer>
+            <a href="@{{this.submitted_by_username_urlencode}}">{{this.submitted_by_username}}</a> submitted
+            <a is=local-date href={{this.uuid}} title="{{this.created_at}}+00:00">{{this.created_at_relative}}</a> and got
+            <a href="{{this.uuid}}#comments">{{this.comment_count}} comments</a>
+            </footer>
+        </article></details>
+    {{/with}}
+    {{#with this.inner.comment}}
+        <aside id="{{this.id}}">
+            <header class=aside-header>
+                <img width=15 height=15 class=identicon src=identicon/{{comments.0.created_by_identicon}}>
+                <a href="@{{comments.0.created_by_username_urlencode}}" class=top-header-link>{{comments.0.created_by_username}} commented</a>
+                <a is=local-date href="#{{this.id}}" class="top-header-link top-header-aside" title="{{comments.0.created_at}}+00:00">{{comments.0.created_at_relative}} #{{comments.0.id}}</a>
+            </header>
+            <main>{{{comments.0.html}}}</main>
+            <footer class=footer-container>
+                <div class=footer-main>
+                {{#if comments.0.starred_by}}
+                    starred by
+                    {{#each comments.0.starred_by}}
+                        <a href="@{{urlencode this}}">{{this}}</a>
+                        {{#unless @last}},{{/unless}}
+                    {{/each}}
+                {{/if}}
+                </div>
+                <form class=footer-aside action="moderate-comment?U={{../../session.uuid}}" method=POST>
+                    <input type="hidden" name="comment" value="{{comments.0.id}}">
+                        <button name="action" value="approve" class=button-default>Approve</button>
+                        <a href="edit-comment?comment={{comments.0.id}}" class=button>Edit</a>
+                        <button name="action" value="delete">Delete</button>
+                </form>
+            </footer>
+        </aside>
+    {{/with}}
+  {{/if}}
+{{/each}}
+{{/inline}}
+{{~> layout~}}
