@@ -1,12 +1,11 @@
 {{#*inline "page"}}
-{{#if customization.link_submit_notice_html}}
-<div class=inner-banner>{{{customization.link_submit_notice_html}}}</div>
+{{#if customization.blog_post_notice_html}}
+<div class=inner-banner>{{{customization.blog_post_notice_html}}}</div>
 {{/if}}
-<form class=tab-bar action="preview-submit?U={{session.uuid}}#submit-form" method=POST id=submit-form>
+<form class=tab-bar action="preview-post?U={{session.uuid}}#submit-form" method=POST id=post-form>
     <button class=tab>Edit</button><label for=preview class=active-tab>Preview</label>
     <input type=hidden name=no_preview value=true>
     <input type=hidden name=title value="{{posts.0.title}}">
-    <input type=hidden name=url value="{{posts.0.url}}">
     <input type=hidden name=excerpt value="{{excerpt}}">
     <input type=hidden name=blog_post value=true>
 </form>

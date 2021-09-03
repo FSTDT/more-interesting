@@ -529,7 +529,7 @@ async fn index(conn: MoreInterestingConn, login: Option<LoginSession>, flash: Op
     } else {
         Vec::new()
     };
-    extra_blog_posts.truncate(5);
+    extra_blog_posts.truncate(4);
     Some(render_html("index", &TemplateContext {
         alert: flash.map(|f| f.message().to_owned()),
         config: config.inner().clone(),
@@ -1188,10 +1188,17 @@ async fn create(login: Option<LoginSession>, conn: MoreInterestingConn, post: Fo
             Some(u.to_owned())
         }
     });
+    let visible = if url.is_some() {
+        user.trust_level > 0i32
+    } else if user.trust_level <= 0i32 {
+        return Err(Status::BadRequest);
+    } else {
+        false
+    };
     let excerpt = excerpt.as_ref().and_then(|k| if k == "" { None } else { Some(k.clone()) });
     match conn.create_post(NewPost {
         submitted_by: user.id,
-        visible: user.trust_level > 0i32,
+        visible,
         private: false,
         blog_post: *blog_post,
         title, excerpt, url,

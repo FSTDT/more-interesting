@@ -2,18 +2,23 @@
 {{#if customization.blog_post_notice_html}}
 <div class=inner-banner>{{{customization.blog_post_notice_html}}}</div>
 {{/if}}
-<form action="submit{{#if user.id}}?U={{session.uuid}}{{/if}}" method=POST>
-    <label>Title <input name=title autofocus is=smart-punct-input></label>
+<form action="submit{{#if user.id}}?U={{session.uuid}}{{/if}}" method=POST id=post-form>
+<div class=tab-bar>
+    <label for=excerpt class=active-tab>Edit</label><button formaction="preview-post{{#if user.id}}?U={{session.uuid}}{{/if}}" class=tab>Preview</button>
+</div>
+<div class=tab-box>
+    <label>Title <input name=title autofocus is=smart-punct-input value="{{#if posts.0}}{{posts.0.title}}{{/if}}"></label>
     <label for=tags-typeahead-input>Tags</label> <div class=typeahead-outer>
-        <input id=tags-typeahead-input name=tags is=tags-typeahead>
+        <input id=tags-typeahead-input name=tags is=tags-typeahead value="{{#if posts.0}}{{posts.0.title_html}}{{/if}}">
     </div>
     <label>Write your post
-        <smart-textarea><textarea name=excerpt is=smart-punct-textarea required></textarea></smart-textarea>
+        <smart-textarea><textarea id=excerpt name=excerpt is=smart-punct-textarea required>{{excerpt}}</textarea></smart-textarea>
     </label>
     <input type=hidden name=blog_post value=true>
     <div class=form-footer>
         <button>Create post</button>
     </div>
+</div>
 </form>
 {{/inline}}
 {{~> layout~}}
