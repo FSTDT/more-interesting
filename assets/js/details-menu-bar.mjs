@@ -145,8 +145,25 @@ export class DetailsMenuBarElement extends HTMLElement {
                 el.focus();
             }
             e.preventDefault();
+        } else if (e.touches && e.touches[0] && !this._stylus) {
+            if (!this._initialtouchposition) {
+                this._initialtouchposition = {x: e.touches[0].screenX, y: e.touches[0].screenY};
+            } else {
+                var currenttouchposition = {x: e.touches[0].screenX, y: e.touches[0].screenY};
+                var deltaX = this._initialtouchposition.x - currenttouchposition.x;
+                var deltaY = this._initialtouchposition.y - currenttouchposition.y;
+                var distance = Math.sqrt((deltaX * deltaX) + (deltaY * deltaY));
+                if (distance > 10) {
+                    delete this._stylus;
+                    delete this._initialtouchposition;
+                    this._moved = true;
+                    this._touched = true;
+                    this.open = false;
+                }
+            }
         } else {
             delete this._stylus;
+            delete this._initialtouchposition;
             this._moved = true;
             this._touched = true;
             this.open = false;
