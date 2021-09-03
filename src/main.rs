@@ -809,7 +809,7 @@ async fn rss(conn: MoreInterestingConn, config: &State<SiteConfig>, customizatio
     Some(content::Custom(ContentType::from_str("application/rss+xml").unwrap(), Template::render("rss", &RssContext {
         posts,
         config: config.inner().clone(),
-        link: config.public_url.clone(),
+        link: config.public_url.to_string(),
         customization,
     })))
 }
