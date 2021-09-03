@@ -803,15 +803,39 @@ async fn rss(conn: MoreInterestingConn, config: &State<SiteConfig>, customizatio
     struct RssContext {
         config: SiteConfig,
         customization: Customization,
+        link: String,
         posts: Vec<PostInfo>,
     }
     Some(content::Custom(ContentType::from_str("application/rss+xml").unwrap(), Template::render("rss", &RssContext {
         posts,
         config: config.inner().clone(),
+        link: config.public_url.clone(),
         customization,
     })))
 }
 
+#[get("/blog.rss")]
+async fn blog_rss(conn: MoreInterestingConn, config: &State<SiteConfig>, customization: Customization) -> Option<content::Custom<Template>> {
+    let search = PostSearch {
+        order_by: PostSearchOrderBy::Newest,
+        blog_post: Some(true),
+        .. PostSearch::with_my_user_id(0)
+    };
+    let posts = conn.search_posts(&search).await.ok()?;
+    #[derive(Serialize)]
+    struct RssContext {
+        config: SiteConfig,
+        customization: Customization,
+        link: String,
+        posts: Vec<PostInfo>,
+    }
+    Some(content::Custom(ContentType::from_str("application/rss+xml").unwrap(), Template::render("rss", &RssContext {
+        posts,
+        config: config.inner().clone(),
+        link: format!("{}/blog", config.public_url),
+        customization,
+    })))
+}
 
 #[derive(FromForm)]
 struct ModLogParams {
@@ -2550,7 +2574,7 @@ fn launch() -> rocket::Rocket<rocket::Build> {
                 }
             })
         }))
-        .mount("/", routes![index, blog_index, advanced_search, login_form, login, logout, create_link_form, create_post_form, create, post_preview, submit_preview, get_comments, vote, signup, get_settings, create_invite, invite_tree, change_password, post_comment, vote_comment, get_admin_tags, admin_tags, get_tags, edit_post, get_edit_post, edit_comment, get_edit_comment, set_dark_mode, set_big_mode, mod_log, get_mod_queue, moderate_post, moderate_comment, get_public_signup, random, redirect_legacy_id, latest, rss, top, banner_post, robots_txt, search_comments, new, get_admin_domains, admin_domains, create_message_form, create_message, subscriptions, post_subscriptions, get_reply_comment, preview_comment, get_admin_customization, admin_customization, conv_legacy_id, get_tags_json, get_domains_json, get_admin_flags, get_admin_comment_flags, faq, identicon])
+        .mount("/", routes![index, blog_index, advanced_search, login_form, login, logout, create_link_form, create_post_form, create, post_preview, submit_preview, get_comments, vote, signup, get_settings, create_invite, invite_tree, change_password, post_comment, vote_comment, get_admin_tags, admin_tags, get_tags, edit_post, get_edit_post, edit_comment, get_edit_comment, set_dark_mode, set_big_mode, mod_log, get_mod_queue, moderate_post, moderate_comment, get_public_signup, random, redirect_legacy_id, latest, rss, blog_rss, top, banner_post, robots_txt, search_comments, new, get_admin_domains, admin_domains, create_message_form, create_message, subscriptions, post_subscriptions, get_reply_comment, preview_comment, get_admin_customization, admin_customization, conv_legacy_id, get_tags_json, get_domains_json, get_admin_flags, get_admin_comment_flags, faq, identicon])
         .mount("/assets", FileServer::from("assets"))
         .attach(Template::custom(|engines| {
             engines.handlebars.register_helper("count", Box::new(count_helper));
