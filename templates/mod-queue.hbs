@@ -34,16 +34,16 @@
     {{#each this.inner.comments}}
         <aside id="{{this.id}}">
             <header class=aside-header>
-                <img width=15 height=15 class=identicon src=identicon/{{comments.0.created_by_identicon}}>
-                <a href="@{{comments.0.created_by_username_urlencode}}" class=top-header-link>{{comments.0.created_by_username}} commented</a>
-                <a is=local-date href="#{{this.id}}" class="top-header-link top-header-aside" title="{{comments.0.created_at}}+00:00">{{comments.0.created_at_relative}} #{{comments.0.id}}</a>
+                <img width=15 height=15 class=identicon src=identicon/{{this.created_by_identicon}}>
+                <a href="@{{this.created_by_username_urlencode}}" class=top-header-link>{{this.created_by_username}} commented</a>
+                <a is=local-date href="#{{this.id}}" class="top-header-link top-header-aside" title="{{this.created_at}}+00:00">{{this.created_at_relative}} #{{this.id}}</a>
             </header>
-            <main>{{{comments.0.html}}}</main>
+            <main>{{{this.html}}}</main>
             <footer class=footer-container>
                 <div class=footer-main>
-                {{#if comments.0.starred_by}}
+                {{#if this.starred_by}}
                     starred by
-                    {{#each comments.0.starred_by}}
+                    {{#each this.starred_by}}
                         <a href="@{{urlencode this}}">{{this}}</a>
                         {{#unless @last}},{{/unless}}
                     {{/each}}
@@ -80,25 +80,25 @@
     {{#with this.inner.comment}}
         <aside id="{{this.id}}">
             <header class=aside-header>
-                <img width=15 height=15 class=identicon src=identicon/{{comments.0.created_by_identicon}}>
-                <a href="@{{comments.0.created_by_username_urlencode}}" class=top-header-link>{{comments.0.created_by_username}} commented</a>
-                <a is=local-date href="#{{this.id}}" class="top-header-link top-header-aside" title="{{comments.0.created_at}}+00:00">{{comments.0.created_at_relative}} #{{comments.0.id}}</a>
+                <img width=15 height=15 class=identicon src=identicon/{{this.created_by_identicon}}>
+                <a href="@{{this.created_by_username_urlencode}}" class=top-header-link>{{this.created_by_username}} commented</a>
+                <a is=local-date href="#{{this.id}}" class="top-header-link top-header-aside" title="{{this.created_at}}+00:00">{{this.created_at_relative}} #{{this.id}}</a>
             </header>
-            <main>{{{comments.0.html}}}</main>
+            <main>{{{this.html}}}</main>
             <footer class=footer-container>
                 <div class=footer-main>
-                {{#if comments.0.starred_by}}
+                {{#if this.starred_by}}
                     starred by
-                    {{#each comments.0.starred_by}}
+                    {{#each this.starred_by}}
                         <a href="@{{urlencode this}}">{{this}}</a>
                         {{#unless @last}},{{/unless}}
                     {{/each}}
                 {{/if}}
                 </div>
                 <form class=footer-aside action="moderate-comment?U={{../../session.uuid}}" method=POST>
-                    <input type="hidden" name="comment" value="{{comments.0.id}}">
+                    <input type="hidden" name="comment" value="{{this.id}}">
                         <button name="action" value="approve" class=button-default>Approve</button>
-                        <a href="edit-comment?comment={{comments.0.id}}" class=button>Edit</a>
+                        <a href="edit-comment?comment={{this.id}}" class=button>Edit</a>
                         <button name="action" value="delete">Delete</button>
                 </form>
             </footer>
