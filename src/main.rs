@@ -526,25 +526,31 @@ async fn index(conn: MoreInterestingConn, login: Option<LoginSession>, flash: Op
         blog_post: Some(false),
         .. search
     };
+    let blog_search = PostSearch {
+        blog_post: Some(true),
+        limit: 4,
+        .. search.clone()
+    };
     let title_param = if search.title == "" { None } else { Some(search.title.clone()) };
     let is_home = tag_param.is_none() && domain.is_none() && keywords_param.is_none();
     let before_date_param = search.before_date;
     let after_date_param = search.after_date;
-    let posts = conn.search_posts(&search).await.ok()?;
-    let notifications = conn.list_notifications(user.id).await.unwrap_or(Vec::new());
     let is_private = keywords_param.is_some() && (search.after_post_id != 0 || search.search_page != 0);
     let title = Cow::Owned(customization.title.clone());
-    let mut extra_blog_posts = if is_home {
-        let search = PostSearch {
-            blog_post: Some(true),
-            limit: 4,
-            .. search
-        };
-        conn.search_posts(&search).await.ok()?
+
+    let notifications = conn.list_notifications(user.id);
+    let posts = conn.search_posts(&search);
+    let (posts, extra_blog_posts, notifications) = if is_home {
+        let (posts, extra_blog_posts, notifications) = futures::join!(
+            posts,
+            conn.search_posts(&blog_search),
+            notifications);
+        (posts.ok()?, extra_blog_posts.ok()?, notifications.unwrap_or(Vec::new()))
     } else {
-        Vec::new()
+        let (posts, notifications) = futures::join!(posts, notifications);
+        (posts.ok()?, Vec::new(), notifications.unwrap_or(Vec::new()))
     };
-    extra_blog_posts.truncate(4);
+
     Some(render_html("index", &TemplateContext {
         alert: flash.map(|f| f.message().to_owned()),
         config: config.inner().clone(),
