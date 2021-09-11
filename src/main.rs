@@ -537,6 +537,7 @@ async fn index(conn: MoreInterestingConn, login: Option<LoginSession>, flash: Op
     let mut extra_blog_posts = if is_home {
         let search = PostSearch {
             blog_post: Some(true),
+            limit: 4,
             .. search
         };
         conn.search_posts(&search).await.ok()?

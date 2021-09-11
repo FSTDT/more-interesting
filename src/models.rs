@@ -16,6 +16,7 @@ use crate::prettify::{self, prettify_title};
 use serde_json::{self as json, json};
 use url::Url;
 use percent_encoding::{utf8_percent_encode, NON_ALPHANUMERIC};
+use std::convert::TryInto;
 
 sql_function!(fn coalesce(x: sql_types::Nullable<sql_types::VarChar>, y: sql_types::VarChar) -> sql_types::VarChar);
 
@@ -482,6 +483,7 @@ pub struct PostSearch {
     pub blog_post: Option<bool>,
     pub before_date: Option<NaiveDate>,
     pub after_date: Option<NaiveDate>,
+    pub limit: i32,
 }
 
 #[derive(Queryable, Serialize)]
@@ -516,6 +518,7 @@ impl PostSearch {
             blog_post: None,
             before_date: None,
             after_date: None,
+            limit: 50,
         }
     }
 }
@@ -827,6 +830,7 @@ impl MoreInterestingConn {
         } else {
             0
         };
+        let limit = search.limit.into();
         let mut all: Vec<PostInfo> = if search.keywords != "" && search.order_by == PostSearchOrderBy::Hottest {
             if search.my_user_id != 0 {
                 query
@@ -862,8 +866,8 @@ impl MoreInterestingConn {
                     ))
                     .filter(search_index.matches(plainto_tsquery(&search.keywords)))
                     .order_by(ts_rank_cd(search_index, plainto_tsquery(&search.keywords)).desc())
-                    .offset(search.search_page as i64 * 50)
-                    .limit(50)
+                    .offset(search.search_page as i64 * limit)
+                    .limit(limit)
                     .get_results::<(i32, Base32, String, Option<String>, Option<String>, bool, bool, i32, i32, i32, Option<i32>, bool, NaiveDateTime, i32, Option<String>, Option<String>, Option<i32>, Option<i32>, Option<i32>, String, Option<String>, Option<String>)>(conn)?
                     .into_iter()
                     .map(|t| tuple_to_post_info(&mut data, t, current_stellar_time))
@@ -894,8 +898,8 @@ impl MoreInterestingConn {
                     ))
                     .filter(search_index.matches(plainto_tsquery(&search.keywords)))
                     .order_by(ts_rank_cd(search_index, plainto_tsquery(&search.keywords)).desc())
-                    .offset(search.search_page as i64 * 50)
-                    .limit(50)
+                    .offset(search.search_page as i64 * limit)
+                    .limit(limit)
                     .get_results::<(i32, Base32, String, Option<String>, Option<String>, bool, bool, i32, i32, i32, bool, NaiveDateTime, i32, Option<String>, Option<String>, String, Option<String>, Option<String>)>(conn)?
                     .into_iter()
                     .map(|t| tuple_to_post_info_logged_out(&mut data, t, current_stellar_time))
@@ -937,8 +941,8 @@ impl MoreInterestingConn {
                     p::banner_title,
                     p::banner_desc,
                 ))
-                .offset(search_page as i64 * 50)
-                .limit(50)
+                .offset(search_page as i64 * limit)
+                .limit(limit)
                 .get_results::<(i32, Base32, String, Option<String>, Option<String>, bool, bool, i32, i32, i32, bool, NaiveDateTime, i32, Option<String>, Option<String>, String, Option<String>, Option<String>)>(conn)?
                 .into_iter()
                 .map(|t| tuple_to_post_info_logged_out(&mut data, t, current_stellar_time))
@@ -987,8 +991,8 @@ impl MoreInterestingConn {
                     p::banner_title,
                     p::banner_desc,
                 ))
-                .offset(search_page as i64 * 50)
-                .limit(50)
+                .offset(search_page as i64 * limit)
+                .limit(limit)
                 .get_results::<(i32, Base32, String, Option<String>, Option<String>, bool, bool, i32, i32, i32, Option<i32>, bool, NaiveDateTime, i32, Option<String>, Option<String>, Option<i32>, Option<i32>, Option<i32>, String, Option<String>, Option<String>)>(conn)?
                 .into_iter()
                 .map(|t| tuple_to_post_info(&mut data, t, current_stellar_time))
@@ -996,7 +1000,9 @@ impl MoreInterestingConn {
         };
         if let (PostSearchOrderBy::Hottest, "") = (search.order_by, &search.keywords[..]) {
             all.sort_by_key(|info| OrderedFloat(-info.hotness));
-            all.truncate(50);
+            if let Ok(limit) = search.limit.try_into() {
+                all.truncate(if limit > 20usize { limit - 10 } else { limit });
+            }
         }
         Ok(all)
     }
