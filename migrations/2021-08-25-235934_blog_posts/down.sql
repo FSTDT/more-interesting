@@ -1,4 +1,5 @@
 DROP INDEX idx_posts_homepage;
+DROP INDEX idx_posts_blog_homepage;
 
 ALTER TABLE posts
   DROP COLUMN blog_post;
