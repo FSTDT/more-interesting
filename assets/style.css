@@ -838,6 +838,7 @@ html.dark.hairlines .article-header, html.dark.hairlines .article-header {
     padding: calc(0.5em - 1px);
     color: #fff;
     background: #666;
+    line-height: 2.5;
 }
 
 html.dark .blog-tag-article-header-inner {
