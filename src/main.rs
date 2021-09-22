@@ -107,6 +107,7 @@ impl Default for SiteConfig {
 #[derive(Serialize)]
 struct StarTemplateContext {
     starred_by: Vec<String>,
+    blog_post: bool,
     customization: Customization,
 }
 
@@ -155,6 +156,7 @@ struct TemplateContext {
     is_me: bool,
     is_private: bool,
     is_subscribed: bool,
+    blog_post: bool,
     notifications: Vec<NotificationInfo>,
     excerpt: Option<String>,
     comment_preview_text: String,
@@ -344,6 +346,7 @@ async fn vote(conn: MoreInterestingConn, login: LoginSession, redirect: MaybeRed
         }
         _ => return VoteResponse::C(Status::BadRequest),
     };
+    let blog_post = post.blog_post;
     if result {
         if user.trust_level == 0 &&
             (Utc::now().naive_utc() - user.created_at) > Duration::seconds(60 * 60 * 24) &&
@@ -355,7 +358,7 @@ async fn vote(conn: MoreInterestingConn, login: LoginSession, redirect: MaybeRed
         } else {
             let starred_by = conn.get_post_starred_by(post.id).await.unwrap_or(Vec::new());
             VoteResponse::A(render_html("view-star", &StarTemplateContext {
-                starred_by, customization
+                starred_by, customization, blog_post,
             }))
         }
     } else {
@@ -414,7 +417,7 @@ async fn vote_comment(conn: MoreInterestingConn, login: LoginSession, redirect: 
         } else {
             let starred_by = conn.get_comment_starred_by(id).await.unwrap_or(Vec::new());
             VoteResponse::A(render_html("view-star-comment", &StarTemplateContext {
-                starred_by, customization,
+                starred_by, customization, blog_post: false,
             }))
         }
     } else {
@@ -1464,11 +1467,13 @@ async fn get_comments(conn: MoreInterestingConn, login: Option<LoginSession>, uu
         let notifications = conn.list_notifications(user.id).await.unwrap_or(Vec::new());
         let is_private = post_info.private || !post_info.visible;
         let is_subscribed = conn.is_subscribed(post_info.id, user.id).await.unwrap_or(false);
+        let blog_post = post_info.blog_post;
         Ok(render_html("comments", &TemplateContext {
             posts: vec![post_info],
             alert: flash.map(|f| f.message().to_owned()),
             starred_by: conn.get_post_starred_by(post_id).await.unwrap_or(Vec::new()),
             config: config.inner().clone(),
+            blog_post,
             customization,
             comments, user, title, legacy_comments, session,
             notifications, is_private, is_subscribed,

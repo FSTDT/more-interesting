@@ -1,8 +1,16 @@
 <summary class=inline-summary><u>
+    {{~#if blog_post~}}
+    {{~#if id~}}
+    {{replace ../customization.comment_score_text (count starred_by)}}
+    {{~else~}}
+    {{replace customization.comment_score_text (count starred_by)}}
+    {{~/if~}}
+    {{~else~}}
     {{~#if id~}}
     {{replace ../customization.post_score_text (count starred_by)}}
     {{~else~}}
     {{replace customization.post_score_text (count starred_by)}}
+    {{~/if~}}
     {{~/if~}}
 </u></summary>
 <details-dialog>
