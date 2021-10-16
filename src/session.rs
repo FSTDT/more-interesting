@@ -77,6 +77,7 @@ impl<'r> FromRequest<'r> for LoginSession {
                     if user.banned {
                         return Outcome::Failure((Status::BadRequest, ()));
                     }
+                    let _ = conn.bump_last_seen_at(session_uuid).await;
                     Outcome::Success(LoginSession { session, user })
                 } else {
                     Outcome::Failure((Status::BadRequest, ()))

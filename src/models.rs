@@ -2727,6 +2727,19 @@ impl MoreInterestingConn {
             .execute(conn)
             .map(|_| ())
     }
+    pub async fn bump_last_seen_at(&self, user_session_id: Base32) -> Result<(), DieselError> {
+        self.run(move |conn| Self::bump_last_seen_at_(conn, user_session_id)).await
+    }
+    fn bump_last_seen_at_(conn: &PgConnection, user_session_id_value: Base32) -> Result<(), DieselError> {
+        use self::user_sessions::dsl::*;
+        let now = Utc::now().naive_utc();
+        diesel::update(user_sessions.find(user_session_id_value.into_i64()))
+            .set((
+                last_seen_at.eq(now),
+            ))
+            .execute(conn)?;
+        Ok(())
+    }
     pub async fn create_session(&self, user_id: i32, user_agent: &str) -> Result<UserSession, DieselError> {
         let user_agent = user_agent.to_owned();
         self.run(move |conn| Self::create_session_(conn, user_id, &user_agent)).await
