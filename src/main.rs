@@ -22,7 +22,7 @@ mod forever;
 
 use forever::CacheForever;
 use rocket::response::content::Html;
-use rocket::form::Form;
+use rocket::form::{Form, FromForm};
 use rocket::request::FlashMessage;
 use rocket::response::{Responder, Redirect, Flash, content};
 use rocket::http::{CookieJar, Cookie, ContentType};
@@ -170,6 +170,7 @@ enum AdminPage {
     Customization = 2,
     Flags = 3,
     CommentFlags = 4,
+    Users = 5,
 }
 
 impl Serialize for AdminPage {
@@ -200,6 +201,8 @@ struct AdminTemplateContext {
     site_customization: Vec<SiteCustomization>,
     post_flags: Vec<models::PostFlagInfo>,
     comment_flags: Vec<models::CommentFlagInfo>,
+    users_list: Vec<models::User>,
+    username: String,
 }
 
 fn default<T: Default>() -> T { T::default() }
@@ -1828,6 +1831,38 @@ async fn get_admin_comment_flags(conn: MoreInterestingConn, login: ModeratorSess
     })
 }
 
+#[get("/admin/users")]
+async fn get_admin_users(conn: MoreInterestingConn, login: ModeratorSession, flash: Option<FlashMessage<'_>>, config: &State<SiteConfig>) -> content::Html<Template> {
+    let users_list = conn.get_recent_users(String::new()).await.unwrap_or(Vec::new());
+    render_html("admin/users", &AdminTemplateContext {
+        title: Cow::Borrowed("recently logged in users"),
+        user: login.user,
+        session: login.session,
+        alert: flash.map(|f| f.message().to_owned()),
+        config: config.inner().clone(),
+        page: AdminPage::Users,
+        username: String::new(),
+        users_list,
+        ..default()
+    })
+}
+
+#[get("/admin/users?<username>")]
+async fn get_admin_users_search(conn: MoreInterestingConn, login: ModeratorSession, flash: Option<FlashMessage<'_>>, config: &State<SiteConfig>, username: &str) -> content::Html<Template> {
+    let users_list = conn.get_recent_users(username.to_owned()).await.unwrap_or(Vec::new());
+    render_html("admin/users", &AdminTemplateContext {
+        title: Cow::Borrowed("recently logged in users"),
+        user: login.user,
+        session: login.session,
+        alert: flash.map(|f| f.message().to_owned()),
+        config: config.inner().clone(),
+        page: AdminPage::Users,
+        username: username.to_owned(),
+        users_list,
+        ..default()
+    })
+}
+
 #[derive(FromForm)]
 struct EditTagsForm {
     name: String,
@@ -2588,7 +2623,7 @@ fn launch() -> rocket::Rocket<rocket::Build> {
                 }
             })
         }))
-        .mount("/", routes![index, blog_index, advanced_search, login_form, login, logout, create_link_form, create_post_form, create, post_preview, submit_preview, get_comments, vote, signup, get_settings, create_invite, invite_tree, change_password, post_comment, vote_comment, get_admin_tags, admin_tags, get_tags, edit_post, get_edit_post, edit_comment, get_edit_comment, set_dark_mode, set_big_mode, mod_log, get_mod_queue, moderate_post, moderate_comment, get_public_signup, random, redirect_legacy_id, latest, rss, blog_rss, top, banner_post, robots_txt, search_comments, new, get_admin_domains, admin_domains, create_message_form, create_message, subscriptions, post_subscriptions, get_reply_comment, preview_comment, get_admin_customization, admin_customization, conv_legacy_id, get_tags_json, get_domains_json, get_admin_flags, get_admin_comment_flags, faq, identicon])
+        .mount("/", routes![index, blog_index, advanced_search, login_form, login, logout, create_link_form, create_post_form, create, post_preview, submit_preview, get_comments, vote, signup, get_settings, create_invite, invite_tree, change_password, post_comment, vote_comment, get_admin_tags, admin_tags, get_tags, edit_post, get_edit_post, edit_comment, get_edit_comment, set_dark_mode, set_big_mode, mod_log, get_mod_queue, moderate_post, moderate_comment, get_public_signup, random, redirect_legacy_id, latest, rss, blog_rss, top, banner_post, robots_txt, search_comments, new, get_admin_domains, admin_domains, create_message_form, create_message, subscriptions, post_subscriptions, get_reply_comment, preview_comment, get_admin_customization, admin_customization, conv_legacy_id, get_tags_json, get_domains_json, get_admin_flags, get_admin_comment_flags, get_admin_users, get_admin_users_search, faq, identicon])
         .mount("/assets", FileServer::from("assets"))
         .attach(Template::custom(|engines| {
             engines.handlebars.register_helper("count", Box::new(count_helper));

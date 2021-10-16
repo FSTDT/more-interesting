@@ -1,0 +1,21 @@
+{{#*inline "page"}}
+    <div><form action="users" method="GET">
+        <table><tr><td width=100%><input type=search placeholder=username name=username value="{{username}}"><td>
+        <button type=submit>Search</button></table>
+    </form></div>
+    <div class=admin-list><table>
+        <thead><tr>
+            <th>Username</th>
+            <th>Banned</th>
+            <th>TL</th>
+        </tr></thead>
+        <tbody>{{#each users_list}}
+        <tr class=admin-list-item>
+            <td class=admin-list-header><a href="../@{{username}}">{{username}}</a></td>
+            <td>{{#if banned}}<b>⚠ Yes</b>{{else}}{{#if (eq trust_level -2)}}<b>⚠ Shadowbanned</b>{{else}}No{{/if}}{{/if}}</td>
+            <td>{{trust_level}}</td>
+        </tr>
+        {{/each}}</tbody>
+    </table></div>
+{{/inline}}
+{{~> admin/layout~}}

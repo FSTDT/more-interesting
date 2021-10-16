@@ -904,6 +904,10 @@ details[open] > .img-lightbox:before {
     overflow-y: auto;
 }
 
+.admin-list table {
+    width: 100%;
+}
+
 .admin-list-item {
     background: transparent !important;
     color: inherit !important;
@@ -922,12 +926,23 @@ details[open] > .img-lightbox:before {
     -webkit-user-select: none;
     user-select: none;
 }
+tr.admin-list-item {
+    display: table-row !important;
+}
 button.admin-list-item {
     width: 100% !important;
 }
 .admin-list-item.current {
     background: #003eaa !important;
     color: #fff !important;
+}
+.admin-list-item td {
+    padding: 0.25em 0.5em !important;
+}
+.admin-list-item a {
+    background: none !important;
+    color: inherit !important;
+    display: block;
 }
 html.dark .admin-list-item.current {
     background: #38383d !important;

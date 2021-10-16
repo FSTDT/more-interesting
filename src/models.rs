@@ -114,6 +114,7 @@ pub struct UserSession {
     pub created_at: NaiveDateTime,
     pub user_agent: String,
     pub user_id: i32,
+    pub last_seen_at: NaiveDateTime,
 }
 
 #[derive(Clone, Queryable, Serialize)]
@@ -177,6 +178,7 @@ impl Default for UserSession {
             user_id: 0,
             user_agent: String::new(),
             created_at: NaiveDateTime::from_timestamp(0, 0),
+            last_seen_at: NaiveDateTime::from_timestamp(0, 0),
         }
     }
 }
@@ -1711,6 +1713,21 @@ impl MoreInterestingConn {
         use self::invite_tokens::dsl::*;
         let uuid_value = uuid_value.into_i64();
         diesel::delete(invite_tokens.find(uuid_value)).get_result(conn)
+    }
+    pub async fn get_recent_users(&self, username: String) -> Result<Vec<User>, DieselError> {
+        self.run(move |conn| Self::get_recent_users_(conn, username)).await
+    }
+    fn get_recent_users_(conn: &PgConnection, username_param: String) -> Result<Vec<User>, DieselError> {
+        use self::users::dsl::{self as u, *};
+        use self::user_sessions::dsl::*;
+        let username_like = Self::escape_like_query(&username_param);
+        users
+            .inner_join(user_sessions)
+            .select((u::id, banned, trust_level, username, password_hash, u::created_at, invited_by, dark_mode, big_mode, identicon))
+            .filter(username.like(format!("%{}%", username_like)))
+            .order_by(last_seen_at.desc())
+            .limit(200)
+            .get_results(conn)
     }
     pub async fn get_invite_tree(&self) -> HashMap<i32, Vec<User>> {
         self.run(move |conn| Self::get_invite_tree_(conn)).await

@@ -255,6 +255,7 @@ table! {
         created_at -> Timestamp,
         user_agent -> Text,
         user_id -> Int4,
+        last_seen_at -> Timestamp,
     }
 }
 
