@@ -112,7 +112,7 @@
         {{/if}}
         <div class=side-by-side>
         {{#each choices}}
-        <form id="pc-{{this.choice_id}}"{{#if ../open}} action="vote-poll?U={{../../session.uuid}}" method=POST{{/if}} class=inner-banner>
+        <form id="pc-{{this.choice_id}}"{{#if ../open}} action="vote-poll?U={{../../session.uuid}}#pc-{{this.choice_id}}" method=POST{{/if}} class=inner-banner>
         <input type=hidden name=post value={{../../posts.0.uuid}}>
         <input type=hidden name=choice value={{this.choice_id}}>
         <table>
