@@ -15,7 +15,23 @@
                         <input type=text id=banner-post-desc name=banner_desc>
                         <div class=form-footer>
                             <button class=button-default>Add banner</button>
-                            <details-dialog-close><a href={{posts.0.uuid}} class=button>Cancel</a></details-dialog-close>
+                            <a href={{posts.0.uuid}} class=button data-close-dialog onclick="return !window.DetailsDialogElement">Cancel</a>
+                        </div>
+                    </form>
+                </details-dialog>
+            </details>
+            <details class=details-dialog-outer>
+                <summary class=details-dialog-summary>Add Poll</summary>
+                <details-dialog>
+                    <form action="create-poll?U={{session.uuid}}" method=POST>
+                        <input type=hidden name=post value={{posts.0.uuid}}>
+                        <label for=add-poll-title>Title</label>
+                        <input type=text id=add-poll-title name=poll_title autofocus>
+                        <label for=add-poll-choices>Choices (one line per choice)</label>
+                        <textarea id=add-poll-choices name=poll_choices></textarea>
+                        <div class=form-footer>
+                            <button class=button-default>New poll</button>
+                            <a href={{posts.0.uuid}} class=button data-close-dialog onclick="return !window.DetailsDialogElement">Cancel</a>
                         </div>
                     </form>
                 </details-dialog>
@@ -45,6 +61,7 @@
             <a is=local-date href="" title="{{posts.0.created_at}}+00:00">{{posts.0.created_at_relative}}<span class=hide-small> ago</span></a>
             <details class=details-dialog-outer id=sp-{{posts.0.uuid}}>{{> view-star}}</details>
             </div>
+            {{#if (not posts.0.comment_readpoint)}}<a id=comments></a>{{/if}}
             <details-menu-bar class=footer-aside>
                 <a href="#comment-form" class="button overflow" onclick="document.getElementById('{{posts.0.uuid}}-menu').open = false;document.getElementById('comment-text').focus();return false">↩ Comment</a>
                 <details class="details-menu-outer backwards" id="{{posts.0.uuid}}-menu">
@@ -67,7 +84,69 @@
             </details-menu-bar>
             </footer></form>
         </article>
-        <h3{{#if (not posts.0.comment_readpoint)}} id=comments{{/if}}>{{posts.0.comment_count}} comments</h3>
+        {{#if (ne poll_count 0)}}
+        <h3 id=polls>{{poll_count}} polls</h3>
+        {{#each polls}}
+        <h4 style=margin-bottom:0>{{title}}</h4>
+        {{#if open}}
+        {{#if (gte ../user.trust_level 3)}}
+        <details-menu-bar>
+                <details class=details-dialog-outer>
+                    <summary class=details-dialog-summary>Close Poll</summary>
+                    <details-dialog>
+                        <form action="close-poll?U={{../session.uuid}}" method=POST>
+                            <input type=hidden name=poll value={{this.poll_id}}>
+                            <input type=hidden name=post value={{../posts.0.uuid}}>
+                            Are you sure you want to close <strong>{{title}}</strong>?
+                            <div class=form-footer>
+                                <button class=button-default>Close poll</button>
+                                <a href={{../posts.0.uuid}} class=button data-close-dialog onclick="return !window.DetailsDialogElement">Cancel</a>
+                            </div>
+                        </form>
+                    </details-dialog>
+                </details>
+        </details-menu-bar>
+        {{/if}}
+        {{else}}
+        <em>This poll is now closed</em>
+        {{/if}}
+        <div class=side-by-side>
+        {{#each choices}}
+        <form id="pc-{{this.choice_id}}"{{#if ../open}} action="vote-poll?U={{../../session.uuid}}" method=POST{{/if}} class=inner-banner>
+        <input type=hidden name=post value={{../../posts.0.uuid}}>
+        <input type=hidden name=choice value={{this.choice_id}}>
+        <table>
+        <tr><td colspan=5>{{this.title}}
+        {{#if ../open}}{{else}}<tr><td colspan=5><em>average score: <strong>{{this.average}}</strong></em>{{/if}}
+        <tr>
+        <td><label for=pc-{{this.choice_id}}-1>1</label></td>
+        <td><label for=pc-{{this.choice_id}}-2>2</label></td>
+        <td><label for=pc-{{this.choice_id}}-3>3</label></td>
+        <td><label for=pc-{{this.choice_id}}-4>4</label></td>
+        <td><label for=pc-{{this.choice_id}}-5>5</label></td>
+        </tr>
+        <tr>
+        {{~#if ../open~}}
+        <td><button id=pc-{{this.choice_id}}-1 type=submit name=score value=1><img src=assets/{{#if (gte score 1)}}star_active.svg{{else}}star.svg{{/if}}></button></td>
+        <td><button id=pc-{{this.choice_id}}-2 type=submit name=score value=2><img src=assets/{{#if (gte score 2)}}star_active.svg{{else}}star.svg{{/if}}></button></td>
+        <td><button id=pc-{{this.choice_id}}-3 type=submit name=score value=3><img src=assets/{{#if (gte score 3)}}star_active.svg{{else}}star.svg{{/if}}></button></td>
+        <td><button id=pc-{{this.choice_id}}-4 type=submit name=score value=4><img src=assets/{{#if (gte score 4)}}star_active.svg{{else}}star.svg{{/if}}></button></td>
+        <td><button id=pc-{{this.choice_id}}-5 type=submit name=score value=5><img src=assets/{{#if (gte score 5)}}star_active.svg{{else}}star.svg{{/if}}></button></td>
+        {{~else~}}
+        <td><button id=pc-{{this.choice_id}}-1 disabled><img src=assets/{{#if (gte score 1)}}star_active.svg{{else}}star.svg{{/if}}></button></td>
+        <td><button id=pc-{{this.choice_id}}-2 disabled><img src=assets/{{#if (gte score 2)}}star_active.svg{{else}}star.svg{{/if}}></button></td>
+        <td><button id=pc-{{this.choice_id}}-3 disabled><img src=assets/{{#if (gte score 3)}}star_active.svg{{else}}star.svg{{/if}}></button></td>
+        <td><button id=pc-{{this.choice_id}}-4 disabled><img src=assets/{{#if (gte score 4)}}star_active.svg{{else}}star.svg{{/if}}></button></td>
+        <td><button id=pc-{{this.choice_id}}-5 disabled><img src=assets/{{#if (gte score 5)}}star_active.svg{{else}}star.svg{{/if}}></button></td>
+        {{~/if~}}
+        </tr>
+        </table>
+        </form>
+        {{/each}}
+        </div>
+        {{/each}}
+        {{/if}}
+        <h3>{{posts.0.comment_count}} comments</h3>
         {{#each legacy_comments}}
             <aside id="{{this.id}}">
                 <header class=aside-header>

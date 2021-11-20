@@ -27,6 +27,7 @@ use rocket::request::FlashMessage;
 use rocket::response::{Responder, Redirect, Flash, content};
 use rocket::http::{CookieJar, Cookie, ContentType};
 pub use models::MoreInterestingConn;
+use models::PollInfo;
 use models::{CreatePostError, CreateCommentError};
 use models::{relative_date, PrettifyData, BodyFormat};
 use crate::customization::Customization;
@@ -161,6 +162,8 @@ struct TemplateContext {
     excerpt: Option<String>,
     comment_preview_text: String,
     comment_preview_html: String,
+    polls: Vec<PollInfo>,
+    poll_count: usize,
 }
 
 #[derive(Clone, Copy, Eq, PartialEq)]
@@ -1399,7 +1402,9 @@ async fn get_comments(conn: MoreInterestingConn, login: Option<LoginSession>, uu
         } else {
             return Err(Status::InternalServerError);
         };
+
         let notifications = conn.list_notifications(user.id).await.unwrap_or(Vec::new());
+
         return Ok(render_html("profile-posts", &TemplateContext {
             title: Cow::Owned(username.to_owned()),
             alert: flash.map(|f| f.message().to_owned()),
@@ -1467,10 +1472,21 @@ async fn get_comments(conn: MoreInterestingConn, login: Option<LoginSession>, uu
                 });
             }
         }
-        let notifications = conn.list_notifications(user.id).await.unwrap_or(Vec::new());
         let is_private = post_info.private || !post_info.visible;
-        let is_subscribed = conn.is_subscribed(post_info.id, user.id).await.unwrap_or(false);
         let blog_post = post_info.blog_post;
+
+        let (notifications, polls, is_subscribed) = futures::join!(
+            conn.list_notifications(user.id),
+            conn.get_poll(user.id, uuid),
+            conn.is_subscribed(post_info.id, user.id)
+            );
+        let (notifications, polls, is_subscribed) = (notifications.unwrap_or(Vec::new()), polls.unwrap_or_else(|e| {
+            warn!("Failed to read polls: {:?}", e);
+            Vec::new()
+        }), is_subscribed.unwrap_or(false));
+
+        let poll_count = polls.len();
+
         Ok(render_html("comments", &TemplateContext {
             posts: vec![post_info],
             alert: flash.map(|f| f.message().to_owned()),
@@ -1480,6 +1496,7 @@ async fn get_comments(conn: MoreInterestingConn, login: Option<LoginSession>, uu
             customization,
             comments, user, title, legacy_comments, session,
             notifications, is_private, is_subscribed,
+            polls, poll_count,
             ..default()
         }))
     } else if conn.check_invite_token_exists(uuid).await && user.id == 0 {
@@ -2303,6 +2320,97 @@ async fn moderate_post(conn: MoreInterestingConn, login: ModeratorSession, form:
 }
 
 #[derive(FromForm)]
+struct CreatePollForm {
+    post: Base32,
+    poll_title: String,
+    poll_choices: String,
+}
+
+#[post("/create-poll", data = "<form>")]
+async fn create_poll(conn: MoreInterestingConn, login: ModeratorSession, form: Form<CreatePollForm>) -> Result<Flash<Redirect>, Status> {
+    let post_info = if let Ok(post_info) = conn.get_post_info_by_uuid(login.user.id, form.post).await {
+        post_info
+    } else {
+        return Err(Status::NotFound);
+    };
+    let post_id = post_info.id;
+    let title = form.poll_title.clone();
+    let choices = form.poll_choices.lines().filter_map(|c| {
+        match c.trim() {
+            "" => None,
+            c => Some(String::from(c)),
+        }
+    }).collect();
+    match conn.create_poll(post_id, title, choices, login.user.id).await {
+        Ok(poll) => {
+            if !post_info.private {
+                conn.mod_log_poll_post(
+                    login.user.id,
+                    post_info.uuid,
+                    poll.title,
+                    poll.id,
+                ).await.expect("if updating the post worked, then so should logging");
+            }
+            Ok(Flash::success(Redirect::to(form.post.to_string()), "Added poll to post"))
+        },
+        Err(e) => {
+            warn!("{:?}", e);
+            Err(Status::InternalServerError)
+        },
+    }
+}
+#[derive(FromForm)]
+struct ClosePollForm {
+    poll: i32,
+    post: Base32,
+}
+
+#[post("/close-poll", data = "<form>")]
+async fn close_poll(conn: MoreInterestingConn, login: ModeratorSession, form: Form<ClosePollForm>) -> Result<Flash<Redirect>, Status> {
+    let post_info = if let Ok(post_info) = conn.get_post_info_by_uuid(login.user.id, form.post).await {
+        post_info
+    } else {
+        return Err(Status::NotFound);
+    };
+    match conn.close_poll(form.poll).await {
+        Ok(poll) => {
+            if !post_info.private {
+                conn.mod_log_close_poll(
+                    login.user.id,
+                    form.post,
+                    poll.id,
+                ).await.expect("if updating the post worked, then so should logging");
+            }
+            Ok(Flash::success(Redirect::to(form.post.to_string()), "Added poll to post"))
+        },
+        Err(e) => {
+            warn!("{:?}", e);
+            Err(Status::InternalServerError)
+        },
+    }
+}
+
+#[derive(FromForm)]
+struct VotePollForm {
+    post: Base32,
+    choice: i32,
+    score: i32,
+}
+
+#[post("/vote-poll", data = "<form>")]
+async fn vote_poll(conn: MoreInterestingConn, login: LoginSession, form: Form<VotePollForm>) -> Result<Flash<Redirect>, Status> {
+    match conn.vote_poll(login.user.id, form.post, form.choice, form.score).await {
+        Ok(_) => {
+            Ok(Flash::success(Redirect::to(form.post.to_string()), "Vote cast"))
+        },
+        Err(e) => {
+            warn!("{:?}", e);
+            Err(Status::InternalServerError)
+        },
+    }
+}
+
+#[derive(FromForm)]
 struct BannerPostForm {
     post: Base32,
     banner_title: String,
@@ -2623,7 +2731,7 @@ fn launch() -> rocket::Rocket<rocket::Build> {
                 }
             })
         }))
-        .mount("/", routes![index, blog_index, advanced_search, login_form, login, logout, create_link_form, create_post_form, create, post_preview, submit_preview, get_comments, vote, signup, get_settings, create_invite, invite_tree, change_password, post_comment, vote_comment, get_admin_tags, admin_tags, get_tags, edit_post, get_edit_post, edit_comment, get_edit_comment, set_dark_mode, set_big_mode, mod_log, get_mod_queue, moderate_post, moderate_comment, get_public_signup, random, redirect_legacy_id, latest, rss, blog_rss, top, banner_post, robots_txt, search_comments, new, get_admin_domains, admin_domains, create_message_form, create_message, subscriptions, post_subscriptions, get_reply_comment, preview_comment, get_admin_customization, admin_customization, conv_legacy_id, get_tags_json, get_domains_json, get_admin_flags, get_admin_comment_flags, get_admin_users, get_admin_users_search, faq, identicon])
+        .mount("/", routes![index, blog_index, advanced_search, login_form, login, logout, create_link_form, create_post_form, create, post_preview, submit_preview, get_comments, vote, signup, get_settings, create_invite, invite_tree, change_password, post_comment, vote_comment, get_admin_tags, admin_tags, get_tags, edit_post, get_edit_post, edit_comment, get_edit_comment, set_dark_mode, set_big_mode, mod_log, get_mod_queue, moderate_post, moderate_comment, get_public_signup, random, redirect_legacy_id, latest, rss, blog_rss, top, banner_post, robots_txt, search_comments, new, get_admin_domains, admin_domains, create_message_form, create_message, subscriptions, post_subscriptions, get_reply_comment, preview_comment, get_admin_customization, admin_customization, conv_legacy_id, get_tags_json, get_domains_json, get_admin_flags, get_admin_comment_flags, get_admin_users, get_admin_users_search, faq, identicon, create_poll, close_poll, vote_poll])
         .mount("/assets", FileServer::from("assets"))
         .attach(Template::custom(|engines| {
             engines.handlebars.register_helper("count", Box::new(count_helper));

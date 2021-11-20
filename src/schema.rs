@@ -143,6 +143,43 @@ table! {
 table! {
     use crate::sql_types::*;
 
+    poll_choices (id) {
+        id -> Int4,
+        poll_id -> Int4,
+        title -> Text,
+        created_at -> Timestamp,
+        created_by -> Int4,
+    }
+}
+
+table! {
+    use crate::sql_types::*;
+
+    poll_votes (id) {
+        id -> Int4,
+        user_id -> Int4,
+        choice_id -> Int4,
+        score -> Int4,
+        created_at -> Timestamp,
+    }
+}
+
+table! {
+    use crate::sql_types::*;
+
+    polls (id) {
+        id -> Int4,
+        post_id -> Int4,
+        title -> Text,
+        open -> Bool,
+        created_at -> Timestamp,
+        created_by -> Int4,
+    }
+}
+
+table! {
+    use crate::sql_types::*;
+
     post_hides (post_id, user_id) {
         post_id -> Int4,
         user_id -> Int4,
@@ -294,6 +331,12 @@ joinable!(invite_tokens -> users (invited_by));
 joinable!(legacy_comments -> posts (post_id));
 joinable!(moderation -> users (created_by));
 joinable!(notifications -> posts (post_id));
+joinable!(poll_choices -> polls (poll_id));
+joinable!(poll_choices -> users (created_by));
+joinable!(poll_votes -> poll_choices (choice_id));
+joinable!(poll_votes -> users (user_id));
+joinable!(polls -> posts (post_id));
+joinable!(polls -> users (created_by));
 joinable!(post_hides -> posts (post_id));
 joinable!(post_hides -> users (user_id));
 joinable!(post_search_index -> posts (post_id));
@@ -320,6 +363,9 @@ allow_tables_to_appear_in_same_query!(
     legacy_comments,
     moderation,
     notifications,
+    poll_choices,
+    poll_votes,
+    polls,
     post_hides,
     post_search_index,
     post_tagging,

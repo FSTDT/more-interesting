@@ -1,9 +1,10 @@
+use bigdecimal::{BigDecimal, ToPrimitive};
 use rocket_sync_db_pools::diesel::PgConnection;
 use diesel::prelude::*;
 use diesel::sql_types;
 use diesel::result::Error as DieselError;
 use chrono::{NaiveDate, NaiveDateTime, NaiveTime, Utc, Duration};
-use crate::schema::{site_customization, users, user_sessions, posts, stars, invite_tokens, comments, comment_stars, tags, post_tagging, moderation, flags, comment_flags, domains, legacy_comments, domain_synonyms, notifications, subscriptions, post_hides, comment_hides, post_word_freq, comment_readpoints, domain_restrictions};
+use crate::schema::{site_customization, users, user_sessions, posts, stars, invite_tokens, comments, comment_stars, tags, post_tagging, moderation, flags, comment_flags, domains, legacy_comments, domain_synonyms, notifications, subscriptions, post_hides, comment_hides, post_word_freq, comment_readpoints, domain_restrictions, polls, poll_votes, poll_choices};
 use crate::password::{password_hash, password_verify, PasswordResult};
 use serde::{Deserialize, Serialize};
 use more_interesting_base32::Base32;
@@ -79,6 +80,53 @@ pub struct ModerationInfo {
     pub created_at: NaiveDateTime,
     pub created_by: i32,
     pub created_by_username: String,
+}
+
+#[derive(Queryable, QueryableByName, Serialize)]
+#[table_name="polls"]
+pub struct Poll {
+    pub id: i32,
+    pub post_id: i32,
+    pub title: String,
+    pub open: bool,
+    pub created_at: NaiveDateTime,
+    pub created_by: i32,
+}
+
+#[derive(Queryable, QueryableByName, Serialize)]
+#[table_name="poll_choices"]
+pub struct PollChoice {
+    pub id: i32,
+    pub poll_id: i32,
+    pub title: String,
+    pub created_at: NaiveDateTime,
+    pub created_by: i32,
+}
+
+#[derive(Queryable, QueryableByName, Serialize)]
+#[table_name="poll_votes"]
+pub struct PollVote {
+    pub id: i32,
+    pub user_id: i32,
+    pub choice_id: i32,
+    pub score: i32,
+    pub created_at: NaiveDateTime,
+}
+
+#[derive(Serialize)]
+pub struct PollInfo {
+    pub title: String,
+    pub poll_id: i32,
+    pub open: bool,
+    pub choices: Vec<PollInfoChoice>,
+}
+
+#[derive(Serialize)]
+pub struct PollInfoChoice {
+    pub choice_id: i32,
+    pub title: String,
+    pub score: i32,
+    pub average: f64,
 }
 
 #[derive(Queryable, QueryableByName, Serialize)]
@@ -1135,6 +1183,156 @@ impl MoreInterestingConn {
             .filter(rejected.eq(false))
             .filter(uuid.eq(uuid_param.into_i64()))
             .first::<(i32, Base32, String, Option<String>, Option<String>, bool, bool, i32, i32, i32, Option<i32>, bool, NaiveDateTime, i32, Option<String>, Option<String>, Option<i32>, Option<i32>, Option<i32>, String, Option<String>, Option<String>)>(conn)?, Self::get_current_stellar_time_(conn)))
+    }
+    pub async fn create_poll(&self, post_id: i32, title: String, choices: Vec<String>, created_by: i32) -> Result<Poll, DieselError> {
+        self.run(move |conn| Self::create_poll_(conn, post_id, title, choices, created_by)).await
+    }
+    fn create_poll_(conn: &PgConnection, post_id: i32, title: String, choices: Vec<String>, created_by: i32) -> Result<Poll, DieselError> {
+        use self::polls::dsl as p;
+        use self::poll_choices as pc;
+        #[derive(Insertable)]
+        #[table_name="polls"]
+        struct NewPoll {
+            post_id: i32,
+            title: String,
+            created_by: i32,
+        }
+        #[derive(Insertable)]
+        #[table_name="poll_choices"]
+        struct NewPollChoice {
+            poll_id: i32,
+            title: String,
+            created_by: i32,
+        }
+        let result = diesel::insert_into(polls::table)
+            .values(NewPoll {
+                post_id,
+                title,
+                created_by,
+            })
+            .get_result::<Poll>(conn)?;
+        for choice in choices {
+            diesel::insert_into(poll_choices::table)
+                .values(NewPollChoice {
+                    poll_id: result.id,
+                    title: choice,
+                    created_by,
+                })
+                .execute(conn)?;
+        }
+        Ok(result)
+    }
+    pub async fn close_poll(&self, poll_id_value: i32) -> Result<Poll, DieselError> {
+        self.run(move |conn| Self::close_poll_(conn, poll_id_value)).await
+    }
+    fn close_poll_(conn: &PgConnection, poll_id_value: i32) -> Result<Poll, DieselError> {
+        use self::polls::dsl::*;
+        diesel::update(polls.find(poll_id_value))
+            .set((
+                open.eq(false),
+            ))
+            .execute(conn)?;
+        polls.find(poll_id_value).get_result::<Poll>(conn)
+    }
+    pub async fn get_poll(&self, user_id_param: i32, uuid_param: Base32) -> Result<Vec<PollInfo>, DieselError> {
+        self.run(move |conn| Self::get_poll_(conn, user_id_param, uuid_param)).await
+    }
+    fn get_poll_(conn: &PgConnection, user_id_param: i32, uuid_param: Base32) -> Result<Vec<PollInfo>, DieselError> {
+        use self::polls::dsl::{self as p, *};
+        use self::posts::dsl::{self as posts_, *};
+        use self::poll_choices::dsl::{self as pc, *};
+        use self::poll_votes::dsl::{self as pv, *};
+        let results = polls
+            .inner_join(posts)
+            .inner_join(poll_choices.left_outer_join(pv::poll_votes.on(pv::user_id.eq(user_id_param).and(pc::id.eq(pv::choice_id)))).on(pc::poll_id.eq(p::id)))
+            .select((
+                p::title,
+                p::id,
+                pc::title,
+                pc::id,
+                pv::score.nullable(),
+                p::open,
+            ))
+            .filter(posts_::uuid.eq(uuid_param.into_i64()))
+            .get_results::<(String, i32, String, i32, Option<i32>, bool)>(conn)?;
+        let result = results.into_iter().fold(Vec::new(), |mut b: Vec<PollInfo>, item| {
+            let average = poll_choices
+                .inner_join(poll_votes)
+                .select(diesel::dsl::avg(pv::score))
+                .filter(pc::id.eq(item.3))
+                .get_result::<Option<BigDecimal>>(conn)
+                .ok()
+                .flatten()
+                .and_then(|x| x.to_f64())
+                .unwrap_or(0.0);
+            if let Some(current) = b.last_mut() {
+                if current.poll_id == item.1 {
+                    current.choices.push(PollInfoChoice {
+                        title: item.2.clone(),
+                        choice_id: item.3,
+                        score: item.4.unwrap_or(0),
+                        average,
+                    });
+                    return b;
+                }
+            }
+            let choices = vec![
+                PollInfoChoice {
+                    title: item.2.clone(),
+                    choice_id: item.3,
+                    score: item.4.unwrap_or(0),
+                    average,
+                }
+            ];
+            let new = PollInfo {
+                poll_id: item.1,
+                title: item.0.clone(),
+                open: item.5,
+                choices,
+            };
+            b.push(new);
+            b
+        });
+        Ok(result)
+    }
+    pub async fn vote_poll(&self, user_id_param: i32, uuid_param: Base32, choice_id_param: i32, score_param: i32) -> Result<(), DieselError> {
+        self.run(move |conn| Self::vote_poll_(conn, user_id_param, uuid_param, choice_id_param, score_param)).await
+    }
+    fn vote_poll_(conn: &PgConnection, user_id_param: i32, uuid_param: Base32, choice_id_param: i32, score_param: i32) -> Result<(), DieselError> {
+        use self::polls::dsl::{self as p, *};
+        use self::posts::dsl::{self as posts_, *};
+        use self::poll_choices::dsl::{self as pc, *};
+        use self::poll_votes::dsl as pv;
+        #[derive(Insertable)]
+        #[table_name="poll_votes"]
+        struct NewPollVote {
+            pub user_id: i32,
+            pub choice_id: i32,
+            pub score: i32,
+        }
+        let info = Self::get_poll_(conn, user_id_param, uuid_param)?;
+        if !info.iter().any(|s| s.choices.iter().any(|s| s.choice_id == choice_id_param)) {
+            return Err(diesel::result::Error::NotFound);
+        }
+        let r = diesel::update(
+                pv::poll_votes
+                .filter(pv::user_id.eq(user_id_param))
+                .filter(pv::choice_id.eq(choice_id_param))
+            )
+            .set(pv::score.eq(score_param))
+            .get_result::<PollVote>(conn);
+        if let Err(diesel::result::Error::NotFound) = r {
+            diesel::insert_into(pv::poll_votes)
+                .values(NewPollVote {
+                    user_id: user_id_param,
+                    choice_id: choice_id_param,
+                    score: score_param
+                })
+                .execute(conn)?;
+        } else if let Err(e) = r {
+            return Err(e);
+        }
+        Ok(())
     }
     pub async fn get_user_comments_count_today(&self, user_id_param: i32) -> i32 {
         self.run(move |conn| Self::get_user_comments_count_today_(conn, user_id_param)).await
@@ -2418,6 +2616,61 @@ impl MoreInterestingConn {
                     "new_title": new_title_value,
                     "new_url": new_url_value,
                     "new_excerpt": new_excerpt_value,
+                }},
+                created_by: user_id_value,
+            })
+            .execute(conn)
+            .map(|_| ())
+    }
+    pub async fn mod_log_poll_post(
+        &self,
+        user_id_value: i32,
+        post_uuid_value: Base32,
+        poll_title_value: String,
+        poll_value: i32,
+    ) -> Result<(), DieselError> {
+        self.run(move |conn| Self::mod_log_poll_post_(conn, user_id_value, post_uuid_value, poll_title_value, poll_value)).await
+    }
+    fn mod_log_poll_post_(
+        conn: &PgConnection,
+        user_id_value: i32,
+        post_uuid_value: Base32,
+        poll_title_value: String,
+        poll_value: i32,
+    ) -> Result<(), DieselError> {
+        diesel::insert_into(moderation::table)
+            .values(CreateModeration{
+                payload: json!{{
+                    "type": "poll_post",
+                    "post_uuid": post_uuid_value,
+                    "poll_title": poll_title_value,
+                    "poll": poll_value,
+                }},
+                created_by: user_id_value,
+            })
+            .execute(conn)
+            .map(|_| ())
+    }
+    pub async fn mod_log_close_poll(
+        &self,
+        user_id_value: i32,
+        post_uuid_value: Base32,
+        poll_value: i32,
+    ) -> Result<(), DieselError> {
+        self.run(move |conn| Self::mod_log_close_poll_(conn, user_id_value, post_uuid_value, poll_value)).await
+    }
+    fn mod_log_close_poll_(
+        conn: &PgConnection,
+        user_id_value: i32,
+        post_uuid_value: Base32,
+        poll_value: i32,
+    ) -> Result<(), DieselError> {
+        diesel::insert_into(moderation::table)
+            .values(CreateModeration{
+                payload: json!{{
+                    "type": "poll_close",
+                    "post_uuid": post_uuid_value,
+                    "poll": poll_value,
                 }},
                 created_by: user_id_value,
             })
