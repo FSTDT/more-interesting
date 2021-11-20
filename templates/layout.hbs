@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <html class="{{#if user.dark_mode}}dark{{/if}} {{#if user.big_mode}}big{{/if}}">
 <meta name=viewport content="width=device-width">
-<link rel=stylesheet href="assets/style.css?54">
+<link rel=stylesheet href="assets/style.css?55">
 <link rel=alternate type=application/rss+xml href=rss>
 <style>{{{customization.css}}}</style>
 <title>{{title}}</title>
@@ -22,7 +22,9 @@
                         <a class=details-menu-item href="submit" role=menuitem>Submit a link</a>
                         {{/if}}
                         {{#if (not config.hide_text_post)}}
+                        {{#if (gte user.trust_level 3)}}
                         <a class=details-menu-item href="post" role=menuitem>Make a blog post</a>
+                        {{/if}}
                         {{/if}}
                         {{#if (gte user.trust_level 2)}}
                         <a class=details-menu-item href="message" role=menuitem>Send a message</a>
@@ -103,9 +105,9 @@
 <script>
     var s = document.createElement("script");
     if (window.HTMLDetailsElement && window.URLSearchParams && window.customElements && window.moreInterestingIsAsyncAvailable && window.fetch) {
-        s.src = "assets/dist/modern.min.js?54";
+        s.src = "assets/dist/modern.min.js?55";
     } else {
-        s.src = "assets/dist/legacy.min.js?54";
+        s.src = "assets/dist/legacy.min.js?55";
     }
     s.defer = true;
     s.async = true;
