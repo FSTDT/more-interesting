@@ -1,11 +1,11 @@
 <!DOCTYPE html>
 <html class="{{#if user.dark_mode}}dark{{/if}} {{#if user.big_mode}}big{{/if}}">
 <meta name=viewport content="width=device-width">
-<link rel=stylesheet href="assets/style.css?55">
+<link rel=stylesheet href="assets/style.css?56">
 <link rel=alternate type=application/rss+xml href=rss>
 <style>{{{customization.css}}}</style>
 <title>{{title}}</title>
-{{#if is_private}}
+{{#if noindex}}
 <meta name="ROBOTS" content="NOINDEX, NOFOLLOW">
 {{/if}}
 <header class=top-header>

@@ -36,6 +36,22 @@
                     </form>
                 </details-dialog>
             </details>
+            <details class=details-dialog-outer>
+                <summary class=details-dialog-summary>Advanced</summary>
+                <details-dialog>
+                    <form action="advanced-post?U={{session.uuid}}" method=POST>
+                        <input type=hidden name=post value={{posts.0.uuid}}>
+                        <label>
+                            <input type=checkbox name=noindex {{#if posts.0.noindex}}checked{{/if}}>
+                            Hide from DuckDuckGo / Google
+                        </label>
+                        <div class=form-footer>
+                            <button class=button-default>Update post</button>
+                            <a href={{posts.0.uuid}} class=button data-close-dialog onclick="return !window.DetailsDialogElement">Cancel</a>
+                        </div>
+                    </form>
+                </details-dialog>
+            </details>
     </details-menu-bar>
     {{/if}}
     <ajax-form>

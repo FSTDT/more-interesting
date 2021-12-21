@@ -1256,3 +1256,8 @@ button.hide-button {
     font-weight: inherit;
     font-size: inherit;
 }
+
+input[type="checkbox"] {
+    display: inline;
+    width: auto;
+}

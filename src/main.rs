@@ -157,6 +157,7 @@ struct TemplateContext {
     is_me: bool,
     is_private: bool,
     is_subscribed: bool,
+    noindex: bool,
     blog_post: bool,
     notifications: Vec<NotificationInfo>,
     excerpt: Option<String>,
@@ -544,7 +545,7 @@ async fn index(conn: MoreInterestingConn, login: Option<LoginSession>, flash: Op
     let is_home = tag_param.is_none() && domain.is_none() && keywords_param.is_none();
     let before_date_param = search.before_date;
     let after_date_param = search.after_date;
-    let is_private = keywords_param.is_some() && (search.after_post_id != 0 || search.search_page != 0);
+    let noindex = keywords_param.is_some() && (search.after_post_id != 0 || search.search_page != 0);
     let title = Cow::Owned(customization.title.clone());
 
     let notifications = conn.list_notifications(user.id);
@@ -568,7 +569,7 @@ async fn index(conn: MoreInterestingConn, login: Option<LoginSession>, flash: Op
         title, user, posts, is_home,
         tags, session, tag_param, domain, keywords_param,
         title_param, extra_blog_posts,
-        notifications, is_private,
+        notifications, noindex,
         ..default()
     }))
 }
@@ -589,7 +590,7 @@ async fn blog_index(conn: MoreInterestingConn, login: Option<LoginSession>, flas
     let after_date_param = search.after_date;
     let posts = conn.search_posts(&search).await.ok()?;
     let notifications = conn.list_notifications(user.id).await.unwrap_or(Vec::new());
-    let is_private = keywords_param.is_some() && (search.after_post_id != 0 || search.search_page != 0);
+    let noindex = keywords_param.is_some() && (search.after_post_id != 0 || search.search_page != 0);
     let title = Cow::Owned(customization.title.clone());
     Some(render_html("blog", &TemplateContext {
         alert: flash.map(|f| f.message().to_owned()),
@@ -599,7 +600,7 @@ async fn blog_index(conn: MoreInterestingConn, login: Option<LoginSession>, flas
         title, user, posts,
         session, keywords_param,
         title_param,
-        notifications, is_private,
+        notifications, noindex,
         ..default()
     }))
 }
@@ -654,7 +655,7 @@ async fn search_comments(conn: MoreInterestingConn, login: Option<LoginSession>,
             customization,
             is_me: by_user.id == user.id,
             title, user, comment_search_result, session,
-            is_private: true,
+            noindex: true,
             notifications,
             ..default()
         }))
@@ -681,7 +682,7 @@ async fn top(conn: MoreInterestingConn, login: Option<LoginSession>, flash: Opti
     let is_home = tag_param.is_none() && domain.is_none() && keywords_param.is_none();
     let posts = conn.search_posts(&search).await.ok()?;
     let notifications = conn.list_notifications(user.id).await.unwrap_or(Vec::new());
-    let is_private = keywords_param.is_some() && (search.after_post_id != 0 || search.search_page != 0);
+    let noindex = keywords_param.is_some() && (search.after_post_id != 0 || search.search_page != 0);
     Some(render_html("index-top", &TemplateContext {
         title: Cow::Borrowed("top"),
         next_search_page: search.search_page + 1,
@@ -690,7 +691,7 @@ async fn top(conn: MoreInterestingConn, login: Option<LoginSession>, flash: Opti
         customization, before_date_param, after_date_param,
         is_home, keywords_param, title_param,
         user, posts, session, tags, tag_param, domain,
-        notifications, is_private,
+        notifications, noindex,
         ..default()
     }))
 }
@@ -775,7 +776,7 @@ async fn new(conn: MoreInterestingConn, login: Option<LoginSession>, flash: Opti
     let is_home = tag_param.is_none() && domain.is_none() && keywords_param.is_none();
     let posts = conn.search_posts(&search).await.ok()?;
     let notifications = conn.list_notifications(user.id).await.unwrap_or(Vec::new());
-    let is_private = (keywords_param.is_some() || tags.len() > 0 || domain.is_some()) && (search.after_post_id != 0 || search.search_page != 0);
+    let noindex = (keywords_param.is_some() || tags.len() > 0 || domain.is_some()) && (search.after_post_id != 0 || search.search_page != 0);
     Some(render_html("index-new", &TemplateContext {
         title: Cow::Borrowed("new"),
         next_search_page: search.search_page + 1,
@@ -784,7 +785,7 @@ async fn new(conn: MoreInterestingConn, login: Option<LoginSession>, flash: Opti
         customization, before_date_param, after_date_param,
         is_home, keywords_param, title_param,
         user, posts, session, tags, tag_param, domain, user_param,
-        notifications, is_private,
+        notifications, noindex,
         ..default()
     }))
 }
@@ -807,7 +808,7 @@ async fn latest(conn: MoreInterestingConn, login: Option<LoginSession>, params: 
     let is_home = tag_param.is_none() && domain.is_none() && keywords_param.is_none();
     let posts = conn.search_posts(&search).await.ok()?;
     let notifications = conn.list_notifications(user.id).await.unwrap_or(Vec::new());
-    let is_private = keywords_param.is_some() && (search.after_post_id != 0 || search.search_page != 0);
+    let noindex = keywords_param.is_some() && (search.after_post_id != 0 || search.search_page != 0);
     Some(render_html("index-latest", &TemplateContext {
         title: Cow::Borrowed("latest"),
         next_search_page: search.search_page + 1,
@@ -816,7 +817,7 @@ async fn latest(conn: MoreInterestingConn, login: Option<LoginSession>, params: 
         customization, before_date_param, after_date_param,
         is_home, keywords_param, title_param,
         user, posts, session, tags, tag_param, domain,
-        notifications, is_private,
+        notifications, noindex,
         ..default()
     }))
 }
@@ -972,6 +973,7 @@ async fn post_preview(login: Option<LoginSession>, customization: Customization,
         id: 0,
         visible: true,
         private: false,
+        noindex: false,
         hotness: 0.0,
         score: 0,
         comment_count: 0,
@@ -1114,6 +1116,7 @@ async fn submit_preview(login: Option<LoginSession>, customization: Customizatio
         id: 0,
         visible: true,
         private: false,
+        noindex: false,
         hotness: 0.0,
         score: 0,
         comment_count: 0,
@@ -1440,7 +1443,7 @@ async fn get_comments(conn: MoreInterestingConn, login: Option<LoginSession>, uu
             alert: flash.map(|f| f.message().to_owned()),
             config: config.inner().clone(),
             customization,
-            is_private: true,
+            noindex: true,
             posts, user, session,
             notifications,
             ..default()
@@ -1473,6 +1476,7 @@ async fn get_comments(conn: MoreInterestingConn, login: Option<LoginSession>, uu
             }
         }
         let is_private = post_info.private || !post_info.visible;
+        let noindex = is_private || post_info.noindex;
         let blog_post = post_info.blog_post;
 
         let (notifications, polls, is_subscribed) = futures::join!(
@@ -1494,6 +1498,7 @@ async fn get_comments(conn: MoreInterestingConn, login: Option<LoginSession>, uu
             config: config.inner().clone(),
             blog_post,
             customization,
+            noindex,
             comments, user, title, legacy_comments, session,
             notifications, is_private, is_subscribed,
             polls, poll_count,
@@ -1578,6 +1583,7 @@ async fn preview_comment(conn: MoreInterestingConn, login: LoginSession, comment
     let title = Cow::Owned(post_info.title.clone());
     let notifications = conn.list_notifications(user.id).await.unwrap_or(Vec::new());
     let is_private = post_info.private;
+    let noindex = is_private || post_info.noindex;
     let is_subscribed = conn.is_subscribed(post_info.id, user.id).await.unwrap_or(false);
     let comment_preview_text = comment.text.clone();
     let comment_preview_html = if comment.preview == Some(String::from("edit")) {
@@ -1590,6 +1596,7 @@ async fn preview_comment(conn: MoreInterestingConn, login: LoginSession, comment
         starred_by: conn.get_post_starred_by(post_id).await.unwrap_or(Vec::new()),
         config: config.inner().clone(),
         customization,
+        noindex,
         comments, user, title, legacy_comments, session,
         notifications, is_private, is_subscribed,
         comment_preview_text, comment_preview_html,
@@ -2447,6 +2454,38 @@ async fn banner_post(conn: MoreInterestingConn, login: ModeratorSession, form: F
 }
 
 #[derive(FromForm)]
+struct NoindexPostForm {
+    post: Base32,
+    noindex: bool,
+}
+
+#[post("/advanced-post", data = "<form>")]
+async fn advanced_post(conn: MoreInterestingConn, login: ModeratorSession, form: Form<NoindexPostForm>) -> Result<Flash<Redirect>, Status> {
+    let post_info = if let Ok(post_info) = conn.get_post_info_by_uuid(login.user.id, form.post).await {
+        post_info
+    } else {
+        return Err(Status::NotFound);
+    };
+    let post_id = post_info.id;
+    match conn.noindex_post(post_id, form.noindex).await {
+        Ok(_) => {
+            if !post_info.private {
+                conn.mod_log_noindex(
+                    login.user.id,
+                    post_info.uuid,
+                    form.noindex,
+                ).await.expect("if updating the post worked, then so should logging");
+            }
+            Ok(Flash::success(Redirect::to(uri!(get_mod_queue)), "Changed noindex value on post"))
+        },
+        Err(e) => {
+            warn!("{:?}", e);
+            Err(Status::InternalServerError)
+        },
+    }
+}
+
+#[derive(FromForm)]
 struct ModerateCommentForm {
     comment: i32,
     action: String,
@@ -2731,7 +2770,7 @@ fn launch() -> rocket::Rocket<rocket::Build> {
                 }
             })
         }))
-        .mount("/", routes![index, blog_index, advanced_search, login_form, login, logout, create_link_form, create_post_form, create, post_preview, submit_preview, get_comments, vote, signup, get_settings, create_invite, invite_tree, change_password, post_comment, vote_comment, get_admin_tags, admin_tags, get_tags, edit_post, get_edit_post, edit_comment, get_edit_comment, set_dark_mode, set_big_mode, mod_log, get_mod_queue, moderate_post, moderate_comment, get_public_signup, random, redirect_legacy_id, latest, rss, blog_rss, top, banner_post, robots_txt, search_comments, new, get_admin_domains, admin_domains, create_message_form, create_message, subscriptions, post_subscriptions, get_reply_comment, preview_comment, get_admin_customization, admin_customization, conv_legacy_id, get_tags_json, get_domains_json, get_admin_flags, get_admin_comment_flags, get_admin_users, get_admin_users_search, faq, identicon, create_poll, close_poll, vote_poll])
+        .mount("/", routes![index, blog_index, advanced_search, login_form, login, logout, create_link_form, create_post_form, create, post_preview, submit_preview, get_comments, vote, signup, get_settings, create_invite, invite_tree, change_password, post_comment, vote_comment, get_admin_tags, admin_tags, get_tags, edit_post, get_edit_post, edit_comment, get_edit_comment, set_dark_mode, set_big_mode, mod_log, get_mod_queue, moderate_post, moderate_comment, get_public_signup, random, redirect_legacy_id, latest, rss, blog_rss, top, banner_post, advanced_post, robots_txt, search_comments, new, get_admin_domains, admin_domains, create_message_form, create_message, subscriptions, post_subscriptions, get_reply_comment, preview_comment, get_admin_customization, admin_customization, conv_legacy_id, get_tags_json, get_domains_json, get_admin_flags, get_admin_comment_flags, get_admin_users, get_admin_users_search, faq, identicon, create_poll, close_poll, vote_poll])
         .mount("/assets", FileServer::from("assets"))
         .attach(Template::custom(|engines| {
             engines.handlebars.register_helper("count", Box::new(count_helper));
