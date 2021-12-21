@@ -1089,6 +1089,7 @@ details-dialog {
     }
     .side-by-side {
         display: flex;
+        flex-wrap: wrap;
     }
     .side-by-side div:first-child {
         margin-right: 1em;
