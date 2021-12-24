@@ -2970,13 +2970,6 @@ impl MoreInterestingConn {
         use diesel::sql_query;
         sql_query("SELECT * FROM posts ORDER BY RANDOM() LIMIT 1").load(conn).map(|mut x: Vec<_>| x.pop())
     }
-    pub async fn get_post_by_id(&self, post_id_value: i32) -> Result<Post, DieselError> {
-        self.run(move |conn| Self::get_post_by_id_(conn, post_id_value)).await
-    }
-    fn get_post_by_id_(conn: &PgConnection, post_id_value: i32) -> Result<Post, DieselError> {
-        use self::posts::dsl::*;
-        posts.find(post_id_value).get_result::<Post>(conn)
-    }
     pub async fn get_post_by_uuid(&self, post_id_value: Base32) -> Result<Post, DieselError> {
         self.run(move |conn| Self::get_post_by_uuid_(conn, post_id_value)).await
     }

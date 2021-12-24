@@ -2000,7 +2000,7 @@ struct GetEditPost {
 #[get("/edit-post?<post..>")]
 async fn get_edit_post(conn: MoreInterestingConn, login: ModeratorSession, flash: Option<FlashMessage<'_>>, post: GetEditPost, config: &State<SiteConfig>, customization: Customization) -> Option<content::Html<Template>> {
     let post_info = conn.get_post_info_by_uuid(login.user.id, post.post).await.ok()?;
-    let post = conn.get_post_by_id(post_info.id).await.ok()?;
+    let post = conn.get_post_by_uuid(post.post).await.ok()?;
     Some(render_html("edit-post", &TemplateContext {
         title: Cow::Borrowed("edit post"),
         user: login.user,
@@ -2031,7 +2031,7 @@ async fn edit_post(conn: MoreInterestingConn, login: ModeratorSession, form: For
         return Err(Status::NotFound);
     };
     let post_id = post_info.id;
-    let post = if let Ok(post) = conn.get_post_by_id(post_id).await {
+    let post = if let Ok(post) = conn.get_post_by_uuid(post_info.uuid).await {
         post
     } else {
         return Err(Status::NotFound);
@@ -2280,7 +2280,7 @@ async fn moderate_post(conn: MoreInterestingConn, login: ModeratorSession, form:
         return Err(Status::NotFound);
     };
     let post_id = post_info.id;
-    let post = if let Ok(post) = conn.get_post_by_id(post_id).await {
+    let post = if let Ok(post) = conn.get_post_by_uuid(post_info.uuid).await {
         post
     } else {
         return Err(Status::NotFound);
