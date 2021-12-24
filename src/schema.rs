@@ -238,6 +238,7 @@ table! {
         title_html -> Nullable<Varchar>,
         blog_post -> Bool,
         noindex -> Bool,
+        locked -> Bool,
     }
 }
 

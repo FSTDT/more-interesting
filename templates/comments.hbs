@@ -41,9 +41,13 @@
                 <details-dialog>
                     <form action="advanced-post?U={{session.uuid}}" method=POST>
                         <input type=hidden name=post value={{posts.0.uuid}}>
-                        <label>
+                        <label class=checkbox-label>
                             <input type=checkbox name=noindex {{#if posts.0.noindex}}checked{{/if}}>
                             Hide from DuckDuckGo / Google
+                        </label>
+                        <label class=checkbox-label>
+                            <input type=checkbox name=locked {{#if posts.0.locked}}checked{{/if}}>
+                            Lock comment thread
                         </label>
                         <div class=form-footer>
                             <button class=button-default>Update post</button>
@@ -79,7 +83,7 @@
             </div>
             {{#if (not posts.0.comment_readpoint)}}<a id=comments></a>{{/if}}
             <details-menu-bar class=footer-aside>
-                <a href="#comment-form" class="button overflow" onclick="document.getElementById('{{posts.0.uuid}}-menu').open = false;document.getElementById('comment-text').focus();return false">↩ Comment</a>
+                {{#if posts.0.locked}}{{else}}<a href="#comment-form" class="button overflow" onclick="document.getElementById('{{posts.0.uuid}}-menu').open = false;document.getElementById('comment-text').focus();return false">↩ Comment</a>{{/if}}
                 <details class="details-menu-outer backwards" id="{{posts.0.uuid}}-menu">
                 <summary class="details-menu-summary backwards" aria-haspopup=menu role=button>More</summary>
                 <div class="details-menu-inner backwards" role=menu>
@@ -162,7 +166,7 @@
         </div>
         {{/each}}
         {{/if}}
-        <h3>{{posts.0.comment_count}} comments</h3>
+        <h3>{{#if posts.0.locked}}🔒 {{/if}}{{posts.0.comment_count}} comments</h3>
         {{#each legacy_comments}}
             <aside id="{{this.id}}">
                 <header class=aside-header>
@@ -189,14 +193,14 @@
                     <details class=details-dialog-outer id=sc-{{this.id}}>{{> view-star-comment}}</details>
                     </div>
                     <details-menu-bar class=footer-aside>
-                        {{#if ../user.id}}<a href="reply-comment?comment={{this.id}}&post={{../posts.0.uuid}}" class=button>↩ Reply</a>{{/if}}
+                        {{#if ../posts.0.locked}}{{else}}{{#if ../user.id}}<a href="reply-comment?comment={{this.id}}&post={{../posts.0.uuid}}" class=button>↩ Reply</a>{{/if}}{{/if}}
                         <details class="details-menu-outer backwards">
                         <summary class="details-menu-summary backwards" aria-haspopup=menu role=button>More</summary>
                         <div class="details-menu-inner backwards" role=menu>
                         <a href="#{{this.id}}" class=details-menu-item>Permalink</a>
-                        {{#if (or (gte ../user.trust_level 3) (eq this.created_by ../user.id))}}
+                        {{#if (or (gte ../user.trust_level 3) (eq this.created_by ../user.id))}}{{#if ../posts.0.locked}}{{else}}
                         <a href="edit-comment?comment={{this.id}}" class=details-menu-item>Edit</a>
-                        {{/if}}
+                        {{/if}}{{/if}}
                         {{#if (gte ../user.trust_level 1)}}
                         <button class=details-menu-item name="{{#if this.flagged_by_me}}rm_flag_comment{{else}}add_flag_comment{{/if}}" value={{this.id}}>
                             {{#if this.flagged_by_me}}Remove flag{{else}}Add flag{{/if}}
@@ -217,6 +221,9 @@
             {{/if}}
         {{/each}}
     </ajax-form>
+    {{#if posts.0.locked}}
+    <p>🔒 <em>This comment thread is now closed</em></p>
+    {{else}}
     {{#if user.id}}
     <h3>Add your comment</h3>
     {{#if comment_preview_html}}
@@ -278,6 +285,7 @@ window.setTimeout(function() {
     <div class=inner-banner>
         {{{customization.comments_placeholder_html}}}
     </div>
+    {{/if}}
     {{/if}}
 {{/inline}}
 {{~> layout~}}

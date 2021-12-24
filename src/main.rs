@@ -158,6 +158,7 @@ struct TemplateContext {
     is_private: bool,
     is_subscribed: bool,
     noindex: bool,
+    locked: bool,
     blog_post: bool,
     notifications: Vec<NotificationInfo>,
     excerpt: Option<String>,
@@ -974,6 +975,7 @@ async fn post_preview(login: Option<LoginSession>, customization: Customization,
         visible: true,
         private: false,
         noindex: false,
+        locked: false,
         hotness: 0.0,
         score: 0,
         comment_count: 0,
@@ -1117,6 +1119,7 @@ async fn submit_preview(login: Option<LoginSession>, customization: Customizatio
         visible: true,
         private: false,
         noindex: false,
+        locked: false,
         hotness: 0.0,
         score: 0,
         comment_count: 0,
@@ -1477,6 +1480,7 @@ async fn get_comments(conn: MoreInterestingConn, login: Option<LoginSession>, uu
         }
         let is_private = post_info.private || !post_info.visible;
         let noindex = is_private || post_info.noindex;
+        let locked = post_info.locked;
         let blog_post = post_info.blog_post;
 
         let (notifications, polls, is_subscribed) = futures::join!(
@@ -1498,7 +1502,7 @@ async fn get_comments(conn: MoreInterestingConn, login: Option<LoginSession>, uu
             config: config.inner().clone(),
             blog_post,
             customization,
-            noindex,
+            noindex, locked,
             comments, user, title, legacy_comments, session,
             notifications, is_private, is_subscribed,
             polls, poll_count,
@@ -1529,6 +1533,12 @@ struct CommentForm {
 async fn post_comment(conn: MoreInterestingConn, login: LoginSession, comment: Form<CommentForm>, config: &State<SiteConfig>) -> Option<Flash<Redirect>> {
     let post_info = conn.get_post_info_by_uuid(login.user.id, comment.post).await.into_option()?;
     let visible = login.user.trust_level > 0 || post_info.private;
+    if post_info.locked {
+        return Some(Flash::error(
+            Redirect::to(comment.post.to_string()),
+            "This comment thread is locked"
+        ));
+    }
     let comment_result = conn.comment_on_post(NewComment {
         post_id: post_info.id,
         text: comment.text.clone(),
@@ -2138,6 +2148,12 @@ async fn edit_comment(conn: MoreInterestingConn, login: LoginSession, form: Form
     if user.trust_level < 3 && comment.created_by != user.id {
         return Err(Status::NotFound);
     }
+    if post.locked {
+        return Ok(Flash::error(
+            Redirect::to(post.uuid.to_string()),
+            "This comment thread is locked"
+        ));
+    }
     if form.delete && user.trust_level >= 3 {
         match conn.delete_comment(comment.id).await {
             Ok(_) => {
@@ -2454,35 +2470,55 @@ async fn banner_post(conn: MoreInterestingConn, login: ModeratorSession, form: F
 }
 
 #[derive(FromForm)]
-struct NoindexPostForm {
+struct AdvancedPostForm {
     post: Base32,
     noindex: bool,
+    locked: bool,
 }
 
 #[post("/advanced-post", data = "<form>")]
-async fn advanced_post(conn: MoreInterestingConn, login: ModeratorSession, form: Form<NoindexPostForm>) -> Result<Flash<Redirect>, Status> {
+async fn advanced_post(conn: MoreInterestingConn, login: ModeratorSession, form: Form<AdvancedPostForm>) -> Result<Flash<Redirect>, Status> {
     let post_info = if let Ok(post_info) = conn.get_post_info_by_uuid(login.user.id, form.post).await {
         post_info
     } else {
         return Err(Status::NotFound);
     };
     let post_id = post_info.id;
-    match conn.noindex_post(post_id, form.noindex).await {
-        Ok(_) => {
-            if !post_info.private {
-                conn.mod_log_noindex(
-                    login.user.id,
-                    post_info.uuid,
-                    form.noindex,
-                ).await.expect("if updating the post worked, then so should logging");
-            }
-            Ok(Flash::success(Redirect::to(uri!(get_mod_queue)), "Changed noindex value on post"))
-        },
-        Err(e) => {
-            warn!("{:?}", e);
-            Err(Status::InternalServerError)
-        },
+    if post_info.locked != form.locked {
+        match conn.lock_post(post_id, form.locked).await {
+            Ok(_) => {
+                if !post_info.private {
+                    conn.mod_log_lock(
+                        login.user.id,
+                        post_info.uuid,
+                        form.locked,
+                    ).await.expect("if updating the post worked, then so should logging");
+                }
+            },
+            Err(e) => {
+                warn!("{:?}", e);
+                return Err(Status::InternalServerError)
+            },
+        }
     }
+    if post_info.noindex != form.noindex {
+        match conn.noindex_post(post_id, form.noindex).await {
+            Ok(_) => {
+                if !post_info.private {
+                    conn.mod_log_noindex(
+                        login.user.id,
+                        post_info.uuid,
+                        form.noindex,
+                    ).await.expect("if updating the post worked, then so should logging");
+                }
+            },
+            Err(e) => {
+                warn!("{:?}", e);
+                return Err(Status::InternalServerError)
+            },
+        }
+    }
+    Ok(Flash::success(Redirect::to(post_info.uuid.to_string()), "Changed settings on post"))
 }
 
 #[derive(FromForm)]

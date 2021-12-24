@@ -1,0 +1,2 @@
+ALTER TABLE posts
+  ADD COLUMN locked BOOL NOT NULL DEFAULT 'f';
