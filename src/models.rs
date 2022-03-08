@@ -126,7 +126,7 @@ pub struct PollInfoChoice {
     pub choice_id: i32,
     pub title: String,
     pub score: i32,
-    pub average: f64,
+    pub average: String,
 }
 
 #[derive(Queryable, QueryableByName, Serialize)]
@@ -1285,7 +1285,7 @@ impl MoreInterestingConn {
                         title: item.2.clone(),
                         choice_id: item.3,
                         score: item.4.unwrap_or(0),
-                        average,
+                        average: format!("{:.2}", average),
                     });
                     return b;
                 }
@@ -1295,7 +1295,7 @@ impl MoreInterestingConn {
                     title: item.2.clone(),
                     choice_id: item.3,
                     score: item.4.unwrap_or(0),
-                    average,
+                    average: format!("{:.2}", average),
                 }
             ];
             let new = PollInfo {
