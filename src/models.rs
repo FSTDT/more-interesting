@@ -528,6 +528,7 @@ pub struct PostSearch {
     pub title: String,
     pub or_tags: Vec<i32>,
     pub and_tags: Vec<i32>,
+    pub hide_tags: Vec<i32>,
     pub or_domains: Vec<i32>,
     pub after_post_id: i32,
     pub search_page: i32,
@@ -563,6 +564,7 @@ impl PostSearch {
             title: String::new(),
             or_tags: Vec::new(),
             and_tags: Vec::new(),
+            hide_tags: Vec::new(),
             or_domains: Vec::new(),
             after_post_id: 0,
             search_page: 0,
@@ -844,6 +846,12 @@ impl MoreInterestingConn {
                     .select(pt::post_id);
                 query = query.filter(p::id.eq_any(ids));
             }
+        }
+        if !search.hide_tags.is_empty() {
+            let ids = post_tagging
+                .filter(pt::tag_id.eq_any(&search.hide_tags))
+                .select(pt::post_id);
+            query = query.filter(diesel::dsl::not(p::id.eq_any(ids)));
         }
         if search.subscriptions {
             let ids = subscriptions

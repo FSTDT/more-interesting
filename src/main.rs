@@ -475,6 +475,14 @@ async fn parse_index_params(conn: &MoreInterestingConn, user: &User, params: Opt
                 if tag_name == "" {
                     continue;
                 }
+                if tag_name.starts_with("-") {
+                    if let Ok(tag) = conn.get_tag_by_name(&tag_name[1..]).await {
+                        search.hide_tags.push(tag.id);
+                        continue;
+                    } else {
+                        return None;
+                    }
+                }
                 if let Ok(tag) = conn.get_tag_by_name(tag_name).await {
                     search.and_tags.push(tag.id);
                     tags.push(tag);
