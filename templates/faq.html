@@ -1,5 +1,5 @@
-{{#*inline "page"}}
+{% extends "layout.html" %}
+{% block page %}
     <h2>About</h2>
-    <main>{{{raw_html}}}</main>
-{{/inline}}
-{{~> layout~}}
+    <main>{{raw_html|safe}}</main>
+{% endblock %}

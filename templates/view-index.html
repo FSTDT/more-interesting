@@ -1,84 +1,84 @@
 <ajax-form>
-{{~#if user.id~}}
-{{~#each posts}}{{#if this.hidden_by_me}}<article id={{this.uuid}}><form action="vote?redirect=2&U={{../session.uuid}}" method=POST><button class=hide-button title=Show name=rm_hide value={{this.uuid}}><b>+</b></button> {{this.title}}</form></article>{{else}}
-{{#if this.banner_title}}
-    <p class=post-banner>{{{this.banner_title}}}</p>
-{{/if}}
-{{#if this.banner_desc}}
-    <p class=post-banner-desc>{{{this.banner_desc}}}</p>
-{{/if}}
-<article id={{this.uuid}} class="{{#if this.blog_post}}blog-post{{/if}}">
-    <h2 class=article-header>{{{this.title_html}}}{{#if this.blog_post}} <a class="blog-tag-article-header-inner" href=blog>blog</a>{{/if}}</h2>
-    {{#if this.excerpt_html}}
-        <main>{{{this.excerpt_html}}}</main>
-    {{/if}}
-    <form action="vote?redirect=2&U={{../session.uuid}}" method=POST>
-    <button class=hide-button title=Hide name=add_hide value={{this.uuid}}><b>-</b></button>
+{%- if user.id != 0 -%}
+{%- for post in posts %}{% if post.hidden_by_me %}<article id={{post.uuid}}><form action="vote?redirect=2&U={{session.uuid}}" method=POST><button class=hide-button title=Show name=rm_hide value={{post.uuid}}><b>+</b></button> {{post.title}}</form></article>{% else %}
+{% if post.banner_title.is_some() %}
+    <p class=post-banner>{{post.banner_title.as_ref().unwrap()|safe}}</p>
+{% endif %}
+{% if post.banner_desc.is_some() %}
+    <p class=post-banner-desc>{{post.banner_desc.as_ref().unwrap()|safe}}</p>
+{% endif %}
+<article id={{post.uuid}} class="{% if post.blog_post %}blog-post{% endif %}">
+    <h2 class=article-header>{% if post.private %}<span class=article-header-inner>🔒 </span>{% endif %} {{post.title_html|safe}}{% if post.blog_post %} <a class="blog-tag-article-header-inner" href=blog>blog</a>{% endif %}</h2>
+    {% if post.excerpt_html.is_some() %}
+        <main>{{post.excerpt_html.as_ref().unwrap()|safe}}</main>
+    {% endif %}
+    <form action="vote?redirect=2&U={{session.uuid}}" method=POST>
+    <button class=hide-button title=Hide name=add_hide value={{post.uuid}}><b>-</b></button>
     <footer class=footer-container>
     <div class=footer-main>
-    {{#if this.starred_by_me}}
-    <button class="{{#if this.blog_post}}blog-post-star{{/if}}" title="Remove star" name="rm_star" value={{this.uuid}}>
+    {% if post.starred_by_me %}
+    <button class="{% if post.blog_post %}blog-post-star{% endif %}" title="Remove star" name="rm_star" value={{post.uuid}}>
         <img width=12 height=12 class=good-img src=assets/star_active.svg alt="Remove star">
     </button>
-    {{else}}
-    <button class="{{#if this.blog_post}}blog-post-star{{/if}}" title="Add star" name="add_star" value={{this.uuid}}>
+    {% else %}
+    <button class="{% if post.blog_post %}blog-post-star{% endif %}" title="Add star" name="add_star" value={{post.uuid}}>
         <img width=12 height=12 class=good-img src=assets/star.svg alt="Add star">
     </button>
-    {{/if}}
-    <a href="@{{this.submitted_by_username_urlencode}}">{{this.submitted_by_username}}</a>
-    {{#if this.blog_post}}authored{{else}}submitted{{/if}}
-    <a is=local-date href="{{this.uuid}}" title="{{this.created_at}}+00:00">{{this.created_at_relative}}<span class=hide-small> ago</span></a> and got
-    <a href="{{this.uuid}}#comments">{{this.comment_count}} comments</a>
+    {% endif %}
+    <a href="@{{post.submitted_by_username_urlencode}}">{{post.submitted_by_username}}</a>
+    {% if post.blog_post %}authored{% else %}submitted{% endif %}
+    <a is=local-date href="{{post.uuid}}" title="{{post.created_at}}+00:00">{{post.created_at_relative}}<span class=hide-small> ago</span></a> and got
+    <a href="{{post.uuid}}#comments">{{post.comment_count}} comments</a>
     </div>
     <details-menu-bar class=footer-aside>
-        {{#if this.locked}}{{else}}<a href="{{this.uuid}}#comment-form" class="button overflow">↩ Comment</a>{{/if}}
+        {% if post.locked %}{% else %}<a href="{{post.uuid}}#comment-form" class="button overflow">↩ Comment</a>{% endif %}
         <details class="details-menu-outer backwards">
         <summary class="details-menu-summary backwards" aria-haspopup=menu role=button>More</summary>
         <div class="details-menu-inner backwards" role=menu>
-            <a href="{{this.uuid}}" class=details-menu-item>Permalink</a>
-        {{#if (gte ../user.trust_level 3)}}
-            <a href="edit-post?post={{this.uuid}}" class=details-menu-item>Edit</a>
-        {{/if}}
-        {{#if (gte ../user.trust_level 1)}}
-            <button class=details-menu-item name="{{#if this.flagged_by_me}}rm_flag{{else}}add_flag{{/if}}" value={{this.uuid}}>
-                {{#if this.flagged_by_me}}Remove flag{{else}}Add flag{{/if}}
+            <a href="{{post.uuid}}" class=details-menu-item>Permalink</a>
+        {% if user.trust_level >= 3 %}
+            <a href="edit-post?post={{post.uuid}}" class=details-menu-item>Edit</a>
+        {% endif %}
+        {% if user.trust_level >= 1 %}
+            <button class=details-menu-item name="{% if post.flagged_by_me %}rm_flag{% else %}add_flag{% endif %}" value={{post.uuid}}>
+                {% if post.flagged_by_me %}Remove flag{% else %}Add flag{% endif %}
             </button>
-        {{/if}}
-            <a href="+{{this.uuid}}" class=details-menu-item>Similar</a>
+        {% endif %}
+            <a href="+{{post.uuid}}" class=details-menu-item>Similar</a>
         </div>
         </details>
     </details-menu-bar>
     </footer></form>
-</article>{{/if}}{{/each}}{{else}}{{#each posts~}}
-{{#if this.banner_title}}
-    <p class=post-banner>{{{this.banner_title}}}</p>
-{{/if}}
-{{#if this.banner_desc}}
-    <p class=post-banner-desc>{{{this.banner_desc}}}</p>
-{{/if}}
-<article id={{this.uuid}} class="{{#if this.blog_post}}blog-post{{/if}}">
-    <h2 class=article-header>{{{this.title_html}}}{{#if this.blog_post}} <a class="blog-tag-article-header-inner" href=blog>blog</a>{{/if}}</h2>
-    {{#if this.excerpt_html}}
-        <main>{{{this.excerpt_html}}}</main>
-    {{/if}}
+</article>{%endif %}{% endfor %}{% else %}{% for post in posts -%}
+{% if post.banner_title.is_some()%}
+    <p class=post-banner>{{post.banner_title.as_ref().unwrap()|safe}}</p>
+{% endif %}
+{% if post.banner_desc.is_some() %}
+    <p class=post-banner-desc>{{post.banner_desc.as_ref().unwrap()|safe}}</p>
+{% endif %}
+<article id={{post.uuid}} class="{% if post.blog_post %}blog-post{% endif %}">
+    <h2 class=article-header>{% if post.private %}<span class=article-header-inner>🔒 </span>{% endif %} {{post.title_html|safe}}{% if post.blog_post %} <a class="blog-tag-article-header-inner" href=blog>blog</a>{% endif %}</h2>
+    {% if post.excerpt_html.is_some() %}
+        <main>{{post.excerpt_html.as_ref().unwrap()|safe}}</main>
+    {% endif %}
     <footer class=footer-container>
     <div class=footer-main>
-    <button class="{{#if this.blog_post}}blog-post-star{{/if}}" disabled title="Log in to add star" name="add_star">
+    <button class="{% if post.blog_post %}blog-post-star{% endif %}" disabled title="Log in to add star" name="add_star">
         <img width=12 height=12 class=good-img src=assets/star.svg alt="Log in to add star">
     </button>
-    <a href="@{{this.submitted_by_username_urlencode}}">{{this.submitted_by_username}}</a>
-    {{#if this.blog_post}}authored{{else}}submitted{{/if}}
-    <a is=local-date href="{{this.uuid}}" title="{{this.created_at}}+00:00">{{this.created_at_relative}}</a>
-    and got <a href="{{this.uuid}}#comments">{{this.comment_count}} comments</a>
+    <a href="@{{post.submitted_by_username_urlencode}}">{{post.submitted_by_username}}</a>
+    {% if post.blog_post %}authored{% else %}submitted{% endif %}
+    <a is=local-date href="{{post.uuid}}" title="{{post.created_at}}+00:00">{{post.created_at_relative}}</a>
+    and got <a href="{{post.uuid}}#comments">{{post.comment_count}} comments</a>
     </div>
     <details-menu-bar class=footer-aside>
         <details class="details-menu-outer backwards">
         <summary class="details-menu-summary backwards" aria-haspopup=menu role=button>More</summary>
         <div class="details-menu-inner backwards" role=menu>
-            <a href="{{this.uuid}}" class=details-menu-item>Permalink</a>
+            <a href="{{post.uuid}}" class=details-menu-item>Permalink</a>
         </div>
         </details>
     </details-menu-bar>
     </footer>
-</article>{{/each}}{{/if~}}
+</article>{%endfor %}{% endif %}
 </ajax-form>

@@ -1,30 +1,29 @@
-{{#*inline "page"}}
-{{#if customization.link_submit_notice_html}}
-<div class=inner-banner>{{{customization.link_submit_notice_html}}}</div>
-{{/if}}
+{% extends "layout.html" %}
+{% block page %}
+{% if !customization.link_submit_notice_html.is_empty() %}
+<div class=inner-banner>{{customization.link_submit_notice_html|safe}}</div>
+{% endif %}
 <form class=tab-bar action="preview-submit?U={{session.uuid}}#submit-form" method=POST id=submit-form>
     <button class=tab>Edit</button><label for=preview class=active-tab>Preview</label>
     <input type=hidden name=no_preview value=true>
-    <input type=hidden name=title value="{{posts.0.title}}">
-    <input type=hidden name=url value="{{posts.0.url}}">
-    <input type=hidden name=excerpt value="{{excerpt}}">
+    <input type=hidden name=title value="{{post.title}}">
+    <input type=hidden name=url value="{% if post.url.is_some() %}{{post.url.as_ref().unwrap()}}{% endif %}">
+    <input type=hidden name=excerpt value="{% if excerpt.is_some() %}{{excerpt.as_ref().unwrap()}}{% endif %}">
     <input type=hidden name=blog_post value=false>
 </form>
-<div class=tab-box>
-{{#each posts~}}
-<article id=preview>
-    <h2 class=article-header>{{{this.title_html}}}</h2>
-    {{#if this.excerpt_html}}
-        <main>{{{this.excerpt_html}}}</main>
-    {{/if}}
+<div class=tab-box><article id=preview>
+    <h2 class=article-header>{{post.title_html|safe}}</h2>
+    {% if post.excerpt_html.is_some() %}
+        <main>{{post.excerpt_html.as_ref().unwrap()|safe}}</main>
+    {% endif %}
     <footer class=footer-container>
     <div class=footer-main>
     <button disabled title="Cannot add star to preview" name="add_star">
         <img width=12 height=12 class=good-img src=assets/star.svg alt="Cannot add star to preview">
     </button>
-    <a href="@{{this.submitted_by_username_urlencode}}">{{this.submitted_by_username}}</a>
+    <a href="@{{post.submitted_by_username_urlencode}}">{{post.submitted_by_username}}</a>
     submitted
-    <span is=local-date title="{{this.created_at}}+00:00">{{this.created_at_relative}} <span class=hide-small>ago</span></span>
+    <span is=local-date title="{{post.created_at}}+00:00">{{post.created_at_relative}} <span class=hide-small>ago</span></span>
     </div>
     <details-menu-bar class=footer-aside>
         <details class="details-menu-outer backwards">
@@ -35,6 +34,5 @@
         </details>
     </details-menu-bar>
     </footer>
-</article>{{/each}}</div>
-{{/inline}}
-{{~> layout~}}
+</article></div>
+{% endblock %}

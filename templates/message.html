@@ -1,7 +1,8 @@
-{{#*inline "page"}}
-{{#if customization.message_send_notice_html}}
-<div class=inner-banner>{{{customization.message_send_notice_html}}}</div>
-{{/if}}
+{% extends "layout.html" %}
+{% block page %}
+{% if !customization.message_send_notice_html.is_empty() %}
+<div class=inner-banner>{{customization.message_send_notice_html|safe}}</div>
+{% endif %}
     <form action="message?U={{session.uuid}}" method=POST>
         <label>Title <input name=title autofocus required is="smart-punct-input"></label>
         <label>Users <input name=users required></label>
@@ -12,5 +13,4 @@
             <button>Send message</button>
         </div>
     </form>
-{{/inline}}
-{{~> layout~}}
+{% endblock %}

@@ -1,110 +1,97 @@
-{{#*inline "page"}}
-<div class=alert>{{(count mod_queue)}} items found in the moderation queue</div>
-{{#each mod_queue}}
-  {{#if (eq this.ty "post")}}
+{% extends "layout.html" %}
+{% block page %}
+<div class=alert>{{mod_queue|count}} items found in the moderation queue</div>
+{% for this in mod_queue %}
+  {% match this %}
+  {% when ModQueueItem::Post with { post, comments } %}
   <h2>Moderate post</h2>
-    {{#with this.inner.post}}
-        <article class="{{#if this.blog_post}}blog-post{{/if}}">
-            <header class=article-header>{{{this.title_html}}}{{#if this.blog_post}} <a class="blog-tag-article-header-inner" href=blog>blog</a>{{/if}}</header>
-            {{#if this.excerpt_html}}
-                <main>{{{this.excerpt_html}}}</main>
-            {{/if}}
+    <article class="{% if post.blog_post %}blog-post{% endif %}">
+        <header class=article-header>{{post.title_html|safe}}{% if post.blog_post %} <a class="blog-tag-article-header-inner" href=blog>blog</a>{% endif %}</header>
+            {% if post.excerpt_html.is_some() %}
+                <main>{{post.excerpt_html.as_ref().unwrap()|safe}}</main>
+            {% endif %}
             <footer class=footer-container>
                 <div class=footer-main>
-                <a href="@{{this.submitted_by_username_urlencode}}">{{this.submitted_by_username}}</a> {{#if this.blog_post}}authored{{else}}submitted{{/if}}
-                <a is=local-date href="{{this.uuid}}" title="{{this.created_at}}+00:00">{{this.created_at_relative}}</a>
-                {{#if starred_by}}
-                    starred by
-                    {{#each starred_by}}
-                        <a href="@{{urlencode this}}">{{this}}</a>
-                        {{#unless @last}},{{/unless}}
-                    {{/each}}
-                {{/if}} and got
-                <a href="{{this.uuid}}#comments">{{this.comment_count}} comments</a>
+                <a href="@{{post.submitted_by_username_urlencode}}">{{post.submitted_by_username}}</a> {% if post.blog_post %}authored{% else %}submitted{% endif %}
+                <a is=local-date href="{{post.uuid}}" title="{{post.created_at}}+00:00">{{post.created_at_relative}}</a> and got
+                <a href="{{post.uuid}}#comments">{{post.comment_count}} comments</a>
                 </div>
-                <form class=footer-aside action="moderate-post?U={{../../session.uuid}}" method=POST>
-                    <input type="hidden" name="post" value="{{this.uuid}}">
+                <form class=footer-aside action="moderate-post?U={{session.uuid}}" method=POST>
+                    <input type="hidden" name="post" value="{{post.uuid}}">
                         <button name="action" value="approve" class=button-default>Approve</button>
-                        <a href="edit-post?post={{this.uuid}}" class=button>Edit</a>
+                        <a href="edit-post?post={{post.uuid}}" class=button>Edit</a>
                         <button name="action" value="delete">Delete</button>
                 </form>
             </footer>
         </article>
-    {{/with}}
-    {{#each this.inner.comments}}
-        <aside id="{{this.id}}">
+    {% for comment in comments %}
+        <aside id="{{comment.id}}">
             <header class=aside-header>
-                <img width=15 height=15 class=identicon src=identicon/{{this.created_by_identicon}}>
-                <a href="@{{this.created_by_username_urlencode}}" class=top-header-link>{{this.created_by_username}} commented</a>
-                <a is=local-date href="#{{this.id}}" class="top-header-link top-header-aside" title="{{this.created_at}}+00:00">{{this.created_at_relative}} #{{this.id}}</a>
+                <img width=15 height=15 class=identicon src=identicon/{{comment.created_by_identicon}}>
+                <a href="@{{comment.created_by_username_urlencode}}" class=top-header-link>{{comment.created_by_username}} commented</a>
+                <a is=local-date href="#{{comment.id}}" class="top-header-link top-header-aside" title="{{comment.created_at}}+00:00">{{comment.created_at_relative}} #{{comment.id}}</a>
             </header>
-            <main>{{{this.html}}}</main>
+            <main>{{comment.html|safe}}</main>
             <footer class=footer-container>
                 <div class=footer-main>
-                {{#if this.starred_by}}
+                {% if !comment.starred_by.is_empty() %}
                     starred by
-                    {{#each this.starred_by}}
-                        <a href="@{{urlencode this}}">{{this}}</a>
-                        {{#unless @last}},{{/unless}}
-                    {{/each}}
-                {{/if}}
+                    {% for user in comment.starred_by %}
+                        <a href="@{{user|urlencode}}">{{user}}</a>
+                        {% if !loop.last %},{% endif %}
+                    {% endfor %}
+                {% endif %}
                 </div>
                 <div class=footer-aside>
                     <button disabled>More</button>
                 </div>
             </footer>
         </aside>
-    {{/each}}
-  {{/if}}
-  {{#if (eq this.ty "comment")}}
+    {% endfor %}
+  {% when ModQueueItem::Comment with { post, comment } %}
   <h2>Moderate Comment</h2>
-    {{#with this.inner.post}}
-        {{#if this.banner_title}}
-            <p class=post-banner>{{{this.banner_title}}}</p>
-        {{/if}}
-        {{#if this.banner_desc}}
-            <p class=post-banner-desc>{{{this.banner_desc}}}</p>
-        {{/if}}
+        {% if post.banner_title.is_some() %}
+            <p class=post-banner>{{post.banner_title.as_ref().unwrap()|safe}}</p>
+        {% endif %}
+        {% if post.banner_desc.is_some() %}
+            <p class=post-banner-desc>{{post.banner_desc.as_ref().unwrap()|safe}}</p>
+        {% endif %}
         <details><summary>Post</summary><article>
-            <header class=article-header>{{{this.title_html}}}</header>
-            {{#if this.excerpt_html}}
-                <main>{{{this.excerpt_html}}}</main>
-            {{/if}}
+            <header class=article-header>{{post.title_html|safe}}</header>
+            {% if post.excerpt_html.is_some() %}
+                <main>{{post.excerpt_html.as_ref().unwrap()|safe}}</main>
+            {% endif %}
             <footer>
-            <a href="@{{this.submitted_by_username_urlencode}}">{{this.submitted_by_username}}</a> submitted
-            <a is=local-date href={{this.uuid}} title="{{this.created_at}}+00:00">{{this.created_at_relative}}</a> and got
-            <a href="{{this.uuid}}#comments">{{this.comment_count}} comments</a>
+            <a href="@{{post.submitted_by_username_urlencode}}">{{post.submitted_by_username}}</a> submitted
+            <a is=local-date href={{post.uuid}} title="{{post.created_at}}+00:00">{{post.created_at_relative}}</a> and got
+            <a href="{{post.uuid}}#comments">{{post.comment_count}} comments</a>
             </footer>
         </article></details>
-    {{/with}}
-    {{#with this.inner.comment}}
-        <aside id="{{this.id}}">
+        <aside id="{{comment.id}}">
             <header class=aside-header>
-                <img width=15 height=15 class=identicon src=identicon/{{this.created_by_identicon}}>
-                <a href="@{{this.created_by_username_urlencode}}" class=top-header-link>{{this.created_by_username}} commented</a>
-                <a is=local-date href="#{{this.id}}" class="top-header-link top-header-aside" title="{{this.created_at}}+00:00">{{this.created_at_relative}} #{{this.id}}</a>
+                <img width=15 height=15 class=identicon src=identicon/{{comment.created_by_identicon}}>
+                <a href="@{{comment.created_by_username_urlencode}}" class=top-header-link>{{comment.created_by_username}} commented</a>
+                <a is=local-date href="#{{comment.id}}" class="top-header-link top-header-aside" title="{{comment.created_at}}+00:00">{{comment.created_at_relative}} #{{comment.id}}</a>
             </header>
-            <main>{{{this.html}}}</main>
+            <main>{{comment.html|safe}}</main>
             <footer class=footer-container>
                 <div class=footer-main>
-                {{#if this.starred_by}}
+                {% if !comment.starred_by.is_empty() %}
                     starred by
-                    {{#each this.starred_by}}
-                        <a href="@{{urlencode this}}">{{this}}</a>
-                        {{#unless @last}},{{/unless}}
-                    {{/each}}
-                {{/if}}
+                    {% for user in comment.starred_by %}
+                        <a href="@{{user|urlencode}}">{{user}}</a>
+                        {% if !loop.last %},{% endif %}
+                    {% endfor %}
+                {% endif %}
                 </div>
-                <form class=footer-aside action="moderate-comment?U={{../../session.uuid}}" method=POST>
-                    <input type="hidden" name="comment" value="{{this.id}}">
+                <form class=footer-aside action="moderate-comment?U={{session.uuid}}" method=POST>
+                    <input type="hidden" name="comment" value="{{comment.id}}">
                         <button name="action" value="approve" class=button-default>Approve</button>
-                        <a href="edit-comment?comment={{this.id}}" class=button>Edit</a>
+                        <a href="edit-comment?comment={{comment.id}}" class=button>Edit</a>
                         <button name="action" value="delete">Delete</button>
                 </form>
             </footer>
         </aside>
-    {{/with}}
-  {{/if}}
-{{/each}}
-{{/inline}}
-{{~> layout~}}
+  {% endmatch %}
+{% endfor %}
+{% endblock %}

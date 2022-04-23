@@ -1,21 +1,22 @@
-{{#*inline "page"}}
-    {{#if (not posts.0.visible)}}
+{% extends "layout.html" %}
+{% block page %}
+    {% if !post_info.visible %}
     <div class=alert>This post is waiting for moderator attention.</div>
-    {{/if}}
-    {{#if (gte user.trust_level 3)}}
+    {% endif %}
+    {%if user.trust_level >= 3 %}
     <details-menu-bar>
             <details class=details-dialog-outer>
                 <summary class=details-dialog-summary>Edit Banner</summary>
                 <details-dialog>
                     <form action="banner-post?U={{session.uuid}}" method=POST>
-                        <input type=hidden name=post value={{posts.0.uuid}}>
+                        <input type=hidden name=post value={{post_info.uuid}}>
                         <label for=banner-post-title>Title</label>
                         <input type=text id=banner-post-title name=banner_title autofocus>
                         <label for=banner-post-desc>Description</label>
                         <input type=text id=banner-post-desc name=banner_desc>
                         <div class=form-footer>
                             <button class=button-default>Add banner</button>
-                            <a href={{posts.0.uuid}} class=button data-close-dialog onclick="return !window.DetailsDialogElement">Cancel</a>
+                            <a href={{post_info.uuid}} class=button data-close-dialog onclick="return !window.DetailsDialogElement">Cancel</a>
                         </div>
                     </form>
                 </details-dialog>
@@ -24,14 +25,14 @@
                 <summary class=details-dialog-summary>Add Poll</summary>
                 <details-dialog>
                     <form action="create-poll?U={{session.uuid}}" method=POST>
-                        <input type=hidden name=post value={{posts.0.uuid}}>
+                        <input type=hidden name=post value={{post_info.uuid}}>
                         <label for=add-poll-title>Title</label>
                         <input type=text id=add-poll-title name=poll_title autofocus>
                         <label for=add-poll-choices>Choices (one line per choice)</label>
                         <textarea id=add-poll-choices name=poll_choices></textarea>
                         <div class=form-footer>
                             <button class=button-default>New poll</button>
-                            <a href={{posts.0.uuid}} class=button data-close-dialog onclick="return !window.DetailsDialogElement">Cancel</a>
+                            <a href={{post_info.uuid}} class=button data-close-dialog onclick="return !window.DetailsDialogElement">Cancel</a>
                         </div>
                     </form>
                 </details-dialog>
@@ -40,216 +41,242 @@
                 <summary class=details-dialog-summary>Advanced</summary>
                 <details-dialog>
                     <form action="advanced-post?U={{session.uuid}}" method=POST>
-                        <input type=hidden name=post value={{posts.0.uuid}}>
+                        <input type=hidden name=post value={{post_info.uuid}}>
                         <label class=checkbox-label>
-                            <input type=checkbox name=noindex {{#if posts.0.noindex}}checked{{/if}}>
+                            <input type=checkbox name=noindex {% if post_info.noindex %}checked{% endif %}>
                             Hide from DuckDuckGo / Google
                         </label>
                         <label class=checkbox-label>
-                            <input type=checkbox name=locked {{#if posts.0.locked}}checked{{/if}}>
+                            <input type=checkbox name=locked {% if post_info.locked %}checked{% endif %}>
                             Lock comment thread
                         </label>
                         <div class=form-footer>
                             <button class=button-default>Update post</button>
-                            <a href={{posts.0.uuid}} class=button data-close-dialog onclick="return !window.DetailsDialogElement">Cancel</a>
+                            <a href={{post_info.uuid}} class=button data-close-dialog onclick="return !window.DetailsDialogElement">Cancel</a>
                         </div>
                     </form>
                 </details-dialog>
             </details>
     </details-menu-bar>
-    {{/if}}
+    {% endif %}
     <ajax-form>
-        {{#if posts.0.banner_title}}
-            <p class=post-banner>{{{posts.0.banner_title}}}</p>
-        {{/if}}
-        {{#if posts.0.banner_desc}}
-            <p class=post-banner-desc>{{{posts.0.banner_desc}}}</p>
-        {{/if}}
-        <article class="{{#if posts.0.blog_post}}blog-post{{/if}}">
-            <h2 class=article-header>{{#if posts.0.private}}<span class=article-header-inner>🔒 </span>{{/if}}{{{posts.0.title_html}}}{{#if posts.0.blog_post}} <a class="blog-tag-article-header-inner" href=blog>blog</a>{{/if}}</h2>
-            {{#if posts.0.excerpt_html}}
-                <main>{{{posts.0.excerpt_html}}}</main>
-            {{/if}}
-            <form action="vote?redirect={{posts.0.uuid}}&U={{session.uuid}}" method=POST>
+        {% if post_info.banner_title.is_some() %}
+            <p class=post-banner>{{post_info.banner_title.as_ref().unwrap()|safe}}</p>
+        {% endif %}
+        {% if post_info.banner_desc.is_some() %}
+            <p class=post-banner-desc>{{post_info.banner_desc.as_ref().unwrap()|safe}}</p>
+        {% endif %}
+        <article class="{% if post_info.blog_post %}blog-post{% endif %}">
+            <h2 class=article-header>{% if post_info.private %}<span class=article-header-inner>🔒 </span>{% endif %}{{post_info.title_html|safe}}{% if post_info.blog_post %} <a class="blog-tag-article-header-inner" href=blog>blog</a>{% endif %}</h2>
+            {% if post_info.excerpt_html.is_some() %}
+                <main>{{post_info.excerpt_html.as_ref().unwrap()|safe}}</main>
+            {% endif %}
+            <form action="vote?redirect={{post_info.uuid}}&U={{session.uuid}}" method=POST>
             <footer class=footer-container>
             <div class=footer-main>
-            <button{{#if user.id}} title="{{#if posts.0.starred_by_me}}Remove star{{else}}Add star{{/if}}"{{else}} disabled title="Log in to vote"{{/if}} class="{{#if posts.0.blog_post}}blog-post-star{{/if}}" name="{{#if posts.0.starred_by_me}}rm_star{{else}}add_star{{/if}}" value={{posts.0.uuid}}>
-                <img width=12 height=12 class=good-img src=assets/{{#if posts.0.starred_by_me}}star_active.svg{{else}}star.svg{{/if}} alt="{{#if posts.0.starred_by_me}}Remove star{{else}}Add star{{/if}}">
+            <button{% if user.id != 0 %} title="{% if post_info.starred_by_me %}Remove star{% else %}Add star{% endif %}"{% else %} disabled title="Log in to vote"{% endif %} class="{% if post_info.blog_post %}blog-post-star{% endif %}" name="{% if post_info.starred_by_me %}rm_star{% else %}add_star{% endif %}" value={{post_info.uuid}}>
+                <img width=12 height=12 class=good-img src=assets/{% if post_info.starred_by_me %}star_active.svg{% else %}star.svg{% endif %} alt="{% if post_info.starred_by_me %}Remove star{% else %}Add star{% endif %}">
             </button>
-            <a href="@{{posts.0.submitted_by_username_urlencode}}">{{posts.0.submitted_by_username}}</a>
-            {{#if posts.0.blog_post}}authored{{else}}submitted{{/if}}
-            <a is=local-date href="" title="{{posts.0.created_at}}+00:00">{{posts.0.created_at_relative}}<span class=hide-small> ago</span></a>
-            <details class=details-dialog-outer id=sp-{{posts.0.uuid}}>{{> view-star}}</details>
+            <a href="@{{post_info.submitted_by_username_urlencode}}">{{post_info.submitted_by_username}}</a>
+            {% if post_info.blog_post %}authored{% else %}submitted{% endif %}
+            <a is=local-date href="" title="{{post_info.created_at}}+00:00">{{post_info.created_at_relative}}<span class=hide-small> ago</span></a>
+            <details class=details-dialog-outer id=sp-{{post_info.uuid}}>
+                <summary class=inline-summary><u>
+                    {% if post_info.blog_post %}
+                    {{crate::template::replace(customization.comment_score_text, starred_by.len())}}
+                    {% else %}
+                    {{crate::template::replace(customization.post_score_text, starred_by.len())}}
+                    {% endif %}
+                </u></summary>
+                <details-dialog>
+                    <ul>
+                        {% for this in starred_by %}
+                            <li><a href="@{{this|urlencode}}">{{this}}</a></li>
+                        {% endfor %}
+                    </ul>
+                </details-dialog>
+            </details>
             </div>
-            {{#if (not posts.0.comment_readpoint)}}<a id=comments></a>{{/if}}
+            {% if post_info.comment_readpoint.is_none() %}<a id=comments></a>{% endif %}
             <details-menu-bar class=footer-aside>
-                {{#if posts.0.locked}}{{else}}<a href="#comment-form" class="button overflow" onclick="document.getElementById('{{posts.0.uuid}}-menu').open = false;document.getElementById('comment-text').focus();return false">↩ Comment</a>{{/if}}
-                <details class="details-menu-outer backwards" id="{{posts.0.uuid}}-menu">
+                {% if !post_info.locked %}<a href="#comment-form" class="button overflow" onclick="document.getElementById('{{post_info.uuid}}-menu').open = false;document.getElementById('comment-text').focus();return false">↩ Comment</a>{% endif %}
+                <details class="details-menu-outer backwards" id="{{post_info.uuid}}-menu">
                 <summary class="details-menu-summary backwards" aria-haspopup=menu role=button>More</summary>
                 <div class="details-menu-inner backwards" role=menu>
-                    <a href="{{posts.0.uuid}}" class=details-menu-item>Permalink</a>
-                {{#if (gte user.trust_level 3)}}
-                    <a href="edit-post?post={{posts.0.uuid}}" class=details-menu-item>Edit</a>
-                {{/if}}
-                {{#if (gte user.trust_level 1)}}
-                    <button class=details-menu-item name="{{#if posts.0.flagged_by_me}}rm_flag{{else}}add_flag{{/if}}" value={{posts.0.uuid}}>
-                         {{#if posts.0.flagged_by_me}}Remove flag{{else}}Add flag{{/if}}
+                    <a href="{{post_info.uuid}}" class=details-menu-item>Permalink</a>
+                {% if user.trust_level >= 3 %}
+                    <a href="edit-post?post={{post_info.uuid}}" class=details-menu-item>Edit</a>
+                {% endif %}
+                {% if user.trust_level >= 1 %}
+                    <button class=details-menu-item name="{%if post_info.flagged_by_me %}rm_flag{% else %}add_flag{% endif %}" value={{post_info.uuid}}>
+                         {% if post_info.flagged_by_me %}Remove flag{% else %}Add flag{% endif %}
                     </button>
-                {{/if}}
-                {{#if user.id}}
-                    <a href="+{{posts.0.uuid}}" class=details-menu-item>Similar</a>
-                {{/if}}
+                {% endif %}
+                {% if user.id != 0 %}
+                    <a href="+{{post_info.uuid}}" class=details-menu-item>Similar</a>
+                {% endif %}
                 </div>
                 </details>
             </details-menu-bar>
             </footer></form>
         </article>
-        {{#if (ne poll_count 0)}}
+        {% if poll_count != 0 %}
         <h3 id=polls>{{poll_count}} polls</h3>
-        {{#each polls}}
-        <h4 style=margin-bottom:0>{{title}}</h4>
-        {{#if open}}
-        {{#if (gte ../user.trust_level 3)}}
+        {% for poll in polls %}
+        <h4 style=margin-bottom:0>{{poll.title}}</h4>
+        {% if poll.open %}
+        {% if user.trust_level >= 3 %}
         <details-menu-bar>
                 <details class=details-dialog-outer>
                     <summary class=details-dialog-summary>Close Poll</summary>
                     <details-dialog>
-                        <form action="close-poll?U={{../session.uuid}}" method=POST>
-                            <input type=hidden name=poll value={{this.poll_id}}>
-                            <input type=hidden name=post value={{../posts.0.uuid}}>
+                        <form action="close-poll?U={{session.uuid}}" method=POST>
+                            <input type=hidden name=poll value={{poll.poll_id}}>
+                            <input type=hidden name=post value={{post_info.uuid}}>
                             Are you sure you want to close <strong>{{title}}</strong>?
                             <div class=form-footer>
                                 <button class=button-default>Close poll</button>
-                                <a href={{../posts.0.uuid}} class=button data-close-dialog onclick="return !window.DetailsDialogElement">Cancel</a>
+                                <a href={{post_info.uuid}} class=button data-close-dialog onclick="return !window.DetailsDialogElement">Cancel</a>
                             </div>
                         </form>
                     </details-dialog>
                 </details>
         </details-menu-bar>
-        {{/if}}
-        {{else}}
+        {%endif%}
+        {%else%}
         <em>This poll is now closed</em>
-        {{/if}}
+        {%endif%}
         <div class=side-by-side>
-        {{#each choices}}
-        <form id="pc-{{this.choice_id}}"{{#if ../open}} action="vote-poll?U={{../../session.uuid}}#pc-{{this.choice_id}}" method=POST{{/if}} class=inner-banner>
-        <input type=hidden name=post value={{../../posts.0.uuid}}>
-        <input type=hidden name=choice value={{this.choice_id}}>
+        {% for choice in poll.choices %}
+        <form id="pc-{{choice.choice_id}}"{% if poll.open %} action="vote-poll?U={{session.uuid}}#pc-{{choice.choice_id}}" method=POST{% endif %} class=inner-banner>
+        <input type=hidden name=post value={{post_info.uuid}}>
+        <input type=hidden name=choice value={{choice.choice_id}}>
         <table>
-        <tr><td colspan=5>{{this.title}}
-        {{#if ../open}}{{else}}<tr><td colspan=5><em>average score: <strong>{{this.average}}</strong></em>{{/if}}
+        <tr><td colspan=5>{{choice.title}}
+        {% if !poll.open %}<tr><td colspan=5><em>average score: <strong>{{choice.average}}</strong></em>{% endif %}
         <tr>
-        <td><label for=pc-{{this.choice_id}}-1>1</label></td>
-        <td><label for=pc-{{this.choice_id}}-2>2</label></td>
-        <td><label for=pc-{{this.choice_id}}-3>3</label></td>
-        <td><label for=pc-{{this.choice_id}}-4>4</label></td>
-        <td><label for=pc-{{this.choice_id}}-5>5</label></td>
+        <td><label for=pc-{{choice.choice_id}}-1>1</label></td>
+        <td><label for=pc-{{choice.choice_id}}-2>2</label></td>
+        <td><label for=pc-{{choice.choice_id}}-3>3</label></td>
+        <td><label for=pc-{{choice.choice_id}}-4>4</label></td>
+        <td><label for=pc-{{choice.choice_id}}-5>5</label></td>
         </tr>
         <tr>
-        {{~#if ../open~}}
-        <td><button id=pc-{{this.choice_id}}-1 type=submit name=score value=1><img src=assets/{{#if (gte score 1)}}star_active.svg{{else}}star.svg{{/if}}></button></td>
-        <td><button id=pc-{{this.choice_id}}-2 type=submit name=score value=2><img src=assets/{{#if (gte score 2)}}star_active.svg{{else}}star.svg{{/if}}></button></td>
-        <td><button id=pc-{{this.choice_id}}-3 type=submit name=score value=3><img src=assets/{{#if (gte score 3)}}star_active.svg{{else}}star.svg{{/if}}></button></td>
-        <td><button id=pc-{{this.choice_id}}-4 type=submit name=score value=4><img src=assets/{{#if (gte score 4)}}star_active.svg{{else}}star.svg{{/if}}></button></td>
-        <td><button id=pc-{{this.choice_id}}-5 type=submit name=score value=5><img src=assets/{{#if (gte score 5)}}star_active.svg{{else}}star.svg{{/if}}></button></td>
-        {{~else~}}
-        <td><button id=pc-{{this.choice_id}}-1 disabled><img src=assets/{{#if (gte score 1)}}star_active.svg{{else}}star.svg{{/if}}></button></td>
-        <td><button id=pc-{{this.choice_id}}-2 disabled><img src=assets/{{#if (gte score 2)}}star_active.svg{{else}}star.svg{{/if}}></button></td>
-        <td><button id=pc-{{this.choice_id}}-3 disabled><img src=assets/{{#if (gte score 3)}}star_active.svg{{else}}star.svg{{/if}}></button></td>
-        <td><button id=pc-{{this.choice_id}}-4 disabled><img src=assets/{{#if (gte score 4)}}star_active.svg{{else}}star.svg{{/if}}></button></td>
-        <td><button id=pc-{{this.choice_id}}-5 disabled><img src=assets/{{#if (gte score 5)}}star_active.svg{{else}}star.svg{{/if}}></button></td>
-        {{~/if~}}
+        {%- if poll.open -%}}
+        <td><button id=pc-{{choice.choice_id}}-1 type=submit name=score value=1><img src=assets/{% if choice.score >= 1 %}star_active.svg{% else %}star.svg{% endif %}></button></td>
+        <td><button id=pc-{{choice.choice_id}}-2 type=submit name=score value=1><img src=assets/{% if choice.score >= 2 %}star_active.svg{% else %}star.svg{% endif %}></button></td>
+        <td><button id=pc-{{choice.choice_id}}-3 type=submit name=score value=1><img src=assets/{% if choice.score >= 3 %}star_active.svg{% else %}star.svg{% endif %}></button></td>
+        <td><button id=pc-{{choice.choice_id}}-4 type=submit name=score value=1><img src=assets/{% if choice.score >= 4 %}star_active.svg{% else %}star.svg{% endif %}></button></td>
+        <td><button id=pc-{{choice.choice_id}}-5 type=submit name=score value=1><img src=assets/{% if choice.score >= 5 %}star_active.svg{% else %}star.svg{% endif %}></button></td>
+        {%- else -%}
+        <td><button id=pc-{{choice.choice_id}}-1 disabled><img src=assets/{% if choice.score >= 1 %}star_active.svg{% else %}star.svg{% endif %}></button></td>
+        <td><button id=pc-{{choice.choice_id}}-2 disabled><img src=assets/{% if choice.score >= 2 %}star_active.svg{% else %}star.svg{% endif %}></button></td>
+        <td><button id=pc-{{choice.choice_id}}-3 disabled><img src=assets/{% if choice.score >= 3 %}star_active.svg{% else %}star.svg{% endif %}></button></td>
+        <td><button id=pc-{{choice.choice_id}}-4 disabled><img src=assets/{% if choice.score >= 4 %}star_active.svg{% else %}star.svg{% endif %}></button></td>
+        <td><button id=pc-{{choice.choice_id}}-5 disabled><img src=assets/{% if choice.score >= 5 %}star_active.svg{% else %}star.svg{% endif %}></button></td>
+        {%- endif -%}
         </tr>
         </table>
         </form>
-        {{/each}}
+        {% endfor %}
         </div>
-        {{/each}}
-        {{/if}}
-        <h3>{{#if posts.0.locked}}🔒 {{/if}}{{posts.0.comment_count}} comments</h3>
-        {{#each legacy_comments}}
-            <aside id="{{this.id}}">
+        {% endfor %}
+        {% endif %}
+        <h3>{% if post_info.locked %}🔒 {% endif %}{{post_info.comment_count}} comments</h3>
+        {% for comment in legacy_comments %}
+            <aside id="{{comment.id}}">
                 <header class=aside-header>
-                    old comment by {{this.author}}
-                    <span class="top-header-link top-header-aside"><a class=top-header-link is=local-date href="#{{this.id}}" title="{{this.created_at}}+00:00">{{this.created_at_relative}}<span class=hide-small> ago</span> #{{this.id}}</a></span>
+                    old comment by {{comment.author}}
+                    <span class="top-header-link top-header-aside"><a class=top-header-link is=local-date href="#{{comment.id}}" title="{{comment.created_at}}+00:00">{{comment.created_at_relative}}<span class=hide-small> ago</span> #{{comment.id}}</a></span>
                 </header>
-                <main>{{{this.html}}}</main>
+                <main>{{comment.html|safe}}</main>
             </aside>
-        {{/each}}
-        {{#each comments}}
-            {{#if this.hidden_by_me}}<aside id="{{this.id}}"><form action="vote-comment?redirect={{../posts.0.uuid}}&U={{../session.uuid}}" method=POST><button class=hide-button title=Show name=rm_hide_comment value={{this.id}}><b>+</b></button> {{this.created_by_username}}</form></aside>{{else}}<aside id="{{this.id}}">
+        {% endfor %}
+        {% for comment in comments %}
+            {% if comment.hidden_by_me %}<aside id="{{comment.id}}"><form action="vote-comment?redirect={{post_info.uuid}}&U={{session.uuid}}" method=POST><button class=hide-button title=Show name=rm_hide_comment value={{comment.id}}><b>+</b></button> {{comment.created_by_username}}</form></aside>{% else %}<aside id="{{comment.id}}">
                 <header class=aside-header>
-                    <img width=15 height=15 class=identicon src=identicon/{{this.created_by_identicon}}>
-                    <a href="@{{this.created_by_username_urlencode}}" class=top-header-link>{{this.created_by_username}}</a>
-                    <span class="top-header-link top-header-aside"><a class=top-header-link is=local-date href="#{{this.id}}" title="{{this.created_at}}+00:00">{{this.created_at_relative}}<span class=hide-small> ago</span> #{{this.id}}</a></span>
+                    <img width=15 height=15 class=identicon src=identicon/{{comment.created_by_identicon}}>
+                    <a href="@{{comment.created_by_username_urlencode}}" class=top-header-link>{{comment.created_by_username}}</a>
+                    <span class="top-header-link top-header-aside"><a class=top-header-link is=local-date href="#{{comment.id}}" title="{{comment.created_at}}+00:00">{{comment.created_at_relative}}<span class=hide-small> ago</span> #{{comment.id}}</a></span>
                 </header>
-                <main>{{{this.html}}}</main>
-                <form action="vote-comment?redirect={{../posts.0.uuid}}&U={{../session.uuid}}" method=POST><button class=hide-button title=Show name=add_hide_comment value={{this.id}}><b>-</b></button>
+                <main>{{comment.html|safe}}</main>
+                <form action="vote-comment?redirect={{post_info.uuid}}&U={{session.uuid}}" method=POST><button class=hide-button title=Show name=add_hide_comment value={{comment.id}}><b>-</b></button>
                 <footer class=footer-container>
                     <div class=footer-main>
-                    <button{{#if ../user.id}} title="{{#if this.starred_by_me}}Remove star{{else}}Add star{{/if}}"{{else}} disabled title="Log in to vote"{{/if}} name="{{#if this.starred_by_me}}rm_star_comment{{else}}add_star_comment{{/if}}" value={{this.id}}>
-                        <img width=12 height=12 class=good-img src=assets/{{#if this.starred_by_me}}star_active.svg{{else}}star.svg{{/if}} alt="{{#if this.starred_by_me}}Remove star{{else}}Add star{{/if}}">
+                    <button{% if user.id != 0 %} title="{% if comment.starred_by_me %}Remove star{% else %}Add star{% endif %}"{% else %} disabled title="Log in to vote"{% endif %} name="{% if comment.starred_by_me %}rm_star_comment{% else %}add_star_comment{% endif %}" value={{comment.id}}>
+                        <img width=12 height=12 class=good-img src=assets/{% if comment.starred_by_me %}star_active.svg{% else %}star.svg{% endif %} alt="{% if comment.starred_by_me %}Remove star{% else %}Add star{% endif %}">
                     </button>
-                    <details class=details-dialog-outer id=sc-{{this.id}}>{{> view-star-comment}}</details>
+                    <details class=details-dialog-outer id=sc-{{comment.id}}>
+                        <summary class=inline-summary><u>
+                            {{crate::template::replace(customization.comment_score_text, comment.starred_by.len())}}
+                        </u></summary>
+                        <details-dialog>
+                            <ul>
+                                {% for this in comment.starred_by %}
+                                    <li><a href="@{{this|urlencode}}">{{this}}</a></li>
+                                {% endfor %}
+                            </ul>
+                        </details-dialog>
+                    </details>
                     </div>
                     <details-menu-bar class=footer-aside>
-                        {{#if ../posts.0.locked}}{{else}}{{#if ../user.id}}<a href="reply-comment?comment={{this.id}}&post={{../posts.0.uuid}}" class=button>↩ Reply</a>{{/if}}{{/if}}
+                        {% if !post_info.locked && user.id != 0 %}<a href="reply-comment?comment={{comment.id}}&post={{post_info.uuid}}" class=button>↩ Reply</a>{% endif %}
                         <details class="details-menu-outer backwards">
                         <summary class="details-menu-summary backwards" aria-haspopup=menu role=button>More</summary>
                         <div class="details-menu-inner backwards" role=menu>
-                        <a href="#{{this.id}}" class=details-menu-item>Permalink</a>
-                        {{#if (or (gte ../user.trust_level 3) (eq this.created_by ../user.id))}}{{#if ../posts.0.locked}}{{else}}
-                        <a href="edit-comment?comment={{this.id}}" class=details-menu-item>Edit</a>
-                        {{/if}}{{/if}}
-                        {{#if (gte ../user.trust_level 1)}}
-                        <button class=details-menu-item name="{{#if this.flagged_by_me}}rm_flag_comment{{else}}add_flag_comment{{/if}}" value={{this.id}}>
-                            {{#if this.flagged_by_me}}Remove flag{{else}}Add flag{{/if}}
+                        <a href="#{{comment.id}}" class=details-menu-item>Permalink</a>
+                        {% if (user.trust_level >= 3 || comment.created_by == user.id) && !post_info.locked %}
+                        <a href="edit-comment?comment={{comment.id}}" class=details-menu-item>Edit</a>
+                        {% endif %}
+                        {% if user.trust_level >= 1 %}
+                        <button class=details-menu-item name="{% if comment.flagged_by_me %}rm_flag_comment{% else %}add_flag_comment{% endif %}" value={{comment.id}}>
+                            {% if comment.flagged_by_me %}Remove flag{% else %}Add flag{% endif %}
                         </button>
-                        {{/if}}
+                        {% endif %}
                         </div>
                     </details>
                     </details-menu-bar>
                 </footer>
                 </form>
-            </aside>{{/if}}
-            {{#if (eq ../posts.0.comment_readpoint this.id)}}
-                {{#if @last}}
+            </aside>{% endif %}
+            {% if post_info.comment_readpoint.unwrap_or(0) == comment.id %}
+                {% if loop.last %}
                 <div id=comments class=rp></div>
-                {{else}}
+                {% else %}
                 <h4 id=comments class=rp>‹new comments›</h4>
-                {{/if}}
-            {{/if}}
-        {{/each}}
+                {% endif %}
+            {% endif %}
+        {% endfor %}
     </ajax-form>
-    {{#if posts.0.locked}}
+    {% if post_info.locked %}
     <p>🔒 <em>This comment thread is now closed</em></p>
-    {{else}}
-    {{#if user.id}}
+    {% else %}
+    {% if user.id != 0 %}
     <h3>Add your comment</h3>
-    {{#if comment_preview_html}}
+    {% if !comment_preview_html.is_empty() %}
     <div class=tab-bar>
         <button name=preview value=edit class=tab form=comment-form formaction="preview-comment?U={{session.uuid}}#comment-form" onclick="if(!this.form||!this.formAction){var f=document.forms['comment-form'];f.action=this.getAttribute('formaction');var inp=document.createElement('input');inp.name='preview';inp.value='edit';inp.type='hidden';f.appendChild(inp);f.submit();return false}">Edit</button><label name=preview for=comment-form class=active-tab>Preview</label>
     </div>
     <div class=tab-box>
     <form action="comment?U={{session.uuid}}" method=POST id=comment-form>
-        <aside><header class=aside-header>{{user.username}}</header><main>{{{comment_preview_html}}}</main></aside>
+        <aside><header class=aside-header>{{user.username}}</header><main>{{comment_preview_html|safe}}</main></aside>
         <input type=hidden name=text value="{{comment_preview_text}}">
-        <input type=hidden name=post value="{{posts.0.uuid}}">
+        <input type=hidden name=post value="{{post_info.uuid}}">
         <span style="float:left;margin-top:1em;position:relative;top:2px"><button>Add comment</button>&nbsp;</span>
     </form>
     <details-menu-bar class=form-footer>
         <details class=details-menu-outer>
-            <summary class=details-menu-summary aria-haspopup=menu role=button>{{#if is_subscribed}}Subscribed{{else}}Not subscribed{{/if}}</summary>
-            <form class=details-menu-inner role=menu action="subscriptions?redirect={{posts.0.uuid}}&U={{session.uuid}}" method=POST is=subscriptions-menu>
-                <input type=hidden name=post value="{{posts.0.uuid}}">
+            <summary class=details-menu-summary aria-haspopup=menu role=button>{% if is_subscribed %}Subscribed{% else %}Not subscribed{% endif %}</summary>
+            <form class=details-menu-inner role=menu action="subscriptions?redirect={{post_info.uuid}}&U={{session.uuid}}" method=POST is=subscriptions-menu>
+                <input type=hidden name=post value="{{post_info.uuid}}">
                 <button class=details-menu-item role=menuitem name=subscribed value=true>Subscribe</button>
                 <button class=details-menu-item role=menuitem name=subscribed value=false>Unsubscribed</button>
             </form>
         </details>
     </details-menu-bar>
-    <p>When you subscribe, you get a notification whenever someone comments on this post.</p>
+    <p>When you subscribe, you get a notification whenever someone comments on this post_info.</p>
     </div>
-    {{else}}
+    {% else %}
     <div class=tab-bar>
         <label for=comment-form class=active-tab>Edit</label><button name=preview value=preview class=tab form=comment-form formaction="preview-comment?U={{session.uuid}}#comment-form" onclick="if(!this.form||!this.formAction){var f=document.forms['comment-form'];f.action=this.getAttribute('formaction');var inp=document.createElement('input');inp.name='preview';inp.value='preview';inp.type='hidden';f.appendChild(inp);f.submit();return false}">Preview</button>
     </div>
@@ -258,20 +285,20 @@
         <label>@{{user.username}}
         <smart-textarea><textarea id=comment-text name=text required is=smart-punct-textarea>{{comment_preview_text}}</textarea></smart-textarea>
         </label>
-        <input type=hidden name=post value="{{posts.0.uuid}}">
+        <input type=hidden name=post value="{{post_info.uuid}}">
         <span style="float:left;margin-top:1em;position:relative;top:2px"><button>Add comment</button>&nbsp;</span>
     </form>
     <subscriptions-menu><details-menu-bar class=form-footer>
         <details class=details-menu-outer>
-            <summary class=details-menu-summary aria-haspopup=menu role=button>{{#if is_subscribed}}Subscribed{{else}}Not subscribed{{/if}}</summary>
-            <form class=details-menu-inner role=menu action="subscriptions?redirect={{posts.0.uuid}}&U={{session.uuid}}" method=POST>
-                <input type=hidden name=post value="{{posts.0.uuid}}">
+            <summary class=details-menu-summary aria-haspopup=menu role=button>{% if is_subscribed %}Subscribed{% else %}Not subscribed{% endif %}</summary>
+            <form class=details-menu-inner role=menu action="subscriptions?redirect={{post_info.uuid}}&U={{session.uuid}}" method=POST>
+                <input type=hidden name=post value="{{post_info.uuid}}">
                 <button class=details-menu-item role=menuitem name=subscribed value=true>Subscribed</button>
                 <button class=details-menu-item role=menuitem name=subscribed value=false>Not subscribed</button>
             </form>
         </details>
     </details-menu-bar></subscriptions-menu>
-    <p>When you subscribe, you get a notification whenever someone comments on this post.</p>
+    <p>When you subscribe, you get a notification whenever someone comments on this post_info.</p>
     </div>
     <script>
 window.setTimeout(function() {
@@ -280,12 +307,11 @@ window.setTimeout(function() {
     }
 }, 200);
     </script>
-    {{/if}}
-    {{else}}
+    {% endif %}
+    {% else %}
     <div class=inner-banner>
-        {{{customization.comments_placeholder_html}}}
+        {{customization.comments_placeholder_html|safe}}
     </div>
-    {{/if}}
-    {{/if}}
-{{/inline}}
-{{~> layout~}}
+    {% endif %}
+    {% endif %}
+{% endblock %}

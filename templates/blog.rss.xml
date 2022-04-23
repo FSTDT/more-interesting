@@ -1,0 +1,22 @@
+<rss version="2.0">
+    <channel>
+        <title>{{customization.title}}</title>
+        <link>{{link}}</link>
+        <ttl>1800</ttl>
+
+        {%- for post in posts %}
+        {% if loop.first %}
+        <lastBuildDate>{{post.created_at}}</lastBuildDate>
+        <pubDate>{{post.created_at}}</pubDate>
+        {% endif %}
+        <item>
+            <title>{{post.title}}</title>
+            <description>{% if post.excerpt_html.is_some() %}{{post.excerpt_html.as_ref().unwrap()}}{% endif %}</description>
+            <link>{{config.public_url}}{{post.uuid}}</link>
+            <guid isPermaLink="true">{{config.public_url}}{{post.uuid}}</guid>
+            <pubDate>{{post.created_at}}</pubDate>
+        </item>
+        {%- endfor %}
+
+    </channel>
+</rss>

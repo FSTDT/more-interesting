@@ -1,21 +1,22 @@
-{{#*inline "nav-second"}}
-{{~#if is_home~}}
+{% extends "layout.html" %}
+{% block nav_second %}
+{%-if is_home-%}
     <nav class=nav-second>
-        <a class=top-header-link href=".{{#if before_date_param}}?before_date={{before_date_param}}{{#if after_date_param}}&after_date={{after_date_param}}{{else}}{{/if}}{{else}}{{/if}}">Home</a> &bull;
-        <a class=top-header-link href="latest{{#if before_date_param}}?before_date={{before_date_param}}{{#if after_date_param}}&after_date={{after_date_param}}{{else}}{{/if}}{{else}}{{/if}}">Latest</a> &bull;
+        <a class=top-header-link href=".{% if before_date_param.is_some() %}?before_date={{before_date_param.unwrap()}}{% if after_date_param.is_some() %}&after_date={{after_date_param.unwrap()}}{% else %}{% endif %}{% else %}{% endif %}">Home</a> &bull;
+        <a class=top-header-link href="latest{% if before_date_param.is_some() %}?before_date={{before_date_param.unwrap()}}{% if after_date_param.is_some() %}&after_date={{after_date_param.unwrap()}}{% else %}{% endif %}{% else %}{% endif %}">Latest</a> &bull;
         <b>Top</b> &bull;
-        <a class=top-header-link href="new{{#if before_date_param}}?before_date={{before_date_param}}{{#if after_date_param}}&after_date={{after_date_param}}{{else}}{{/if}}{{else}}{{/if}}">New</a> &bull;
+        <a class=top-header-link href="new{% if before_date_param.is_some() %}?before_date={{before_date_param.unwrap()}}{% if after_date_param.is_some() %}&after_date={{after_date_param.unwrap()}}{% else %}{% endif %}{% else %}{% endif %}">New</a> &bull;
         <details class=details-dialog-outer>
             <summary class=inline-summary><u>
-                {{#if before_date_param}}{{before_date_param}}{{else}}Date{{/if}}…
+                {% if before_date_param.is_some() %}{{before_date_param.unwrap()}}{% else %}Date{% endif %}…
             </u></summary>
             <details-dialog>
                 <form action=top method=GET>
                     <label>Find posts before
-                        <input type=date name=before_date autofocus required {{#if before_date_param}}value="{{before_date_param}}"{{/if}}>
+                        <input type=date name=before_date autofocus required {% if before_date_param.is_some() %}value="{{before_date_param.unwrap()}}"{% endif %}>
                     </label>
                     <label>Find posts after
-                        <input type=date name=after_date {{#if after_date_param}}value="{{after_date_param}}"{{/if}}>
+                        <input type=date name=after_date {% if after_date_param.is_some() %}value="{{after_date_param.unwrap()}}"{% endif %}>
                     </label>
                     <div class=form-footer>
                         <button class=button-default>Search</button>
@@ -25,31 +26,31 @@
             </details-dialog>
         </details>
     </nav>
-{{~/if~}}
-{{/inline}}
-{{#*inline "page"}}
-{{#each tags}}
+{%-endif-%}
+{% endblock %}
+{% block page %}
+{% for tag in tags %}
 <header class=tight-headline>
-<h2>#{{this.name}}</h2>
-<p>{{this.description}}</p>
+<h2>#{{tag.name}}</h2>
+<p>{% if tag.description.is_some() %}{{tag.description.as_ref().unwrap()}}{% endif %}</p>
 <nav>
-    <a href=".?tag={{this.name}}{{#if before_date_param}}&before_date={{before_date_param}}{{#if after_date_param}}&after_date={{after_date_param}}{{else}}{{/if}}{{else}}{{/if}}">Home</a> &bull;
-    <a href="latest?tag={{this.name}}{{#if before_date_param}}&before_date={{before_date_param}}{{#if after_date_param}}&after_date={{after_date_param}}{{else}}{{/if}}{{else}}{{/if}}">Latest</a> &bull;
+    <a href=".?tag={{tag.name}}{% if before_date_param.is_some() %}&before_date={{before_date_param.unwrap()}}{% if after_date_param.is_some() %}&after_date={{after_date_param.unwrap()}}{% else %}{% endif %}{% else %}{% endif %}">Home</a> &bull;
+    <a href="latest?tag={{tag.name}}{% if before_date_param.is_some() %}&before_date={{before_date_param.unwrap()}}{% if after_date_param.is_some() %}&after_date={{after_date_param.unwrap()}}{% else %}{% endif %}{% else %}{% endif %}">Latest</a> &bull;
     <b>Top</b> &bull;
-    <a href="new?tag={{this.name}}{{#if before_date_param}}&before_date={{before_date_param}}{{#if after_date_param}}&after_date={{after_date_param}}{{else}}{{/if}}{{else}}{{/if}}">New</a> &bull;
+    <a href="new?tag={{tag.name}}{% if before_date_param.is_some() %}&before_date={{before_date_param.unwrap()}}{% if after_date_param.is_some() %}&after_date={{after_date_param.unwrap()}}{% else %}{% endif %}{% else %}{% endif %}">New</a> &bull;
     <details class=details-dialog-outer>
         <summary class=inline-summary><u>
-            {{#if ../before_date_param}}{{../before_date_param}}{{else}}Date{{/if}}…
+            {% if before_date_param.is_some() %}{{before_date_param.unwrap()}}{% else %}Date{% endif %}…
         </u></summary>
         <details-dialog>
             <form action=top method=GET>
                 <label>Find posts before
-                    <input type=date name=before_date autofocus required {{#if ../before_date_param}}value="{{../before_date_param}}"{{/if}}>
+                    <input type=date name=before_date autofocus required {% if before_date_param.is_some() %}value="{{before_date_param.unwrap()}}"{% endif %}>
                 </label>
                 <label>Find posts after
-                    <input type=date name=after_date {{#if ../after_date_param}}value="{{../after_date_param}}"{{/if}}>
+                    <input type=date name=after_date {% if after_date_param.is_some() %}value="{{after_date_param.unwrap()}}"{% endif %}>
                 </label>
-                <input type=hidden name=tag value="{{this.name}}">
+                <input type=hidden name=tag value="{{tag.name}}">
                 <div class=form-footer>
                     <button class=button-default>Search</button>
                     <a href="" onclick="return !window.DetailsDialogElement" class=button data-close-dialog>Cancel</a>
@@ -59,26 +60,26 @@
     </details>
 </nav>
 </header>
-{{/each}}
-{{#if domain}}
+{% endfor %}
+{% if !domain.is_empty() %}
 <header class=tight-headline>
 <h2>www.{{domain}}</h2>
 <nav>
-    <a href=".?domain={{domain}}{{#if before_date_param}}&before_date={{before_date_param}}{{#if after_date_param}}&after_date={{after_date_param}}{{else}}{{/if}}{{else}}{{/if}}">Home</a> &bull;
-    <a href="latest?domain={{domain}}{{#if before_date_param}}&before_date={{before_date_param}}{{#if after_date_param}}&after_date={{after_date_param}}{{else}}{{/if}}{{else}}{{/if}}">Latest</a> &bull;
+    <a href=".?domain={{domain}}{% if before_date_param.is_some() %}&before_date={{before_date_param.unwrap()}}{% if after_date_param.is_some() %}&after_date={{after_date_param.unwrap()}}{% else %}{% endif %}{% else %}{% endif %}">Home</a> &bull;
+    <a href="latest?domain={{domain}}{% if before_date_param.is_some() %}&before_date={{before_date_param.unwrap()}}{% if after_date_param.is_some() %}&after_date={{after_date_param.unwrap()}}{% else %}{% endif %}{% else %}{% endif %}">Latest</a> &bull;
     <b>Top</b> &bull;
-    <a href="new?domain={{domain}}{{#if before_date_param}}&before_date={{before_date_param}}{{#if after_date_param}}&after_date={{after_date_param}}{{else}}{{/if}}{{else}}{{/if}}">New</a> &bull;
+    <a href="new?domain={{domain}}{% if before_date_param.is_some() %}&before_date={{before_date_param.unwrap()}}{% if after_date_param.is_some() %}&after_date={{after_date_param.unwrap()}}{% else %}{% endif %}{% else %}{% endif %}">New</a> &bull;
     <details class=details-dialog-outer>
         <summary class=inline-summary><u>
-            {{#if before_date_param}}{{before_date_param}}{{else}}Date{{/if}}…
+            {% if before_date_param.is_some() %}{{before_date_param.unwrap()}}{% else %}Date{% endif %}…
         </u></summary>
         <details-dialog>
             <form action=top method=GET>
                 <label>Find posts before
-                    <input type=date name=before_date autofocus required {{#if before_date_param}}value="{{before_date_param}}"{{/if}}>
+                    <input type=date name=before_date autofocus required {% if before_date_param.is_some() %}value="{{before_date_param.unwrap()}}"{% endif %}>
                 </label>
                 <label>Find posts after
-                    <input type=date name=after_date {{#if after_date_param}}value="{{after_date_param}}"{{/if}}>
+                    <input type=date name=after_date {% if after_date_param.is_some() %}value="{{after_date_param.unwrap()}}"{% endif %}>
                 </label>
                 <input type=hidden name=domain value="{{domain}}">
                 <div class=form-footer>
@@ -90,27 +91,27 @@
     </details>
 </nav>
 </header>
-{{/if}}
-{{#if keywords_param}}
+{% endif %}
+{% if !keywords_param.is_empty() %}
 <header class=tight-headline>
 <h2>Search results</h2>
 <code>{{keywords_param}}</code>
 <nav>
-    <a href=".?q={{urlencode keywords_param}}{{#if title_param}}&title={{urlencode title_param}}{{/if}}{{#if before_date_param}}&before_date={{before_date_param}}{{#if after_date_param}}&after_date={{after_date_param}}{{else}}{{/if}}{{else}}{{/if}}">Relevance</a> &bull;
-    <a href="latest?q={{urlencode keywords_param}}{{#if title_param}}&title={{urlencode title_param}}{{/if}}{{#if before_date_param}}&before_date={{before_date_param}}{{#if after_date_param}}&after_date={{after_date_param}}{{else}}{{/if}}{{else}}{{/if}}">Latest</a> &bull;
+    <a href=".?q={{keywords_param|urlencode}}{% if !title_param.is_empty() %}&title={{title_param|urlencode}}{%endif%}{% if before_date_param.is_some() %}&before_date={{before_date_param.unwrap()}}{% if after_date_param.is_some() %}&after_date={{after_date_param.unwrap()}}{% else %}{% endif %}{% else %}{% endif %}">Relevance</a> &bull;
+    <a href="latest?q={{keywords_param|urlencode}}{% if !title_param.is_empty() %}&title={{title_param|urlencode}}{%endif%}{% if before_date_param.is_some() %}&before_date={{before_date_param.unwrap()}}{% if after_date_param.is_some() %}&after_date={{after_date_param.unwrap()}}{% else %}{% endif %}{% else %}{% endif %}">Latest</a> &bull;
     <b>Top</b> &bull;
-    <a href="new?q={{urlencode keywords_param}}{{#if title_param}}&title={{urlencode title_param}}{{/if}}{{#if before_date_param}}&before_date={{before_date_param}}{{#if after_date_param}}&after_date={{after_date_param}}{{else}}{{/if}}{{else}}{{/if}}">New</a> &bull;
+    <a href="new?q={{keywords_param|urlencode}}{% if !title_param.is_empty() %}&title={{title_param|urlencode}}{%endif%}{% if before_date_param.is_some() %}&before_date={{before_date_param.unwrap()}}{% if after_date_param.is_some() %}&after_date={{after_date_param.unwrap()}}{% else %}{% endif %}{% else %}{% endif %}">New</a> &bull;
     <details class=details-dialog-outer>
         <summary class=inline-summary><u>
-            {{#if before_date_param}}{{before_date_param}}{{else}}Date{{/if}}…
+            {% if before_date_param.is_some() %}{{before_date_param.unwrap()}}{% else %}Date{% endif %}…
         </u></summary>
         <details-dialog>
             <form action=top method=GET>
                 <label>Find posts before
-                    <input type=date name=before_date autofocus required {{#if before_date_param}}value="{{before_date_param}}"{{/if}}>
+                    <input type=date name=before_date autofocus required {% if before_date_param.is_some() %}value="{{before_date_param.unwrap()}}"{%endif%}>
                 </label>
                 <label>Find posts after
-                    <input type=date name=after_date {{#if after_date_param}}value="{{after_date_param}}"{{/if}}>
+                    <input type=date name=after_date {% if after_date_param.is_some() %}value="{{after_date_param.unwrap()}}"{%endif%}>
                 </label>
                 <input type=hidden name=q value="{{keywords_param}}">
                 <input type=hidden name=title value="{{title_param}}">
@@ -123,11 +124,6 @@
     </details>
 </nav>
 </header>
-{{/if}}
-<ajax-form>
-{{~#each posts~}}
-{{~#if this.banner_title}}<p class=post-banner>{{{this.banner_title}}}</p>{{#if this.banner_desc}}<p class=post-banner-desc>{{{this.banner_desc}}}</p>{{/if}}{{/if}}<article><h3 class=article-header>{{{this.title_html}}}</h3><main>{{{this.excerpt_html}}}</main><footer class=footer-container><div class=footer-main><a href="@{{this.submitted_by_username_urlencode}}">{{this.submitted_by_username}}</a> submitted <a href="{{this.uuid}}" is=local-date title="{{this.created_at}}+00:00">{{this.created_at_relative}}<span class=hide-small> ago</span></a> and got <a href="{{this.uuid}}#comments">{{this.comment_count}} comments</a></div><form class=footer-aside><button disabled name="add_star"><span>{{this.score}}</span> <img width=12 height=12 class=good-img src=assets/star.svg alt="Stars"></button></form></footer></article>
-{{~/each}}
-</ajax-form>
-{{/inline}}
-{{~> layout~}}
+{% endif %}
+{% include "view-index.html" %}
+{% endblock %}

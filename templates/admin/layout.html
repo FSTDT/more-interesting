@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html class="{{#if user.dark_mode}}dark{{/if}} {{#if user.big_mode}}big{{/if}}">
+<html class="{% if user.dark_mode %}dark{% endif %} {% if user.big_mode %}big{% endif %}">
 <meta name=viewport content="width=device-width">
 <link rel=stylesheet href="../assets/admin.css?27">
 <title>{{title}}</title>
@@ -7,24 +7,19 @@
     <div class=admin-panel-side>
         <a href=".." class=admin-list-item>‹ Back to home</a>
         <nav class=admin-list>
-            <a class="admin-list-item {{#if (eq page 0)}}current{{/if}}" href="/admin/tags">Tags</a>
-            <a class="admin-list-item {{#if (eq page 1)}}current{{/if}}" href="/admin/domains">Domains</a>
-            <a class="admin-list-item {{#if (eq page 2)}}current{{/if}}" href="/admin/customization">Customization</a>
-            <a class="admin-list-item {{#if (eq page 3)}}current{{/if}}" href="/admin/flags">Flags</a>
-            <a class="admin-list-item {{#if (eq page 4)}}current{{/if}}" href="/admin/comment-flags">Comment Flags</a>
-            <a class="admin-list-item {{#if (eq page 5)}}current{{/if}}" href="/admin/users">Users</a>
+            <a class="admin-list-item {% if page == AdminPageId::Tags %}current{% endif %}" href="/admin/tags">Tags</a>
+            <a class="admin-list-item {% if page == AdminPageId::Domains %}current{% endif %}" href="/admin/domains">Domains</a>
+            <a class="admin-list-item {% if page == AdminPageId::Customization %}current{% endif %}" href="/admin/customization">Customization</a>
+            <a class="admin-list-item {% if page == AdminPageId::Flags %}current{% endif %}" href="/admin/flags">Flags</a>
+            <a class="admin-list-item {% if page == AdminPageId::CommentFlags %}current{% endif %}" href="/admin/comment-flags">Comment Flags</a>
+            <a class="admin-list-item {% if page == AdminPageId::Users %}current{% endif %}" href="/admin/users">Users</a>
         </nav>
     </div>
     <div class=admin-panel-main>
-    {{#if alert}}
+    {% if !alert.is_empty() %}
         <div class=inner-banner role=alert>{{alert}}</div>
-    {{/if}}
-    {{#if is_home}}
-        {{# if config.front_notice_html}}
-            <div class=inner-banner>{{{config.front_notice_html}}}</div>
-        {{/if}}
-    {{/if}}
-    {{~> page}}
+    {% endif %}
+    {% block page %}{% endblock %}
     </div>
 </div>
 <script>

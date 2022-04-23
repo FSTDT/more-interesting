@@ -1,8 +1,8 @@
-{{#*inline "page"}}
+{% extends "layout.html" %}
+{% block page %}
 <header class=tight-headline>
 <h2>@{{title}}</h2>
-<nav><b>Posts</b> &bull; <a href=comments?user={{title}}>Comments</a>{{#if is_me}} &bull; <a href=subscriptions>Subscriptions</a>{{/if}}</nav>
+<nav><b>Posts</b> &bull; <a href=comments?user={{title|urlencode}}>Comments</a>{% if is_me %} &bull; <a href=subscriptions>Subscriptions</a>{% endif %}</nav>
 </header>
-{{~> view-index~}}
-{{/inline}}
-{{~> layout~}}
+{% include "view-index.html" %}
+{% endblock %}

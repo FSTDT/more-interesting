@@ -1,20 +1,20 @@
-{{#*inline "page"}}
+{% extends "layout.html" %}
+{% block page %}
 <header class=tight-headline>
 <h2>@{{title}}</h2>
-<nav><a href=@{{urlencode title}}>Posts</a> &bull; <b>Comments</b>{{#if is_me}} &bull; <a href=subscriptions>Subscriptions</a>{{/if}}</nav>
+<nav><a href=@{{title|urlencode}}>Posts</a> &bull; <b>Comments</b>{% if is_me %} &bull; <a href=subscriptions>Subscriptions</a>{% endif %}</nav>
 </header>
-{{#each comment_search_result}}
-    <h3><a href={{this.post_uuid}}>{{this.post_title}}</a></h3>
+{% for comment in comment_search_result %}
+    <h3><a href={{comment.post_uuid}}>{{comment.post_title}}</a></h3>
     <aside>
-        <main class=main-aside>{{{this.html}}}</main>
+        <main class=main-aside>{{comment.html|safe}}</main>
         <footer>
-            posted by {{this.created_by_username}}
-            <local-date title="{{this.created_at}}+00:00">{{this.created_at_relative}}<span class=hide-small> ago</span></local-date>
+            posted by {{comment.created_by_username}}
+            <local-date title="{{comment.created_at}}+00:00">{{comment.created_at_relative}}<span class=hide-small> ago</span></local-date>
         </footer>
     </aside>
-    {{#if @last}}
-    <p><a href="?user={{../title}}&after={{this.id}}">Next page</a></p>
-    {{/if}}
-{{/each}}
-{{/inline}}
-{{~> layout~}}
+    {% if loop.last %}
+    <p><a href="?user={{title}}&after={{comment.id}}">Next page</a></p>
+    {% endif %}
+{% endfor %}
+{% endblock %}

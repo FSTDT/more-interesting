@@ -1,7 +1,8 @@
-{{#*inline "page"}}
-{{#if customization.login_notice_html}}
-<div class=inner-banner>{{{customization.login_notice_html}}}</div>
-{{/if}}
+{% extends "layout.html" %}
+{% block page %}
+{% if !customization.login_notice_html.is_empty() %}
+<div class=inner-banner>{{customization.login_notice_html|safe}}</div>
+{% endif %}
   <form action='' method=post>
       <label>Username <input name=username autofocus></label>
       <label>Password <input name=password type=password></label>
@@ -9,5 +10,4 @@
           <button>Log in</button>
       </div>
   </form>
-{{/inline}}
-{{~> layout~}}
+{% endblock %}

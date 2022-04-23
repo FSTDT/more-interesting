@@ -1,20 +1,21 @@
-{{#*inline "page"}}
+{% extends "layout.html" %}
+{% block page %}
 <div class=tab-bar>
     <label for=search-form class=active-tab>Advanced Search</label>
 </div>
 <form action='./' method=GET class=tab-box id=search-form>
-    <label>Search <input {{#if keywords_param}}value="{{keywords_param}}"{{/if}} name=q autofocus type=search></label>
+    <label>Search <input {% if !keywords_param.is_empty() %}value="{{keywords_param}}"{% endif %} name=q autofocus type=search></label>
     <label for=tags-typeahead-input>Tags</label> <div class=typeahead-outer>
         <input id=tags-typeahead-input name=tag is=tags-typeahead type=search>
     </div>
     <label for=domains-typeahead-input>Domains</label> <div class=typeahead-outer>
         <input id=domains-typeahead-input name=domain is=tags-typeahead data-type=domain type=search>
     </div>
-    <label>{{#if customization.title_label}}{{customization.title_label}}{{else}}Title{{/if}} <input name=title type=search></label>
+    <label>{% if customization.title_label.is_empty() %}Title{% else %}{{customization.title_label}}{% endif %} <input name=title type=search></label>
     <table style=width:100%><tr>
-        <td><label>Start date<input type=date name=after_date {{#if after_date_param}}value="{{after_date_param}}"{{/if}}></label>
+        <td><label>Start date<input type=date name=after_date {% if after_date_param.is_some() %}value="{{after_date_param.unwrap()}}"{% endif %}></label>
         <td style=text-align:center>&mdash;<td>
-        <label>End date <input type=date name=before_date {{#if before_date_param}}value="{{before_date_param}}"{{/if}}></label>
+        <label>End date <input type=date name=before_date {% if before_date_param.is_some() %}value="{{before_date_param.unwrap()}}"{% endif %}></label>
     </table>
     <div class=form-footer id=search-footer>
         <button class=button-default>Search</button>
@@ -34,5 +35,4 @@
         <p>Tags separated by spaces will require both to match, and tags separated by pipes will match if either match. For example, <code>fundie racist</code> will match quotes that are both fundie and racist, while <code>fundie|racist</code> will match quotes that are either fundie or racist.
     </main>
 </article>
-{{/inline}}
-{{~> layout~}}
+{% endblock %}

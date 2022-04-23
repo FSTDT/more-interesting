@@ -1,12 +1,13 @@
-{{#*inline "page"}}
+{% extends "layout.html" %}
+{% block page %}
     <div class=admin-list>
-        {{#each domain_synonyms}}
+        {% for d in domain_synonyms %}
         <details>
-            <summary class="admin-list-item details-dialog-summary-special">{{from_hostname}} ➡ {{to_hostname}}</summary>
+            <summary class="admin-list-item details-dialog-summary-special">{{d.from_hostname}} ➡ {{d.to_hostname}}</summary>
             <details-dialog>
-                <form action="domains?U={{../session.uuid}}" method=POST>
-                <input name=from_hostname value="{{from_hostname}}" type=hidden>
-                <label>To canonical <input name=to_hostname value="{{to_hostname}}" autofocus></label>
+                <form action="domains?U={{session.uuid}}" method=POST>
+                <input name=from_hostname value="{{d.from_hostname}}" type=hidden>
+                <label>To canonical <input name=to_hostname value="{{d.to_hostname}}" autofocus></label>
                 <div class=form-footer>
                     <button class=button-default>Save</button>
                     <a href="" onclick="return !window.DetailsDialogElement" class=button data-close-dialog>Cancel</a>
@@ -14,7 +15,7 @@
                 </form>
             </details-dialog>
         </details>
-        {{/each}}
+        {% endfor %}
     </div>
     <details-menu-bar>
         <details class=details-dialog-outer>
@@ -31,5 +32,4 @@
             </details-dialog>
         </details>
     </details-menu-bar>
-{{/inline}}
-{{~> admin/layout~}}
+{% endblock %}

@@ -1,23 +1,23 @@
-{{#*inline "page"}}
-{{#if customization.link_submit_notice_html}}
-<div class=inner-banner>{{{customization.link_submit_notice_html}}}</div>
-{{/if}}
+{% extends "layout.html" %}
+{% block page %}
+{% if !customization.link_submit_notice_html.is_empty() %}
+<div class=inner-banner>{{customization.link_submit_notice_html|safe}}</div>
+{% endif %}
 <div class=tab-bar>
     <label for=url-form class=active-tab>Edit</label><button class=tab form=comment-form formaction="preview-submit?U={{session.uuid}}#submit-form" onclick="if(!this.form||!this.formAction){var f=document.forms['submit-form'];f.action=this.getAttribute('formaction');var inp=document.createElement('input');f.submit();return false}">Preview</button>
 </div>
-<form action="submit{{#if user.id}}?U={{session.uuid}}{{/if}}" method=POST id=submit-form class=tab-box>
-    <label>URL <input name=url required autofocus id=url-form value="{{#if posts.0}}{{posts.0.url}}{{/if}}"></label>
-    <label>Fundie name <input name=title is=smart-punct-input value="{{#if posts.0}}{{posts.0.title}}{{/if}}"></label>
+<form action="submit{% if user.id != 0 %}?U={{session.uuid}}{% endif %}" method=POST id=submit-form class=tab-box>
+    <label>URL <input name=url required autofocus id=url-form value="{% if post.url.is_some() %}{{post.url.as_ref().unwrap()}}{% endif %}"></label>
+    <label>Fundie name <input name=title is=smart-punct-input value="{{post.title}}"></label>
     <input type=hidden name=blog_post value=false>
     <label for=tags-typeahead-input>Tags</label> <div class=typeahead-outer>
-        <input id=tags-typeahead-input name=tags is=tags-typeahead value="{{#if posts.0}}{{posts.0.title_html}}{{/if}}">
+        <input id=tags-typeahead-input name=tags is=tags-typeahead value="{{post.title_html}}">
     </div>
     <label>Excerpt
-        <smart-textarea><textarea name=excerpt is=smart-punct-textarea>{{excerpt}}</textarea></smart-textarea>
+        <smart-textarea><textarea name=excerpt is=smart-punct-textarea>{% if excerpt.is_some() %}{{excerpt.as_ref().unwrap()}}{% endif %}</textarea></smart-textarea>
     </label>
     <div class=form-footer>
         <button>Submit link</button>
     </div>
 </form>
-{{/inline}}
-{{~> layout~}}
+{% endblock %}

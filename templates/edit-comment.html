@@ -1,4 +1,5 @@
-{{#*inline "page"}}
+{% extends "layout.html" %}
+{% block page %}
     <form action="?U={{session.uuid}}" method=POST>
         <input type=hidden name=comment value="{{comment.id}}">
         <label>Edit comment
@@ -6,7 +7,7 @@
         </label>
         <details-menu-bar class=form-footer>
             <button class=button-default>Change comment</button>
-            {{#if (gte user.trust_level 3)}}
+            {% if user.trust_level >= 3 %}
                 <details class=details-dialog-outer>
                     <summary class=details-dialog-summary>Delete</summary>
                     <details-dialog>
@@ -17,8 +18,7 @@
                         </div>
                     </details-dialog>
                 </details>
-            {{/if}}
+            {% endif %}
         </details-menu-bar>
     </form>
-{{/inline}}
-{{~> layout~}}
+{% endblock %}

@@ -1,12 +1,13 @@
-{{#*inline "page"}}
+{% extends "layout.html" %}
+{% block page %}
     <div class=admin-list>
-        {{#each tags}}
+        {% for tag in tags %}
         <details>
-            <summary class="admin-list-item details-dialog-summary-special">{{name}}</summary>
+            <summary class="admin-list-item details-dialog-summary-special">{{tag.name}}</summary>
             <details-dialog>
-                <form action="tags?U={{../session.uuid}}" method=POST>
-                <input name=name value="{{name}}" type=hidden>
-                <label>Description <input name=description value="{{description}}" autofocus></label>
+                <form action="tags?U={{session.uuid}}" method=POST>
+                <input name=name value="{{tag.name}}" type=hidden>
+                <label>Description <input name=description value="{% if tag.description.is_some() %}{{tag.description.as_ref().unwrap()}}{% endif %}" autofocus></label>
                 <div class=form-footer>
                     <button class=button-default>Save</button>
                     <a href="" onclick="return !window.DetailsDialogElement" class=button data-close-dialog>Cancel</a>
@@ -14,7 +15,7 @@
                 </form>
             </details-dialog>
         </details>
-        {{/each}}
+        {% endfor %}
     </div>
     <details-menu-bar>
         <details class=details-dialog-outer>
@@ -31,5 +32,4 @@
             </details-dialog>
         </details>
     </details-menu-bar>
-{{/inline}}
-{{~> admin/layout~}}
+{% endblock %}

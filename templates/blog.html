@@ -1,14 +1,14 @@
-{{#*inline "page"}}
-{{#if keywords_param}}
+{% extends "layout.html" %}
+{% block page %}
+{% if !keywords_param.is_empty() %}
 <header class=tight-headline>
 <h2>Search results</h2>
 <code>{{keywords_param}}</code>
 </header>
-{{else}}
+{% endif %}
 <h2>Blogs</h2>
-{{/if}}
-{{~> view-index~}}{{#if (last posts)~}}
-<p><a href="blog?after={{last posts}}{{#if keywords_param}}{{#if title_param}}&title={{urlencode title_param}}{{/if}}&q={{urlencode keywords_param}}{{/if}}{{#if tag_param}}&tag={{tag_param}}{{/if}}{{#if domain}}&domain={{domain}}{{/if}}{{#if user_param}}&user={{user_param}}{{/if}}">Next page</a></p>
-{{~/if~}}
-{{/inline}}
-{{~> layout~}}
+{% include "view-index.html" %}
+{%- if posts.last().is_some() -%}
+<p><a href="blog?after={{posts.last().unwrap().uuid}}{% if !keywords_param.is_empty() %}{% if !title_param.is_empty() %}&title={{title_param|urlencode}}{% endif %}&q={{keywords_param|urlencode}}{% endif %}">Next page</a></p>
+{% endif %}
+{% endblock %}

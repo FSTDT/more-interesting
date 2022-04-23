@@ -1,0 +1,24 @@
+{% extends "layout.html" %}
+{% block page %}
+{% if !customization.blog_post_notice_html.is_empty() %}
+<div class=inner-banner>{{customization.blog_post_notice_html|safe}}</div>
+{% endif %}
+<form action="submit{% if user.id != 0 %}?U={{session.uuid}}{% endif %}" method=POST id=post-form>
+<div class=tab-bar>
+    <label for=excerpt class=active-tab>Edit</label><button formaction="preview-post{% if user.id != 0 %}?U={{session.uuid}}{% endif %}" class=tab>Preview</button>
+</div>
+<div class=tab-box>
+    <label>Title <input name=title autofocus is=smart-punct-input value="{{post.title}}"></label>
+    <label for=tags-typeahead-input>Tags</label> <div class=typeahead-outer>
+        <input id=tags-typeahead-input name=tags is=tags-typeahead value="{{post.title_html}}">
+    </div>
+    <label>Write your post
+        <smart-textarea><textarea id=excerpt name=excerpt is=smart-punct-textarea required>{% if excerpt.is_some() %}{{excerpt.as_ref().unwrap()}}{% endif %}</textarea></smart-textarea>
+    </label>
+    <input type=hidden name=blog_post value=true>
+    <div class=form-footer>
+        <button>Create post</button>
+    </div>
+</div>
+</form>
+{% endblock %}

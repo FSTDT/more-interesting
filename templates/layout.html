@@ -1,52 +1,52 @@
 <!DOCTYPE html>
-<html class="{{#if user.dark_mode}}dark{{/if}} {{#if user.big_mode}}big{{/if}}">
+<html class="{%if user.dark_mode%}dark{%endif%} {%if user.big_mode%}big{%endif%}">
 <meta name=viewport content="width=device-width">
 <link rel=stylesheet href="assets/style.css?57">
 <link rel=alternate type=application/rss+xml href=rss>
-<style>{{{customization.css}}}</style>
+<style>{{customization.css|safe}}</style>
 <title>{{title}}</title>
-{{#if noindex}}
+{% if noindex %}
 <meta name="ROBOTS" content="NOINDEX, NOFOLLOW">
-{{/if}}
+{% endif %}
 <header class=top-header>
     <nav>
-        <a class=top-header-link href=".">{{{customization.title}}}</a>
+        <a class=top-header-link href=".">{{customization.title|safe}}</a>
         <details-menu-bar class=top-header-aside role=menubar>
-            {{~> view-search-box ~}}
+            {% include "view-search-box.html" %}
             <span>
-            {{#if user.username}}
+            {% if user.id != 0 %}
                 <details class="details-menu-outer backwards" role=menuitem>
                     <summary class="details-menu-summary backwards" aria-haspopup=menu role=button>+</summary>
                     <div class="details-menu-inner backwards" role=menu>
-                        {{#if (not config.hide_link_post)}}
+                        {% if !config.hide_link_post %}
                         <a class=details-menu-item href="submit" role=menuitem>Submit a link</a>
-                        {{/if}}
-                        {{#if (not config.hide_text_post)}}
-                        {{#if (gte user.trust_level 3)}}
+                        {% endif %}
+                        {% if !config.hide_text_post %}
+                        {% if user.trust_level >= 3 %}
                         <a class=details-menu-item href="post" role=menuitem>Make a blog post</a>
-                        {{/if}}
-                        {{/if}}
-                        {{#if (gte user.trust_level 2)}}
+                        {% endif %}
+                        {% endif %}
+                        {% if user.trust_level >= 2 %}
                         <a class=details-menu-item href="message" role=menuitem>Send a message</a>
-                        {{/if}}
-                        {{#if (gte user.trust_level 3)}}
+                        {% endif %}
+                        {% if user.trust_level >= 3 %}
                         <a class=details-menu-item href="admin/tags" role=menuitem>Admin</a>
-                        {{/if}}
+                        {% endif %}
                     </div>
                 </details>
                 <details class="details-menu-outer backwards" role=menuitem>
                     <summary class="details-menu-summary backwards" aria-haspopup=menu role=button>{{user.username}}</summary>
                     <form class="details-menu-inner backwards" role=menu action="logout?U={{session.uuid}}" method=POST>
-                        {{#if (gte user.trust_level 3)}}
+                        {% if user.trust_level >= 3 %}
                             <a class=details-menu-item href="mod-queue">Mod queue</a>
-                        {{/if}}
+                        {% endif %}
                         <a class=details-menu-item href=settings role=menuitem>Settings</a>
-                        <a class=details-menu-item href="@{{urlencode user.username}}" role=menuitem>Your profile</a>
+                        <a class=details-menu-item href="@{{user.username|urlencode}}" role=menuitem>Your profile</a>
                         <button class=details-menu-item role=menuitem>Sign out</button>
                     </form>
                 </details>
-            {{else}}
-                {{#if config.enable_public_signup}}
+            {% else %}
+                {% if config.enable_public_signup %}
                 <details class="details-menu-outer backwards" role=menuitem>
                     <summary class="details-menu-summary backwards" aria-haspopup=menu role=button>Your account</summary>
                     <div class="details-menu-inner backwards" role=menu>
@@ -54,48 +54,48 @@
                         <a class=details-menu-item href=login role=menuitem>Sign in</a>
                     </div>
                 </details>
-                {{else}}
+                {% else %}
                     <a class=button href=login role=menuitem>Sign in</a>
-                {{/if}}
-            {{/if}}
-            {{#if notifications}}
+                {% endif %}
+            {% endif %}
+            {% if !notifications.is_empty() %}
                 <details class="details-menu-outer backwards" role=menuitem>
-                    <summary class="details-menu-summary backwards" aria-haspopup=menu role=button>{{count notifications}} Notification{{#if notifications.1}}s{{/if}}</summary>
+                    <summary class="details-menu-summary backwards" aria-haspopup=menu role=button>{{notifications|count}} Notifications</summary>
                     <div class="details-menu-inner backwards" role=menu>
-                        {{#each notifications}}
-                            <a class=details-menu-item href={{post_uuid}}><h4 style=margin:0>{{post_title}}</h4>{{comment_count}} comments</a>
-                        {{/each}}
+                        {% for notification in notifications %}
+                            <a class=details-menu-item href={{notification.post_uuid}}><h4 style=margin:0>{{notification.post_title}}</h4>{{notification.comment_count}} comments</a>
+                        {% endfor %}
                     </div>
                 </details>
-            {{/if}}
+            {% endif %}
             </span>
         </details-menu-bar>
     </nav>
-    {{~> nav-second~}}
+    {% block nav_second %}{% endblock %}
 </header>
 <div class=page-wrapper-outer><div class=page-wrapper>
-    {{#if alert}}
+    {% if alert != "" %}
         <div class=inner-banner role=alert>{{alert}}</div>
-    {{/if}}
-{{~> page}}
+    {% endif %}
+{% block page %}{% endblock %}
 </div></div>
 <footer class=top-header>
     <nav>
         <a href=. class=top-header-link>Home</a> &bull;
         <a href=latest class=top-header-link>Latest</a> &bull;
-        {{# if config.enable_user_directory}}<a href="@" class=top-header-link>All users</a> &bull;{{/if}}
+        {% if config.enable_user_directory %}<a href="@" class=top-header-link>All users</a> &bull;{% endif %}
         <a href=tags class=top-header-link>All tags</a> &bull;
         <a href=mod-log class=top-header-link>Moderation log</a> &bull;
         <a href=random class=top-header-link>Random</a> &bull;
         <a href=top class=top-header-link>Top</a> &bull;
         <a href=new class=top-header-link>New</a> &bull;
-        <a href=assets/{{docs config.body_format}} class=top-header-link>Documentation</a>
+        <a href=assets/how-to-bbcode.html class=top-header-link>Documentation</a>
     </nav>
-    {{# if customization.custom_footer_html}}
+    {% if !customization.custom_footer_html.is_empty() %}
         <nav class=nav-second>
-            {{{customization.custom_footer_html}}}
+            {{customization.custom_footer_html|safe}}
         </div>
-    {{/if}}
+    {% endif %}
 </footer>
 <script>
     const a = async () => {};

@@ -1,14 +1,15 @@
-{{#*inline "page"}}
+{% extends "layout.html" %}
+{% block page %}
     <form action="?U={{session.uuid}}" method=POST>
-        <input type=hidden name=post value="{{posts.0.uuid}}">
-        <label>Fundie Name and #hashtags <input name=title autofocus value="{{posts.0.title}}" required is="smart-punct-input"></label>
-        <label>URL <input name=url value="{{posts.0.url}}"></label>
+        <input type=hidden name=post value="{{post_info.uuid}}">
+        <label>Fundie Name and #hashtags <input name=title autofocus value="{{post_info.title}}" required is="smart-punct-input"></label>
+        <label>URL <input name=url value="{% if post_info.url.is_some() %}{{post_info.url.as_ref().unwrap()}}{% endif %}"></label>
         <label>Excerpt
-            <smart-textarea><textarea name=excerpt is=smart-punct-textarea>{{excerpt}}</textarea></smart-textarea>
+            <smart-textarea><textarea name=excerpt is=smart-punct-textarea>{% if excerpt.is_some() %}{{excerpt.as_ref().unwrap()}}{% endif %}</textarea></smart-textarea>
         </label>
         <details-menu-bar class=form-footer>
         <button class=button-default>Change post</button>
-            {{#if (gte user.trust_level 3)}}
+            {% if user.trust_level >= 3 %}
             <details class=details-dialog-outer>
                 <summary class=details-dialog-summary>Delete</summary>
                 <details-dialog>
@@ -19,8 +20,7 @@
                     </div>
                 </details-dialog>
             </details>
-            {{/if}}
+            {% endif %}
         </details-menu-bar>
     </form>
-{{/inline}}
-{{~> layout~}}
+{% endblock %}

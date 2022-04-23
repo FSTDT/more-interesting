@@ -1,12 +1,13 @@
-{{#*inline "page"}}
+{% extends "layout.html" %}
+{% block page %}
     <div class=admin-list>
-        {{#each site_customization}}
+        {% for c in site_customization %}
         <details>
-            <summary class="admin-list-item details-dialog-summary-special">{{name}}</summary>
+            <summary class="admin-list-item details-dialog-summary-special">{{c.name}}</summary>
             <details-dialog>
-                <form action="customization?U={{../session.uuid}}" method=POST>
-                <input name=name value="{{name}}" type=hidden>
-                <label>Value <textarea name=value autofocus>{{value}}</textarea></label>
+                <form action="customization?U={{session.uuid}}" method=POST>
+                <input name=name value="{{c.name}}" type=hidden>
+                <label>Value <textarea name=value autofocus>{{c.value}}</textarea></label>
                 <div class=form-footer>
                     <button class=button-default>Save</button>
                     <a href="" onclick="return !window.DetailsDialogElement" class=button data-close-dialog>Cancel</a>
@@ -14,7 +15,7 @@
                 </form>
             </details-dialog>
         </details>
-        {{/each}}
+        {% endfor %}
     </div>
     <details-menu-bar>
         <details class=details-dialog-outer>
@@ -31,5 +32,4 @@
             </details-dialog>
         </details>
     </details-menu-bar>
-{{/inline}}
-{{~> admin/layout~}}
+{% endblock %}

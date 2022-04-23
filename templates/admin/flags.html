@@ -1,8 +1,8 @@
-{{#*inline "page"}}
+{% extends "layout.html" %}
+{% block page %}
     <div class=admin-list>
-        {{#each post_flags}}
-        <a class=admin-list-item href="../{{uuid}}"><b>{{title}}</b><br>flagged by {{created_by_username}}</a>
-        {{/each}}
+        {% for flag in post_flags %}
+        <a class=admin-list-item href="../{{flag.uuid}}"><b>{{flag.title}}</b><br>flagged by {{flag.created_by_username}}</a>
+        {% endfor %}
     </div>
-{{/inline}}
-{{~> admin/layout~}}
+{% endblock %}

@@ -1,14 +1,15 @@
-{{#*inline "page"}}
+{% extends "layout.html" %}
+{% block page %}
     <h2>Settings</h2>
     <article>
         <header class="article-header"><span class="article-header-inner">Authentication</span></header>
         <main class="main-mini">
             <details-menu-bar>
-                {{#if (or (not config.enable_public_signup) (gt user.trust_level 1))}}
+                {% if !config.enable_public_signup || user.trust_level >= 1 %}
                 <form class=inline-form action="create-invite?U={{session.uuid}}" method=post>
                     <button>Invite someone to this site</button>
                 </form>
-                {{/if}}
+                {% endif %}
                 <details class=details-dialog-outer>
                     <summary class=details-dialog-summary>Change password</summary>
                     <details-dialog>
@@ -32,20 +33,19 @@
                 <details class=details-menu-outer>
                     <summary class=details-menu-summary aria-haspopup=menu role=button>Dark mode</summary>
                     <form class=details-menu-inner method=POST action="set-dark-mode?U={{session.uuid}}" role=menu>
-                        <button class=details-menu-item name=active value=false role=menuitem aria-checked="{{#if user.dark_mode}}false{{else}}true{{/if}}">Turn off</button>
-                        <button class=details-menu-item name=active value=true role=menuitem aria-checked="{{#if user.dark_mode}}true{{else}}false{{/if}}">Turn on</button>
+                        <button class=details-menu-item name=active value=false role=menuitem aria-checked="{% if user.dark_mode %}false{% else %}true{% endif %}">Turn off</button>
+                        <button class=details-menu-item name=active value=true role=menuitem aria-checked="{% if user.dark_mode %}true{% else %}false{% endif %}">Turn on</button>
                     </form>
                 </details>
                 <details class=details-menu-outer>
                     <summary class=details-menu-summary aria-haspopup=menu role=button>Big mode</summary>
                     <form class=details-menu-inner method=POST action="set-big-mode?U={{session.uuid}}" role=menu>
-                        <button class=details-menu-item name=active value=false role=menuitem aria-checked="{{#if user.big_mode}}false{{else}}true{{/if}}">Turn off</button>
-                        <button class=details-menu-item name=active value=true role=menuitem aria-checked="{{#if user.big_mode}}true{{else}}false{{/if}}">Turn on</button>
+                        <button class=details-menu-item name=active value=false role=menuitem aria-checked="{% if user.big_mode %}false{% else %}true{% endif %}">Turn off</button>
+                        <button class=details-menu-item name=active value=true role=menuitem aria-checked="{% if user.big_mode %}true{% else %}false{% endif %}">Turn on</button>
                     </form>
                 </details>
             </details-menu-bar>
         </main>
     </article>
 
-{{/inline}}
-{{~> layout~}}
+{% endblock %}

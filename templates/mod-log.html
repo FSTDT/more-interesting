@@ -1,4 +1,5 @@
-{{#*inline "page"}}
+{% extends "layout.html" %}
+{% block page %}
     <table class=good-table>
         <thead>
             <tr>
@@ -7,25 +8,39 @@
             </tr>
         </thead>
         <tbody>
-        {{#each log}}
+        {% for entry in log %}
             <tr>
-                <td><a href="?after={{this.id}}">{{this.created_at}}</a> / {{this.created_by_username}}</td>
+                <td><a href="?after={{entry.id}}">{{entry.created_at}}</a> / {{entry.created_by_username}}</td>
                 <td>
                     <dl>
-                        {{#each this.payload}}
-                            <dt>{{@key}}</dt>
+                        {% match entry.payload %}
+                        {% when serde_json::Value::Object with (map) %}
+                            {% for item in map.iter() %}
+                                <dt>{{item.0}}</dt>
+                                <dd>
+                                    <pre>{{item.1}}</pre>
+                                </dd>
+                            {% endfor %}
+                        {% when serde_json::Value::Array with (list) %}
+                            {% for (n, item) in list.iter().enumerate() %}
+                                <dt>{{n}}</dt>
+                                <dd>
+                                    <pre>{{item}}</pre>
+                                </dd>
+                            {% endfor %}
+                        {% else %}
+                            <dt>&bull;&bull;&bull;</dt>
                             <dd>
-                                <pre>{{this}}</pre>
+                                <pre>{{entry.payload}}</pre>
                             </dd>
-                        {{/each}}
+                        {% endmatch %}
                     </dl>
                 </td>
             </tr>
-        {{#if @last}}
-            <tr><td colspan="3"><a href="?after={{this.id}}">Next page</a></td></tr>
-        {{/if}}
-        {{/each}}
+        {% if loop.last %}
+            <tr><td colspan="3"><a href="?after={{entry.id}}">Next page</a></td></tr>
+        {% endif %}
+        {% endfor %}
         </tbody>
     </table>
-{{/inline}}
-{{~> layout~}}
+{% endblock %}

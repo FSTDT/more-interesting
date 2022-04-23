@@ -1,12 +1,12 @@
-{{#*inline "page"}}
+{% extends "layout.html" %}
+{% block page %}
     <h2>Hi there!</h2>
     <form action=signup method=post>
-        {{#if invite_token}}<input type=hidden name=invite_token value="{{invite_token}}">{{/if}}
+        {% if invite_token.is_some() %}<input type=hidden name=invite_token value="{{invite_token.unwrap()}}">{% endif %}
         <label>Pick your new username <input name=username autofocus required pattern="^[^#@\s]+$"></label>
         <label>Pick your new password <input name=password type=password required></label>
         <div class=form-footer>
             <button>Create account</button>
         </div>
     </form>
-{{/inline}}
-{{~> layout~}}
+{% endblock %}
