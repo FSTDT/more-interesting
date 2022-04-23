@@ -9,8 +9,8 @@ license = "MIT OR Apache-2.0"
 path = "lib.rs"
 
 [dependencies]
-rocket = { git = "https://github.com/SergioBenitez/Rocket" }
-rocket_sync_db_pools = { git = "https://github.com/SergioBenitez/Rocket", default-features = false, features = ["diesel_postgres_pool"] }
+rocket = "0.5.0-rc.1"
+rocket_sync_db_pools = { version = "0.1.0-rc.1", default-features = false, features = ["diesel_postgres_pool"] }
 diesel = { version = "1.4.3", features = ["postgres", "chrono", "serde_json"] }
 serde = { version = "1.0.104", features = ["derive"] }
 byteorder = "1.3"

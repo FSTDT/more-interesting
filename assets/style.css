@@ -1264,7 +1264,8 @@ button.hide-button {
 
 .rp {
     text-align: center;
-    margin: 0.75em 0 0 0;
+    padding-top: 0.5em;
+    margin: 0.25em 0 0 0;
     font-variant: small-caps;
     font-weight: inherit;
     font-size: inherit;
