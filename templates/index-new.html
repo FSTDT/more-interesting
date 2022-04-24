@@ -126,7 +126,11 @@
 </header>
 {% endif %}
 {% include "view-index.html" %}
-{%- if !keywords_param.is_empty() %}
+{%- if keywords_param.is_empty() %}
+{%- if !posts.is_empty() %}
+<p><a href="new?after={{posts.last().unwrap().uuid}}{% if !keywords_param.is_empty() %}&q={{keywords_param|urlencode}}{% endif %}{% if !title_param.is_empty() %}&title={{title_param|urlencode}}{% endif %}{% if !tag_param.is_empty() %}&tag={{tag_param}}{% endif %}{% if !domain.is_empty() %}&domain={{domain}}{% endif %}">Next page</a></p>
+{% endif %}
+{% else %}
 <p><a href="new?page={{next_search_page}}&q={{keywords_param|urlencode}}{% if !title_param.is_empty() %}&title={{title_param|urlencode}}{% endif %}{% if !tag_param.is_empty() %}&tag={{tag_param}}{% endif %}{% if !domain.is_empty() %}&domain={{domain}}{% endif %}">Next page</a></p>
 {% endif %}
 {% endblock %}
