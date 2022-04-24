@@ -164,10 +164,10 @@
         <tr>
         {%- if poll.open -%}}
         <td><button id=pc-{{choice.choice_id}}-1 type=submit name=score value=1><img src=assets/{% if choice.score >= 1 %}star_active.svg{% else %}star.svg{% endif %}></button></td>
-        <td><button id=pc-{{choice.choice_id}}-2 type=submit name=score value=1><img src=assets/{% if choice.score >= 2 %}star_active.svg{% else %}star.svg{% endif %}></button></td>
-        <td><button id=pc-{{choice.choice_id}}-3 type=submit name=score value=1><img src=assets/{% if choice.score >= 3 %}star_active.svg{% else %}star.svg{% endif %}></button></td>
-        <td><button id=pc-{{choice.choice_id}}-4 type=submit name=score value=1><img src=assets/{% if choice.score >= 4 %}star_active.svg{% else %}star.svg{% endif %}></button></td>
-        <td><button id=pc-{{choice.choice_id}}-5 type=submit name=score value=1><img src=assets/{% if choice.score >= 5 %}star_active.svg{% else %}star.svg{% endif %}></button></td>
+        <td><button id=pc-{{choice.choice_id}}-2 type=submit name=score value=2><img src=assets/{% if choice.score >= 2 %}star_active.svg{% else %}star.svg{% endif %}></button></td>
+        <td><button id=pc-{{choice.choice_id}}-3 type=submit name=score value=3><img src=assets/{% if choice.score >= 3 %}star_active.svg{% else %}star.svg{% endif %}></button></td>
+        <td><button id=pc-{{choice.choice_id}}-4 type=submit name=score value=4><img src=assets/{% if choice.score >= 4 %}star_active.svg{% else %}star.svg{% endif %}></button></td>
+        <td><button id=pc-{{choice.choice_id}}-5 type=submit name=score value=5><img src=assets/{% if choice.score >= 5 %}star_active.svg{% else %}star.svg{% endif %}></button></td>
         {%- else -%}
         <td><button id=pc-{{choice.choice_id}}-1 disabled><img src=assets/{% if choice.score >= 1 %}star_active.svg{% else %}star.svg{% endif %}></button></td>
         <td><button id=pc-{{choice.choice_id}}-2 disabled><img src=assets/{% if choice.score >= 2 %}star_active.svg{% else %}star.svg{% endif %}></button></td>
