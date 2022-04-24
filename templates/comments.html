@@ -3,7 +3,7 @@
     {% if !post_info.visible %}
     <div class=alert>This post is waiting for moderator attention.</div>
     {% endif %}
-    {%if user.trust_level >= 3 %}
+    {% if user.trust_level >= 3 %}
     <details-menu-bar>
             <details class=details-dialog-outer>
                 <summary class=details-dialog-summary>Edit Banner</summary>
@@ -142,10 +142,10 @@
                     </details-dialog>
                 </details>
         </details-menu-bar>
-        {%endif%}
-        {%else%}
+        {% endif %}
+        {% else %}
         <em>This poll is now closed</em>
-        {%endif%}
+        {% endif %}
         <div class=side-by-side>
         {% for choice in poll.choices %}
         <form id="pc-{{choice.choice_id}}"{% if poll.open %} action="vote-poll?U={{session.uuid}}#pc-{{choice.choice_id}}" method=POST{% endif %} class=inner-banner>
@@ -153,7 +153,7 @@
         <input type=hidden name=choice value={{choice.choice_id}}>
         <table>
         <tr><td colspan=5>{{choice.title}}
-        {% if !poll.open %}<tr><td colspan=5><em>average score: <strong>{{choice.average}}</strong></em>{% endif %}
+        {% if !poll.open %}<tr><td colspan=5><em>average score: <strong>{{format!("{:.2}", choice.average)}}</strong></em>{% endif %}
         <tr>
         <td><label for=pc-{{choice.choice_id}}-1>1</label></td>
         <td><label for=pc-{{choice.choice_id}}-2>2</label></td>
