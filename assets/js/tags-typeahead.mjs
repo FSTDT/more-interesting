@@ -120,7 +120,13 @@ export class TagsTypeaheadElement extends HTMLInputElement {
             case "pagedown":
                 this._index += 4;
                 var availableTags = Object.keys(this._data).filter(tag => {
-                    return !currentTag || tag.indexOf(currentTag) !== -1;
+                    if (!currentTag) {
+                        return false;
+                    }
+                    if (currentTag.startsWith("-") && tag.indexOf(currentTag.substr(1)) !== -1) {
+                        return true;
+                    }
+                    return tag.indexOf(currentTag) !== -1;
                 });
                 if (this._index >= availableTags.length) {
                     this._index = availableTags.length - 1;
@@ -155,7 +161,13 @@ export class TagsTypeaheadElement extends HTMLInputElement {
                 var currentTagParts = this.value.split(tag_split);
                 var currentTag = currentTagParts.length > 1 ? currentTagParts[currentTagParts.length-1] : this.value;
                 var availableTags = Object.keys(this._data).filter(tag => {
-                    return !currentTag || tag.indexOf(currentTag) !== -1;
+                    if (!currentTag) {
+                        return false;
+                    }
+                    if (currentTag.startsWith("-") && tag.indexOf(currentTag.substr(1)) !== -1) {
+                        return true;
+                    }
+                    return tag.indexOf(currentTag) !== -1;
                 });
                 availableTags.sort(function(a, b) {
                     if (a[0] < 'a' && b[0] >= 'a') return 1;
@@ -211,7 +223,13 @@ export class TagsTypeaheadElement extends HTMLInputElement {
             return;
         }
         var availableTags = Object.keys(this._data).filter(tag => {
-            return !currentTag || tag.indexOf(currentTag) !== -1;
+            if (!currentTag) {
+                return false;
+            }
+            if (currentTag.startsWith("-") && tag.indexOf(currentTag.substr(1)) !== -1) {
+                return true;
+            }
+            return tag.indexOf(currentTag) !== -1;
         });
         if (this._hugeResults || (availableTags.length > 500 && this._dataType === "domain")) {
             this._loadData();
