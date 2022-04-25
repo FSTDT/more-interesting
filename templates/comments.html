@@ -220,14 +220,14 @@
                     </details>
                     </div>
                     <details-menu-bar class=footer-aside>
-                        {% if !post_info.locked && user.id != 0 %}<a href="reply-comment?comment={{comment.id}}&post={{post_info.uuid}}" class=button>↩ Reply</a>{% endif %}
+                        {% if !post_info.locked && user.id != 0 %}
+                            {% if user.trust_level >= 3 || comment.created_by == user.id %}<a href="edit-comment?comment={{comment.id}}" class="button overflow">Edit</a>{% endif %}
+                            <a href="reply-comment?comment={{comment.id}}&post={{post_info.uuid}}" class=button>↩ Reply</a>
+                        {% endif %}
                         <details class="details-menu-outer backwards">
                         <summary class="details-menu-summary backwards" aria-haspopup=menu role=button>More</summary>
                         <div class="details-menu-inner backwards" role=menu>
                         <a href="#{{comment.id}}" class=details-menu-item>Permalink</a>
-                        {% if (user.trust_level >= 3 || comment.created_by == user.id) && !post_info.locked %}
-                        <a href="edit-comment?comment={{comment.id}}" class=details-menu-item>Edit</a>
-                        {% endif %}
                         {% if user.trust_level >= 1 %}
                         <button class=details-menu-item name="{% if comment.flagged_by_me %}rm_flag_comment{% else %}add_flag_comment{% endif %}" value={{comment.id}}>
                             {% if comment.flagged_by_me %}Remove flag{% else %}Add flag{% endif %}

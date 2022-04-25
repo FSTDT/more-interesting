@@ -30,8 +30,6 @@ function isChildOf(el, parent) {
     return false;
 }
 
-document.querySelector("body").classList.add("js");
-
 let currentlyOpen = null;
 
 let overflow = [];
@@ -99,7 +97,7 @@ export class DetailsMenuBarElement extends HTMLElement {
             d.addEventListener("toggle", this._eventToggleDialog.bind(d));
         }
         Array.prototype.forEach.call(this.querySelectorAll(".overflow"), (o, i) => {
-            let menu = o.nextElementSibling.querySelector(".details-menu-inner");
+            let menu = o.parentNode.querySelector(".details-menu-inner");
             if (menu) {
                 o._more_interesting_class = o.className;
                 o._more_interesting_menu = menu;
