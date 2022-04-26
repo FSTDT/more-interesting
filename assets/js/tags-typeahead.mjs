@@ -121,7 +121,7 @@ export class TagsTypeaheadElement extends HTMLInputElement {
                 this._index += 4;
                 var availableTags = Object.keys(this._data).filter(tag => {
                     if (!currentTag) {
-                        return false;
+                        return true;
                     }
                     if (currentTag.startsWith("-") && tag.indexOf(currentTag.substr(1)) !== -1) {
                         return true;
@@ -160,11 +160,12 @@ export class TagsTypeaheadElement extends HTMLInputElement {
                 var tag_split = /[#, \t\|]+/g;
                 var currentTagParts = this.value.split(tag_split);
                 var currentTag = currentTagParts.length > 1 ? currentTagParts[currentTagParts.length-1] : this.value;
+                var currentTagStartsWithMinus = currentTag.startsWith("-");
                 var availableTags = Object.keys(this._data).filter(tag => {
                     if (!currentTag) {
-                        return false;
+                        return true;
                     }
-                    if (currentTag.startsWith("-") && tag.indexOf(currentTag.substr(1)) !== -1) {
+                    if (currentTagStartsWithMinus && tag.indexOf(currentTag.substr(1)) !== -1) {
                         return true;
                     }
                     return tag.indexOf(currentTag) !== -1;
@@ -176,10 +177,11 @@ export class TagsTypeaheadElement extends HTMLInputElement {
                     if (b < a) return 1;
                     return 0;
                 });
+                var avTagName = (currentTagStartsWithMinus ? "-" : "") + availableTags[this._index];
                 if (tag_split_last.test(this.value)) {
-                    this.value = this.value.slice(0, tag_split_last.lastIndex) + availableTags[this._index] + " ";
+                    this.value = this.value.slice(0, tag_split_last.lastIndex) + avTagName + " ";
                 } else {
-                    this.value = availableTags[this._index] + " ";
+                    this.value = avTagName + " ";
                 }
                 if (e.key.toLowerCase() === "tab") {
                     this._index = -2;
@@ -224,7 +226,7 @@ export class TagsTypeaheadElement extends HTMLInputElement {
         }
         var availableTags = Object.keys(this._data).filter(tag => {
             if (!currentTag) {
-                return false;
+                return true;
             }
             if (currentTag.startsWith("-") && tag.indexOf(currentTag.substr(1)) !== -1) {
                 return true;
