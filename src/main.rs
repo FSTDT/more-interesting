@@ -388,8 +388,8 @@ async fn vote_comment(conn: MoreInterestingConn, login: LoginSession, redirect: 
             redirect.maybe_redirect_vote(|| format!("{}", id))
         } else {
             let starred_by = conn.get_comment_starred_by(id).await.unwrap_or(Vec::new());
-            VoteResponse::B(content::Html(template::ViewStar {
-                starred_by, customization, blog_post: false,
+            VoteResponse::B(content::Html(template::ViewStarComment {
+                starred_by, customization,
             }.render().unwrap()))
         }
     } else {

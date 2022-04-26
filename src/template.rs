@@ -374,6 +374,13 @@ pub struct ViewStar {
 }
 
 #[derive(Template)]
+#[template(path = "view-star-comment.html")]
+pub struct ViewStarComment {
+    pub starred_by: Vec<String>,
+    pub customization: Customization,
+}
+
+#[derive(Template)]
 #[template(path = "tags.html")]
 pub struct Tags {
     pub alert: String,
