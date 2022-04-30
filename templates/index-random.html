@@ -1,0 +1,22 @@
+{% extends "layout.html" %}
+{% import "macro-nav.html" as nav %}
+{% block nav_second %}
+{%-if is_home-%}
+{% call nav::home_nav(NavPageId::Random, before_date_param, after_date_param) %}
+{%-endif-%}
+{% endblock %}
+{% block page %}
+{% for tag in tags %}
+{% call nav::tag_nav(tag, NavPageId::Random, before_date_param, after_date_param) %}
+{% endfor %}
+{% if !domain.is_empty() %}
+{% call nav::domain_nav(domain, NavPageId::Random, before_date_param, after_date_param) %}
+{% endif %}
+{% if !keywords_param.is_empty() %}
+{% call nav::keywords_nav(keywords_param, title_param, NavPageId::Random, before_date_param, after_date_param) %}
+{% endif %}
+{% include "view-index.html" %}
+{%- if !keywords_param.is_empty() %}
+<p><a href="random?page={{next_search_page}}&q={{keywords_param|urlencode}}{% if !title_param.is_empty() %}&title={{title_param|urlencode}}{% endif %}{% if !tag_param.is_empty() %}&tag={{tag_param}}{% endif %}{% if !domain.is_empty() %}&domain={{domain}}{% endif %}">Next page</a></p>
+{% endif %}
+{% endblock %}
