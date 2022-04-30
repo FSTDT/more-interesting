@@ -20,6 +20,7 @@ use percent_encoding::{utf8_percent_encode, NON_ALPHANUMERIC};
 use std::convert::TryInto;
 
 sql_function!(fn coalesce(x: sql_types::Nullable<sql_types::VarChar>, y: sql_types::VarChar) -> sql_types::VarChar);
+no_arg_sql_function!(rand, sql_types::BigInt, "Random number");
 
 const FLAG_INVISIBLE_THRESHOLD: i64 = 3;
 
@@ -473,6 +474,7 @@ pub enum PostSearchOrderBy {
     Newest,
     Latest,
     Top,
+    Random,
 }
 
 #[derive(Insertable, Queryable, QueryableByName, Serialize)]
@@ -829,6 +831,7 @@ impl MoreInterestingConn {
             PostSearchOrderBy::Top => query.order_by((score.desc(), p::created_at.desc())).into_boxed(),
             PostSearchOrderBy::Newest => query.order_by((initial_stellar_time.desc(), p::created_at.desc())).into_boxed(),
             PostSearchOrderBy::Latest => query.order_by(p::updated_at.desc()).into_boxed(),
+            PostSearchOrderBy::Random => query.order_by(rand).into_boxed(),
         };
         if !search.or_domains.is_empty() {
             query = query.filter(domain_id.eq_any(&search.or_domains))
@@ -1071,6 +1074,11 @@ impl MoreInterestingConn {
             if let Ok(limit) = search.limit.try_into() {
                 all.truncate(if limit > 20usize { limit - 10 } else { limit });
             }
+        }
+        if search.order_by == PostSearchOrderBy::Random {
+            use ::rand::seq::SliceRandom;
+            use ::rand::thread_rng;
+            all.shuffle(&mut thread_rng());
         }
         Ok(all)
     }
@@ -1492,7 +1500,7 @@ impl MoreInterestingConn {
             blog_post: bool,
             domain_id: Option<i32>,
         }
-        let uuid: i64 = rand::random();
+        let uuid: i64 = ::rand::random();
         let uuid_string = Base32::from(uuid).to_string();
         let mut visible = new_post.visible;
         let (url, domain) = Self::get_post_domain_url_(conn, new_post.url.as_ref().cloned());
@@ -1850,7 +1858,7 @@ impl MoreInterestingConn {
             identicon: i32,
         }
         let password_hash = password_hash(&new_user.password);
-        let identicon = rand::random();
+        let identicon = ::rand::random();
         diesel::insert_into(users::table)
             .values(CreateUser {
                 username: &new_user.username[..],
@@ -1912,7 +1920,7 @@ impl MoreInterestingConn {
         }
         diesel::insert_into(invite_tokens::table)
             .values(CreateInviteToken {
-                uuid: rand::random(),
+                uuid: ::rand::random(),
                 invited_by
             })
             .get_result(conn)
@@ -3019,13 +3027,6 @@ impl MoreInterestingConn {
         use diesel::dsl::max;
         posts.select(max(id)).get_result::<Option<i32>>(conn).unwrap_or(Some(0)).unwrap_or(0)
     }
-    pub async fn random_post(&self) -> Result<Option<Post>, DieselError> {
-        self.run(move |conn| Self::random_post_(conn)).await
-    }
-    fn random_post_(conn: &PgConnection) -> Result<Option<Post>, DieselError> {
-        use diesel::sql_query;
-        sql_query("SELECT * FROM posts ORDER BY RANDOM() LIMIT 1").load(conn).map(|mut x: Vec<_>| x.pop())
-    }
     pub async fn get_post_by_uuid(&self, post_id_value: Base32) -> Result<Post, DieselError> {
         self.run(move |conn| Self::get_post_by_uuid_(conn, post_id_value)).await
     }
@@ -3100,7 +3101,7 @@ impl MoreInterestingConn {
             user_agent: &'a str,
             user_id: i32,
         }
-        let uuid = rand::random();
+        let uuid = ::rand::random();
         diesel::insert_into(user_sessions::table)
             .values(CreateSession {
                 uuid, user_agent, user_id
