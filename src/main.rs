@@ -2621,14 +2621,35 @@ async fn moderate_comment(conn: MoreInterestingConn, login: ModeratorSession, fo
     }
 }
 
-#[get("/random")]
-async fn random(conn: MoreInterestingConn) -> Option<Redirect> {
-    let post = conn.random_post().await;
-    if let Ok(Some(post)) = post {
-        Some(Redirect::to(post.uuid.to_string()))
-    } else {
-        None
-    }
+#[get("/random?<params..>")]
+async fn random(conn: MoreInterestingConn, login: Option<LoginSession>, params: Option<IndexParams>, flash: Option<FlashMessage<'_>>, config: &State<SiteConfig>, customization: Customization) -> Option<template::IndexRandom> {
+    let (user, session) = login.map(|l| (l.user, l.session)).unwrap_or((User::default(), UserSession::default()));
+    let tag_param = params.as_ref().and_then(|params| Some(params.tag.as_ref()?.to_string())).unwrap_or_else(String::new);
+    let domain = params.as_ref().and_then(|params| Some(params.domain.as_ref()?.to_string())).unwrap_or_else(String::new);
+    let (search, tags) = parse_index_params(&conn, &user, params).await?;
+    let before_date_param = search.before_date;
+    let after_date_param = search.after_date;
+    let search = PostSearch {
+        order_by: PostSearchOrderBy::Random,
+        blog_post: Some(false),
+        .. search
+    };
+    let keywords_param = search.keywords.clone();
+    let title_param = search.title.clone();
+    let is_home = tag_param == "" && domain == "" && keywords_param == "";
+    let posts = conn.search_posts(&search).await.ok()?;
+    let notifications = conn.list_notifications(user.id).await.unwrap_or(Vec::new());
+    let noindex = keywords_param != "" && (search.after_post_id != 0 || search.search_page != 0);
+    Some(template::IndexRandom {
+        title: String::from("random"),
+        next_search_page: search.search_page + 1,
+        alert: flash.map(|f| f.message().to_owned()).unwrap_or_else(String::new),
+        config: config.inner().clone(),
+        customization, before_date_param, after_date_param,
+        is_home, keywords_param, title_param,
+        user, posts, session, tags, tag_param, domain,
+        notifications, noindex,
+    })
 }
 
 #[get("/identicon/<id>")]
@@ -2676,6 +2697,7 @@ Disallow: /vote
 Disallow: /vote-comment
 Disallow: /submit
 Disallow: /identicon
+Disallow: /random
 Crawl-delay: {}
 
 User-agent: seo spider

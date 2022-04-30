@@ -137,6 +137,29 @@ pub struct IndexLatest {
 }
 
 #[derive(Template)]
+#[template(path = "index-random.html")]
+pub struct IndexRandom {
+    pub alert: String,
+    pub user: User,
+    pub session: UserSession,
+    pub notifications: Vec<NotificationInfo>,
+    pub customization: Customization,
+    pub config: SiteConfig,
+    pub next_search_page: i32,
+    pub before_date_param: Option<NaiveDate>,
+    pub after_date_param: Option<NaiveDate>,
+    pub title: String,
+    pub posts: Vec<PostInfo>,
+    pub is_home: bool,
+    pub tags: Vec<Tag>,
+    pub tag_param: String,
+    pub domain: String,
+    pub keywords_param: String,
+    pub title_param: String,
+    pub noindex: bool,
+}
+
+#[derive(Template)]
 #[template(path = "preview-post.html")]
 pub struct PreviewPost {
     pub alert: String,
@@ -515,13 +538,50 @@ pub struct AdminUsers {
 }
 
 #[derive(Clone, Copy, Eq, PartialEq)]
+pub enum NavPageId {
+    Home = 1,
+    Latest = 2,
+    Top = 3,
+    New = 4,
+    Random = 5,
+}
+
+impl ToString for NavPageId {
+    fn to_string(&self) -> String {
+        use NavPageId::*;
+        (match *self {
+            Home => ".",
+            Latest => "latest",
+            Top => "top",
+            New => "new",
+            Random => "random",
+        }).to_string()
+    }
+}
+
+impl Serialize for NavPageId {
+    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+    where
+        S: Serializer,
+    {
+        serializer.serialize_i32(*self as i32)
+    }
+}
+
+impl Default for NavPageId {
+    fn default() -> NavPageId {
+        NavPageId::Home
+    }
+}
+
+#[derive(Clone, Copy, Eq, PartialEq)]
 pub enum AdminPageId {
-    Tags = 0,
-    Domains = 1,
-    Customization = 2,
-    Flags = 3,
-    CommentFlags = 4,
-    Users = 5,
+    Tags = 1,
+    Domains = 2,
+    Customization = 3,
+    Flags = 4,
+    CommentFlags = 5,
+    Users = 6,
 }
 
 impl Serialize for AdminPageId {

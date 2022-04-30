@@ -1,0 +1,46 @@
+{%- macro home_nav(page_id, before_date_param, after_date_param) -%}
+<nav class=nav-second>
+    {% if page_id == NavPageId::Home %}<b>Home</b>{% else %}<a href=".{% if before_date_param.is_some() %}?before_date={{before_date_param.unwrap()}}{% if after_date_param.is_some() %}&after_date={{after_date_param.unwrap()}}{% else %}{% endif %}{% else %}{% endif %}">Home</a>{% endif %} &bull;
+    {% if page_id == NavPageId::Latest %}<b>Latest</b>{% else %}<a href="latest{% if before_date_param.is_some() %}?before_date={{before_date_param.unwrap()}}{% if after_date_param.is_some() %}&after_date={{after_date_param.unwrap()}}{% else %}{% endif %}{% else %}{% endif %}">Latest</a>{% endif %} &bull;
+    {% if page_id == NavPageId::Top %}<b>Top</b>{% else %}<a href="top{% if before_date_param.is_some() %}?before_date={{before_date_param.unwrap()}}{% if after_date_param.is_some() %}&after_date={{after_date_param.unwrap()}}{% else %}{% endif %}{% else %}{% endif %}">Top</a>{% endif %} &bull;
+    {% if page_id == NavPageId::New %}<b>New</b>{% else %}<a href="new{% if before_date_param.is_some() %}?before_date={{before_date_param.unwrap()}}{% if after_date_param.is_some() %}&after_date={{after_date_param.unwrap()}}{% else %}{% endif %}{% else %}{% endif %}">New</a>{% endif %} &bull;
+    {% if page_id == NavPageId::Random %}<b>Random</b>{% else %}<a href="random{% if before_date_param.is_some() %}?before_date={{before_date_param.unwrap()}}{% if after_date_param.is_some() %}&after_date={{after_date_param.unwrap()}}{% else %}{% endif %}{% else %}{% endif %}">Random</a>{% endif %}
+</nav>
+{%- endmacro -%}
+{%- macro tag_nav(tag, page_id, before_date_param, after_date_param) -%}
+<header class=tight-headline>
+<h2>#{{tag.name}}</h2>
+<p>{% if tag.description.is_some() %}{{tag.description.as_ref().unwrap()}}{% endif %}</p>
+<nav>
+    {% if page_id == NavPageId::Home %}<b>Home</b>{% else %}<a href=".?tag={{tag.name}}{% if before_date_param.is_some() %}&before_date={{before_date_param.unwrap()}}{% if after_date_param.is_some() %}&after_date={{after_date_param.unwrap()}}{% else %}{% endif %}{% else %}{% endif %}">Home</a>{% endif %} &bull;
+    {% if page_id == NavPageId::Latest %}<b>Latest</b>{% else %}<a href="latest?tag={{tag.name}}{% if before_date_param.is_some() %}&before_date={{before_date_param.unwrap()}}{% if after_date_param.is_some() %}&after_date={{after_date_param.unwrap()}}{% else %}{% endif %}{% else %}{% endif %}">Latest</a>{% endif %} &bull;
+    {% if page_id == NavPageId::Top %}<b>Top</b>{% else %}<a href="top?tag={{tag.name}}{% if before_date_param.is_some() %}&before_date={{before_date_param.unwrap()}}{% if after_date_param.is_some() %}&after_date={{after_date_param.unwrap()}}{% else %}{% endif %}{% else %}{% endif %}">Top</a>{% endif %} &bull;
+    {% if page_id == NavPageId::New %}<b>New</b>{% else %}<a href="new?tag={{tag.name}}{% if before_date_param.is_some() %}&before_date={{before_date_param.unwrap()}}{% if after_date_param.is_some() %}&after_date={{after_date_param.unwrap()}}{% else %}{% endif %}{% else %}{% endif %}">New</a>{% endif %} &bull;
+    {% if page_id == NavPageId::Random %}<b>Random</b>{% else %}<a href="random?tag={{tag.name}}{% if before_date_param.is_some() %}&before_date={{before_date_param.unwrap()}}{% if after_date_param.is_some() %}&after_date={{after_date_param.unwrap()}}{% else %}{% endif %}{% else %}{% endif %}">Random</a>{% endif %}
+</nav>
+</header>
+{%- endmacro -%}
+{%- macro domain_nav(domain, page_id, before_date_param, after_date_param) -%}
+<header class=tight-headline>
+<h2>www.{{domain}}</h2>
+<nav>
+    {% if page_id == NavPageId::Home %}<b>Home</b>{% else %}<a href=".?domain={{domain}}{% if before_date_param.is_some() %}&before_date={{before_date_param.unwrap()}}{% if after_date_param.is_some() %}&after_date={{after_date_param.unwrap()}}{% else %}{% endif %}{% else %}{% endif %}">Home</a>{% endif %} &bull;
+    {% if page_id == NavPageId::Latest %}<b>Latest</b>{% else %}<a href="latest?domain={{domain}}{% if before_date_param.is_some() %}&before_date={{before_date_param.unwrap()}}{% if after_date_param.is_some() %}&after_date={{after_date_param.unwrap()}}{% else %}{% endif %}{% else %}{% endif %}">Latest</a>{% endif %} &bull;
+    {% if page_id == NavPageId::Top %}<b>Top</b>{% else %}<a href="top?domain={{domain}}{% if before_date_param.is_some() %}&before_date={{before_date_param.unwrap()}}{% if after_date_param.is_some() %}&after_date={{after_date_param.unwrap()}}{% else %}{% endif %}{% else %}{% endif %}">Top</a>{% endif %} &bull;
+    {% if page_id == NavPageId::New %}<b>New</b>{% else %}<a href="new?domain={{domain}}{% if before_date_param.is_some() %}&before_date={{before_date_param.unwrap()}}{% if after_date_param.is_some() %}&after_date={{after_date_param.unwrap()}}{% else %}{% endif %}{% else %}{% endif %}">New</a>{% endif %} &bull;
+    {% if page_id == NavPageId::Random %}<b>Random</b>{% else %}<a href="random?domain={{domain}}{% if before_date_param.is_some() %}&before_date={{before_date_param.unwrap()}}{% if after_date_param.is_some() %}&after_date={{after_date_param.unwrap()}}{% else %}{% endif %}{% else %}{% endif %}">Random</a>{% endif %}
+</nav>
+</header>
+{%- endmacro -%}
+{%- macro keywords_nav(keywords, title_param, page_id, before_date_param, after_date_param) -%}
+<header class=tight-headline>
+<h2>{{keywords}}</h2>
+<nav>
+    {% if page_id == NavPageId::Home %}<b>Relevance</b>{% else %}<a href=".?q={{keywords_param|urlencode}}{% if !title_param.is_empty() %}&title={{title_param|urlencode}}{%endif%}{% if before_date_param.is_some() %}&before_date={{before_date_param.unwrap()}}{% if after_date_param.is_some() %}&after_date={{after_date_param.unwrap()}}{% else %}{% endif %}{% else %}{% endif %}">Home</a>{% endif %} &bull;
+    {% if page_id == NavPageId::Latest %}<b>Latest</b>{% else %}<a href="latest?q={{keywords_param|urlencode}}{% if !title_param.is_empty() %}&title={{title_param|urlencode}}{%endif%}{% if before_date_param.is_some() %}&before_date={{before_date_param.unwrap()}}{% if after_date_param.is_some() %}&after_date={{after_date_param.unwrap()}}{% else %}{% endif %}{% else %}{% endif %}">Latest</a>{% endif %} &bull;
+    {% if page_id == NavPageId::Top %}<b>Top</b>{% else %}<a href="top?q={{keywords_param|urlencode}}{% if !title_param.is_empty() %}&title={{title_param|urlencode}}{%endif%}{% if before_date_param.is_some() %}&before_date={{before_date_param.unwrap()}}{% if after_date_param.is_some() %}&after_date={{after_date_param.unwrap()}}{% else %}{% endif %}{% else %}{% endif %}">Top</a>{% endif %} &bull;
+    {% if page_id == NavPageId::New %}<b>New</b>{% else %}<a href="new?q={{keywords_param|urlencode}}{% if !title_param.is_empty() %}&title={{title_param|urlencode}}{%endif%}{% if before_date_param.is_some() %}&before_date={{before_date_param.unwrap()}}{% if after_date_param.is_some() %}&after_date={{after_date_param.unwrap()}}{% else %}{% endif %}{% else %}{% endif %}">New</a>{% endif %} &bull;
+    {% if page_id == NavPageId::Random %}<b>Random</b>{% else %}<a href="random?q={{keywords_param|urlencode}}{% if !title_param.is_empty() %}&title={{title_param|urlencode}}{%endif%}{% if before_date_param.is_some() %}&before_date={{before_date_param.unwrap()}}{% if after_date_param.is_some() %}&after_date={{after_date_param.unwrap()}}{% else %}{% endif %}{% else %}{% endif %}">Random</a>{% endif %}
+</nav>
+</header>
+{%- endmacro -%}
