@@ -153,7 +153,13 @@
         <input type=hidden name=choice value={{choice.choice_id}}>
         <table>
         <tr><td colspan=5>{{choice.title}}
-        {% if !poll.open %}<tr><td colspan=5><em>average score: <strong>{{format!("{:.2}", choice.average)}}</strong></em>{% endif %}
+        <tr><td colspan=5><em>
+            {% if poll.open %}
+            {{choice.count}} votes
+            {% else %}
+            average score: <strong>{{format!("{:.2}", choice.average)}}</strong> out of {{choice.count}} votes
+            {% endif %}
+        </em></td></tr>
         <tr>
         <td><label for=pc-{{choice.choice_id}}-1>1</label></td>
         <td><label for=pc-{{choice.choice_id}}-2>2</label></td>
@@ -162,7 +168,7 @@
         <td><label for=pc-{{choice.choice_id}}-5>5</label></td>
         </tr>
         <tr>
-        {%- if poll.open -%}}
+        {%- if poll.open -%}
         <td><button id=pc-{{choice.choice_id}}-1 type=submit name=score value=1><img src=assets/{% if choice.score >= 1 %}star_active.svg{% else %}star.svg{% endif %}></button></td>
         <td><button id=pc-{{choice.choice_id}}-2 type=submit name=score value=2><img src=assets/{% if choice.score >= 2 %}star_active.svg{% else %}star.svg{% endif %}></button></td>
         <td><button id=pc-{{choice.choice_id}}-3 type=submit name=score value=3><img src=assets/{% if choice.score >= 3 %}star_active.svg{% else %}star.svg{% endif %}></button></td>
@@ -274,7 +280,7 @@
             </form>
         </details>
     </details-menu-bar>
-    <p>When you subscribe, you get a notification whenever someone comments on this post_info.</p>
+    <p>When you subscribe, you get a notification whenever someone comments on this post.</p>
     </div>
     {% else %}
     <div class=tab-bar>
@@ -298,7 +304,7 @@
             </form>
         </details>
     </details-menu-bar></subscriptions-menu>
-    <p>When you subscribe, you get a notification whenever someone comments on this post_info.</p>
+    <p>When you subscribe, you get a notification whenever someone comments on this post.</p>
     </div>
     <script>
 window.setTimeout(function() {

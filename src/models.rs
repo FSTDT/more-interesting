@@ -127,6 +127,7 @@ pub struct PollInfoChoice {
     pub choice_id: i32,
     pub title: String,
     pub score: i32,
+    pub count: i32,
     pub average: f64,
 }
 
@@ -1295,13 +1296,21 @@ impl MoreInterestingConn {
                 .flatten()
                 .and_then(|x| x.to_f64())
                 .unwrap_or(0.0);
+            let count: i32 = poll_choices
+                .inner_join(poll_votes)
+                .select(diesel::dsl::count_star())
+                .filter(pc::id.eq(item.3))
+                .get_result::<i64>(conn)
+                .unwrap_or(0i64) // report failure as 0
+                .try_into()
+                .unwrap_or(i32::MAX); // report overflow as i32::MAX
             if let Some(current) = b.last_mut() {
                 if current.poll_id == item.1 {
                     current.choices.push(PollInfoChoice {
                         title: item.2.clone(),
                         choice_id: item.3,
                         score: item.4.unwrap_or(0),
-                        average,
+                        average, count,
                     });
                     return b;
                 }
@@ -1311,7 +1320,7 @@ impl MoreInterestingConn {
                     title: item.2.clone(),
                     choice_id: item.3,
                     score: item.4.unwrap_or(0),
-                    average,
+                    average, count,
                 }
             ];
             let new = PollInfo {
