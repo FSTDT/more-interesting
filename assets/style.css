@@ -16,7 +16,7 @@ html {
     -ms-text-size-adjust: 100%;
     -webkit-text-size-adjust: 100%;
     height: 100%;
-    font-size: 0.91em;
+    font-size: 0.94em;
     overflow-x: hidden;
     overflow-y: scroll;
     scroll-padding-top: 0.25em;
@@ -328,9 +328,9 @@ textarea,
     white-space: pre-wrap;
     font-family: SFMono-Regular,Consolas,Liberation Mono,Menlo,Courier,monospace;
     padding: 0.25em;
-    font-size: 1.1em;
+    font-size: 1.06em;
     /* workaround iOS auto-zoom */
-    font-size: max(1.1em, 16px);
+    font-size: max(1.06em, 16px);
     line-height: 1.62;
 }
 
@@ -1143,8 +1143,8 @@ details-dialog {
 
 main, .main {
     font-family: Georgia, "Times New Roman", serif;
-    font-size: 1.1em;
-    font-size: max(1.1em, 16px);
+    font-size: 1.06em;
+    font-size: max(1.06em, 16px);
     line-height: 1.62;
     display: block;
     overflow: hidden;
