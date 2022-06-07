@@ -20,7 +20,7 @@ use percent_encoding::{utf8_percent_encode, NON_ALPHANUMERIC};
 use std::convert::TryInto;
 
 sql_function!(fn coalesce(x: sql_types::Nullable<sql_types::VarChar>, y: sql_types::VarChar) -> sql_types::VarChar);
-no_arg_sql_function!(rand, sql_types::BigInt, "Random number");
+no_arg_sql_function!(random, sql_types::BigInt, "Random number");
 
 const FLAG_INVISIBLE_THRESHOLD: i64 = 3;
 
@@ -832,7 +832,7 @@ impl MoreInterestingConn {
             PostSearchOrderBy::Top => query.order_by((score.desc(), p::created_at.desc())).into_boxed(),
             PostSearchOrderBy::Newest => query.order_by((initial_stellar_time.desc(), p::created_at.desc())).into_boxed(),
             PostSearchOrderBy::Latest => query.order_by(p::updated_at.desc()).into_boxed(),
-            PostSearchOrderBy::Random => query.order_by(rand).into_boxed(),
+            PostSearchOrderBy::Random => query.order_by(random).into_boxed(),
         };
         if !search.or_domains.is_empty() {
             query = query.filter(domain_id.eq_any(&search.or_domains))
