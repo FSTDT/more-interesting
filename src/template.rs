@@ -696,9 +696,9 @@ pub mod filters {
         }
         let is_basic = BASIC_USERNAME.is_match(&username);
         if is_basic {
-            Ok(format!("<@{username}>"))
-        } else {
             Ok(format!("@{username}"))
+        } else {
+            Ok(format!("<@{username}>"))
         }
     }
 }
