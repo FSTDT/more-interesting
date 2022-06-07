@@ -2,6 +2,8 @@
 
 **Warning**: This software does not currently provide any kind of stability guarantee. If you want to use it, be prepared for manual migrations and other kinds of breakage.
 
+Dependencies: libpq-dev pkg-config build-essential rust
+
 # A kit for more interesting links and discussions
 
 More Interesting (will become) a link sharing app that seeks to avoid discussion tangents, circlejerkery, and mobbing.
