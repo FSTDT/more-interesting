@@ -2146,18 +2146,18 @@ impl MoreInterestingConn {
             .collect();
         Ok(all)
     }
-    pub async fn search_comments_by_user(&self, user_id_param: i32) -> Result<Vec<CommentSearchResult>, DieselError> {
-        self.run(move |conn| Self::search_comments_by_user_(conn, user_id_param)).await
+    pub async fn search_comments_by_user(&self, user_id_param: i32, after_id_param: Option<i32>, self_user_id: i32) -> Result<Vec<CommentSearchResult>, DieselError> {
+        self.run(move |conn| Self::search_comments_by_user_(conn, user_id_param, after_id_param, self_user_id)).await
     }
-    fn search_comments_by_user_(conn: &PgConnection, user_id_param: i32) -> Result<Vec<CommentSearchResult>, DieselError> {
+    fn search_comments_by_user_(conn: &PgConnection, user_id_param: i32, after_id_param: Option<i32>, self_user_id: i32) -> Result<Vec<CommentSearchResult>, DieselError> {
         use self::comments::dsl::*;
         use self::comment_stars::dsl::*;
         use self::comment_flags::dsl::*;
         use self::users::dsl::*;
         use self::posts::dsl::*;
-        let all: Vec<CommentSearchResult> = comments
-            .left_outer_join(comment_stars.on(self::comment_stars::dsl::comment_id.eq(self::comments::dsl::id).and(self::comment_stars::dsl::user_id.eq(user_id_param))))
-            .left_outer_join(comment_flags.on(self::comment_flags::dsl::comment_id.eq(self::comments::dsl::id).and(self::comment_flags::dsl::user_id.eq(user_id_param))))
+        let query = comments
+            .left_outer_join(comment_stars.on(self::comment_stars::dsl::comment_id.eq(self::comments::dsl::id).and(self::comment_stars::dsl::user_id.eq(self_user_id))))
+            .left_outer_join(comment_flags.on(self::comment_flags::dsl::comment_id.eq(self::comments::dsl::id).and(self::comment_flags::dsl::user_id.eq(self_user_id))))
             .inner_join(users)
             .inner_join(posts)
             .select((
@@ -2179,48 +2179,13 @@ impl MoreInterestingConn {
             .filter(self::posts::dsl::visible.eq(true))
             .filter(self::comments::dsl::created_by.eq(user_id_param))
             .order_by(self::comments::dsl::id.desc())
-            .limit(50)
-            .get_results::<(i32, String, i32, Base32, String, NaiveDateTime, i32, String, Option<i32>, Option<i32>, i32, bool)>(conn)?
-            .into_iter()
-            .map(|t| tuple_to_comment_search_results(conn, t))
-            .collect();
-        Ok(all)
-    }
-    pub async fn search_comments_by_user_after(&self, user_id_param: i32, after_id_param: i32) -> Result<Vec<CommentSearchResult>, DieselError> {
-        self.run(move |conn| Self::search_comments_by_user_after_(conn, user_id_param, after_id_param)).await
-    }
-    fn search_comments_by_user_after_(conn: &PgConnection, user_id_param: i32, after_id_param: i32) -> Result<Vec<CommentSearchResult>, DieselError> {
-        use self::comments::dsl::*;
-        use self::comment_stars::dsl::*;
-        use self::comment_flags::dsl::*;
-        use self::users::dsl::*;
-        use self::posts::dsl::*;
-        let all: Vec<CommentSearchResult> = comments
-            .left_outer_join(comment_stars.on(self::comment_stars::dsl::comment_id.eq(self::comments::dsl::id).and(self::comment_stars::dsl::user_id.eq(user_id_param))))
-            .left_outer_join(comment_flags.on(self::comment_flags::dsl::comment_id.eq(self::comments::dsl::id).and(self::comment_flags::dsl::user_id.eq(user_id_param))))
-            .inner_join(users)
-            .inner_join(posts)
-            .select((
-                self::comments::dsl::id,
-                self::comments::dsl::html,
-                self::posts::dsl::id,
-                self::posts::dsl::uuid,
-                self::posts::dsl::title,
-                self::comments::dsl::created_at,
-                self::comments::dsl::created_by,
-                self::users::dsl::username,
-                self::comment_stars::dsl::comment_id.nullable(),
-                self::comment_flags::dsl::comment_id.nullable(),
-                self::users::dsl::identicon,
-                self::posts::dsl::locked,
-            ))
-            .filter(self::comments::dsl::visible.eq(true))
-            .filter(self::posts::dsl::private.eq(false))
-            .filter(self::posts::dsl::visible.eq(true))
-            .filter(self::comments::dsl::created_by.eq(user_id_param))
-            .filter(self::comments::dsl::id.lt(after_id_param))
-            .order_by(self::comments::dsl::id.desc())
-            .limit(50)
+            .limit(50);
+        let query = if let Some(after_id_param) = after_id_param {
+            query.filter(self::comments::dsl::id.lt(after_id_param)).into_boxed()
+        } else {
+            query.into_boxed()
+        };
+        let all: Vec<CommentSearchResult> = query
             .get_results::<(i32, String, i32, Base32, String, NaiveDateTime, i32, String, Option<i32>, Option<i32>, i32, bool)>(conn)?
             .into_iter()
             .map(|t| tuple_to_comment_search_results(conn, t))

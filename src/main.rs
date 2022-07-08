@@ -606,11 +606,11 @@ async fn search_comments(conn: MoreInterestingConn, login: Option<LoginSession>,
     let (user, session) = login.map(|l| (l.user, l.session)).unwrap_or((User::default(), UserSession::default()));
     if let Some(username) = params.as_ref().and_then(|params| params.user.as_ref()) {
         let by_user = conn.get_user_by_username(&username[..]).await.into_option()?;
-        let comment_search_result = if let Some(after_id) = params.as_ref().and_then(|params| params.after.as_ref()) {
-            conn.search_comments_by_user_after(by_user.id, *after_id).await.into_option()?
-        } else {
-            conn.search_comments_by_user(by_user.id).await.into_option()?
-        };
+        let comment_search_result = conn.search_comments_by_user(
+            by_user.id,
+            params.as_ref().and_then(|params| params.after),
+            user.id
+        ).await.unwrap_or(Vec::new());
         let title = by_user.username.clone();
         let notifications = conn.list_notifications(user.id).await.unwrap_or(Vec::new());
         Some(template::ProfileComments {
