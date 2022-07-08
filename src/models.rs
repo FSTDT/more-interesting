@@ -371,11 +371,15 @@ pub struct CommentSearchResult {
     pub post_id: i32,
     pub post_uuid: Base32,
     pub post_title: String,
+    pub post_locked: bool,
     pub created_at: NaiveDateTime,
     pub created_at_relative: String,
     pub created_by: i32,
     pub created_by_username: String,
     pub created_by_identicon: Base32,
+    pub starred_by_me: bool,
+    pub flagged_by_me: bool,
+    pub starred_by: Vec<String>,
 }
 
 #[derive(Queryable)]
@@ -2147,9 +2151,13 @@ impl MoreInterestingConn {
     }
     fn search_comments_by_user_(conn: &PgConnection, user_id_param: i32) -> Result<Vec<CommentSearchResult>, DieselError> {
         use self::comments::dsl::*;
+        use self::comment_stars::dsl::*;
+        use self::comment_flags::dsl::*;
         use self::users::dsl::*;
         use self::posts::dsl::*;
         let all: Vec<CommentSearchResult> = comments
+            .left_outer_join(comment_stars.on(self::comment_stars::dsl::comment_id.eq(self::comments::dsl::id).and(self::comment_stars::dsl::user_id.eq(user_id_param))))
+            .left_outer_join(comment_flags.on(self::comment_flags::dsl::comment_id.eq(self::comments::dsl::id).and(self::comment_flags::dsl::user_id.eq(user_id_param))))
             .inner_join(users)
             .inner_join(posts)
             .select((
@@ -2161,7 +2169,10 @@ impl MoreInterestingConn {
                 self::comments::dsl::created_at,
                 self::comments::dsl::created_by,
                 self::users::dsl::username,
+                self::comment_stars::dsl::comment_id.nullable(),
+                self::comment_flags::dsl::comment_id.nullable(),
                 self::users::dsl::identicon,
+                self::posts::dsl::locked,
             ))
             .filter(self::comments::dsl::visible.eq(true))
             .filter(self::posts::dsl::private.eq(false))
@@ -2169,9 +2180,9 @@ impl MoreInterestingConn {
             .filter(self::comments::dsl::created_by.eq(user_id_param))
             .order_by(self::comments::dsl::id.desc())
             .limit(50)
-            .get_results::<(i32, String, i32, Base32, String, NaiveDateTime, i32, String, i32)>(conn)?
+            .get_results::<(i32, String, i32, Base32, String, NaiveDateTime, i32, String, Option<i32>, Option<i32>, i32, bool)>(conn)?
             .into_iter()
-            .map(|t| tuple_to_comment_search_results(t))
+            .map(|t| tuple_to_comment_search_results(conn, t))
             .collect();
         Ok(all)
     }
@@ -2180,9 +2191,13 @@ impl MoreInterestingConn {
     }
     fn search_comments_by_user_after_(conn: &PgConnection, user_id_param: i32, after_id_param: i32) -> Result<Vec<CommentSearchResult>, DieselError> {
         use self::comments::dsl::*;
+        use self::comment_stars::dsl::*;
+        use self::comment_flags::dsl::*;
         use self::users::dsl::*;
         use self::posts::dsl::*;
         let all: Vec<CommentSearchResult> = comments
+            .left_outer_join(comment_stars.on(self::comment_stars::dsl::comment_id.eq(self::comments::dsl::id).and(self::comment_stars::dsl::user_id.eq(user_id_param))))
+            .left_outer_join(comment_flags.on(self::comment_flags::dsl::comment_id.eq(self::comments::dsl::id).and(self::comment_flags::dsl::user_id.eq(user_id_param))))
             .inner_join(users)
             .inner_join(posts)
             .select((
@@ -2194,7 +2209,10 @@ impl MoreInterestingConn {
                 self::comments::dsl::created_at,
                 self::comments::dsl::created_by,
                 self::users::dsl::username,
+                self::comment_stars::dsl::comment_id.nullable(),
+                self::comment_flags::dsl::comment_id.nullable(),
                 self::users::dsl::identicon,
+                self::posts::dsl::locked,
             ))
             .filter(self::comments::dsl::visible.eq(true))
             .filter(self::posts::dsl::private.eq(false))
@@ -2203,9 +2221,9 @@ impl MoreInterestingConn {
             .filter(self::comments::dsl::id.lt(after_id_param))
             .order_by(self::comments::dsl::id.desc())
             .limit(50)
-            .get_results::<(i32, String, i32, Base32, String, NaiveDateTime, i32, String, i32)>(conn)?
+            .get_results::<(i32, String, i32, Base32, String, NaiveDateTime, i32, String, Option<i32>, Option<i32>, i32, bool)>(conn)?
             .into_iter()
-            .map(|t| tuple_to_comment_search_results(t))
+            .map(|t| tuple_to_comment_search_results(conn, t))
             .collect();
         Ok(all)
     }
@@ -3191,13 +3209,17 @@ fn tuple_to_comment_info(conn: &PgConnection, (id, text, html, visible, post_id,
     }
 }
 
-fn tuple_to_comment_search_results((id, html, post_id, post_uuid, post_title, created_at, created_by, created_by_username,  created_by_identicon): (i32, String, i32, Base32, String, NaiveDateTime, i32, String, i32)) -> CommentSearchResult {
+fn tuple_to_comment_search_results(conn: &PgConnection, (id, html, post_id, post_uuid, post_title, created_at, created_by, created_by_username, starred_comment_id, flagged_comment_id, created_by_identicon, post_locked): (i32, String, i32, Base32, String, NaiveDateTime, i32, String, Option<i32>, Option<i32>, i32, bool)) -> CommentSearchResult {
     let created_at_relative = relative_date(&created_at);
     let created_by_identicon = Base32::from(created_by_identicon as i64);
     CommentSearchResult {
         id, html, post_id, post_uuid, post_title, created_by, created_by_username,
         created_at, created_at_relative,
         created_by_identicon,
+        post_locked,
+        starred_by_me: starred_comment_id.is_some(),
+        flagged_by_me: flagged_comment_id.is_some(),
+        starred_by: MoreInterestingConn::get_comment_starred_by_(conn, id).unwrap_or(Vec::new()),
     }
 }
 

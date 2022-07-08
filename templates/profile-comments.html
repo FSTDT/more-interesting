@@ -4,14 +4,57 @@
 <h2>@{{title}}</h2>
 <nav><a href=@{{title|urlencode}}>Posts</a> &bull; <b>Comments</b>{% if is_me %} &bull; <a href=subscriptions>Subscriptions</a>{% endif %}</nav>
 </header>
+{% let post_uuid = std::cell::Cell::new(None) %}
 {% for comment in comment_search_result %}
-    <h3><a href={{comment.post_uuid}}>{{comment.post_title}}</a></h3>
-    <aside>
-        <main class=main-aside>{{comment.html|safe}}</main>
-        <footer>
-            posted by {{comment.created_by_username}}
-            <local-date title="{{comment.created_at}}+00:00">{{comment.created_at_relative}}<span class=hide-small> ago</span></local-date>
+    {% if post_uuid.replace(None) != Some(comment.post_uuid) %}
+        <h3><a href={{comment.post_uuid}}>{{comment.post_title}}</a></h3>
+    {% endif %}
+    {% let _ = post_uuid.set(Some(comment.post_uuid)) %}
+    <aside id="{{comment.id}}">
+        <header class=aside-header>
+            <img width=15 height=15 class=identicon src=identicon/{{comment.created_by_identicon}}>
+            <a href="@{{comment.created_by_username|urlencode}}" class=top-header-link>{{comment.created_by_username}}</a>
+            <span class="top-header-link top-header-aside"><a class=top-header-link is=local-date href="{{comment.post_uuid}}#{{comment.id}}" title="{{comment.created_at}}+00:00">{{comment.created_at_relative}}<span class=hide-small> ago</span> #{{comment.id}}</a></span>
+        </header>
+        <main>{{comment.html|safe}}</main>
+        <form action="vote-comment?redirect={{comment.post_uuid}}&U={{session.uuid}}" method=POST><button class=hide-button title=Show name=add_hide_comment value={{comment.id}}><b>-</b></button>
+        <footer class=footer-container>
+            <div class=footer-main>
+            <button{% if user.id != 0 %} title="{% if comment.starred_by_me %}Remove star{% else %}Add star{% endif %}"{% else %} disabled title="Log in to vote"{% endif %} name="{% if comment.starred_by_me %}rm_star_comment{% else %}add_star_comment{% endif %}" value={{comment.id}}>
+                <img width=12 height=12 class=good-img src=assets/{% if comment.starred_by_me %}star_active.svg{% else %}star.svg{% endif %} alt="{% if comment.starred_by_me %}Remove star{% else %}Add star{% endif %}">
+            </button>
+            <details class=details-dialog-outer id=sc-{{comment.id}}>
+                <summary class=inline-summary><u>
+                    {{crate::template::replace(customization.comment_score_text, comment.starred_by.len())}}
+                </u></summary>
+                <details-dialog>
+                    <ul>
+                        {% for this in comment.starred_by %}
+                            <li><a href="@{{this|urlencode}}">{{this}}</a></li>
+                        {% endfor %}
+                    </ul>
+                </details-dialog>
+            </details>
+            </div>
+            <details-menu-bar class=footer-aside>
+                {% if !comment.post_locked && user.id != 0 %}
+                    {% if user.trust_level >= 3 || comment.created_by == user.id %}<a href="edit-comment?comment={{comment.id}}" class="button overflow">Edit</a>{% endif %}
+                    <a href="reply-comment?comment={{comment.id}}&post={{comment.post_uuid}}" class=button>↩ Reply</a>
+                {% endif %}
+                <details class="details-menu-outer backwards">
+                <summary class="details-menu-summary backwards" aria-haspopup=menu role=button>More</summary>
+                <div class="details-menu-inner backwards" role=menu>
+                <a href="#{{comment.id}}" class=details-menu-item>Permalink</a>
+                {% if user.trust_level >= 1 %}
+                <button class=details-menu-item name="{% if comment.flagged_by_me %}rm_flag_comment{% else %}add_flag_comment{% endif %}" value={{comment.id}}>
+                    {% if comment.flagged_by_me %}Remove flag{% else %}Add flag{% endif %}
+                </button>
+                {% endif %}
+                </div>
+            </details>
+            </details-menu-bar>
         </footer>
+        </form>
     </aside>
     {% if loop.last %}
     <p><a href="?user={{title}}&after={{comment.id}}">Next page</a></p>
