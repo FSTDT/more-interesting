@@ -44,7 +44,7 @@
                 <details class="details-menu-outer backwards">
                 <summary class="details-menu-summary backwards" aria-haspopup=menu role=button>More</summary>
                 <div class="details-menu-inner backwards" role=menu>
-                <a href="#{{comment.id}}" class=details-menu-item>Permalink</a>
+                <a href="{{comment.post_uuid}}#{{comment.id}}" class=details-menu-item>Permalink</a>
                 {% if user.trust_level >= 1 %}
                 <button class=details-menu-item name="{% if comment.flagged_by_me %}rm_flag_comment{% else %}add_flag_comment{% endif %}" value={{comment.id}}>
                     {% if comment.flagged_by_me %}Remove flag{% else %}Add flag{% endif %}
