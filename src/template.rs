@@ -281,6 +281,20 @@ pub struct ProfilePosts {
 }
 
 #[derive(Template)]
+#[template(path = "index-comments.html")]
+pub struct IndexComments {
+    pub alert: String,
+    pub config: SiteConfig,
+    pub customization: Customization,
+    pub title: String,
+    pub user: User,
+    pub comment_search_result: Vec<CommentSearchResult>,
+    pub session: UserSession,
+    pub noindex: bool,
+    pub notifications: Vec<NotificationInfo>,
+}
+
+#[derive(Template)]
 #[template(path = "profile-comments.html")]
 pub struct ProfileComments {
     pub alert: String,

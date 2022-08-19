@@ -2146,10 +2146,10 @@ impl MoreInterestingConn {
             .collect();
         Ok(all)
     }
-    pub async fn search_comments_by_user(&self, user_id_param: i32, after_id_param: Option<i32>, self_user_id: i32) -> Result<Vec<CommentSearchResult>, DieselError> {
-        self.run(move |conn| Self::search_comments_by_user_(conn, user_id_param, after_id_param, self_user_id)).await
+    pub async fn search_comments(&self, user_id_param: Option<i32>, after_id_param: Option<i32>, self_user_id: i32) -> Result<Vec<CommentSearchResult>, DieselError> {
+        self.run(move |conn| Self::search_comments_(conn, user_id_param, after_id_param, self_user_id)).await
     }
-    fn search_comments_by_user_(conn: &PgConnection, user_id_param: i32, after_id_param: Option<i32>, self_user_id: i32) -> Result<Vec<CommentSearchResult>, DieselError> {
+    fn search_comments_(conn: &PgConnection, user_id_param: Option<i32>, after_id_param: Option<i32>, self_user_id: i32) -> Result<Vec<CommentSearchResult>, DieselError> {
         use self::comments::dsl::*;
         use self::comment_stars::dsl::*;
         use self::comment_flags::dsl::*;
@@ -2177,13 +2177,26 @@ impl MoreInterestingConn {
             .filter(self::comments::dsl::visible.eq(true))
             .filter(self::posts::dsl::private.eq(false))
             .filter(self::posts::dsl::visible.eq(true))
-            .filter(self::comments::dsl::created_by.eq(user_id_param))
             .order_by(self::comments::dsl::id.desc())
             .limit(50);
-        let query = if let Some(after_id_param) = after_id_param {
-            query.filter(self::comments::dsl::id.lt(after_id_param)).into_boxed()
-        } else {
-            query.into_boxed()
+        let query = match (user_id_param, after_id_param) {
+            (Some(user_id_param), Some(after_id_param)) => {
+                query
+                    .filter(self::comments::dsl::created_by.eq(user_id_param))
+                    .filter(self::comments::dsl::id.lt(after_id_param))
+                    .into_boxed()
+            }
+            (Some(user_id_param), None) => {
+                query
+                    .filter(self::comments::dsl::created_by.eq(user_id_param))
+                    .into_boxed()
+            }
+            (None, Some(after_id_param)) => {
+                query
+                    .filter(self::comments::dsl::id.lt(after_id_param))
+                    .into_boxed()
+            }
+            (None, None) => query.into_boxed()
         };
         let all: Vec<CommentSearchResult> = query
             .get_results::<(i32, String, i32, Base32, String, NaiveDateTime, i32, String, Option<i32>, Option<i32>, i32, bool)>(conn)?

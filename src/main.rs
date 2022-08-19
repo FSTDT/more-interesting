@@ -602,18 +602,18 @@ struct SearchCommentsParams {
 }
 
 #[get("/comments?<params..>")]
-async fn search_comments(conn: MoreInterestingConn, login: Option<LoginSession>, flash: Option<FlashMessage<'_>>, params: Option<SearchCommentsParams>, config: &State<SiteConfig>, customization: Customization) -> Option<template::ProfileComments> {
+async fn search_comments(conn: MoreInterestingConn, login: Option<LoginSession>, flash: Option<FlashMessage<'_>>, params: Option<SearchCommentsParams>, config: &State<SiteConfig>, customization: Customization) -> Option<Either<template::ProfileComments, template::IndexComments>> {
     let (user, session) = login.map(|l| (l.user, l.session)).unwrap_or((User::default(), UserSession::default()));
     if let Some(username) = params.as_ref().and_then(|params| params.user.as_ref()) {
         let by_user = conn.get_user_by_username(&username[..]).await.into_option()?;
-        let comment_search_result = conn.search_comments_by_user(
-            by_user.id,
+        let comment_search_result = conn.search_comments(
+            Some(by_user.id),
             params.as_ref().and_then(|params| params.after),
             user.id
         ).await.unwrap_or(Vec::new());
         let title = by_user.username.clone();
         let notifications = conn.list_notifications(user.id).await.unwrap_or(Vec::new());
-        Some(template::ProfileComments {
+        Some(Either::A(template::ProfileComments {
             alert: flash.map(|f| f.message().to_owned()).unwrap_or_else(String::new),
             config: config.inner().clone(),
             customization,
@@ -621,9 +621,23 @@ async fn search_comments(conn: MoreInterestingConn, login: Option<LoginSession>,
             title, user, comment_search_result, session,
             noindex: true,
             notifications,
-        })
+        }))
     } else {
-        None
+        let comment_search_result = conn.search_comments(
+            None,
+            params.as_ref().and_then(|params| params.after),
+            user.id
+        ).await.unwrap_or(Vec::new());
+        let notifications = conn.list_notifications(user.id).await.unwrap_or(Vec::new());
+        Some(Either::B(template::IndexComments {
+            title: String::from("comments"),
+            alert: flash.map(|f| f.message().to_owned()).unwrap_or_else(String::new),
+            config: config.inner().clone(),
+            customization,
+            user, comment_search_result, session,
+            noindex: true,
+            notifications,
+        }))
     }
 }
 
