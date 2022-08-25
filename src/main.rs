@@ -62,8 +62,6 @@ pub struct SiteConfig {
     #[serde(default)]
     enable_user_directory: bool,
     #[serde(default)]
-    enable_anonymous_submissions: bool,
-    #[serde(default)]
     enable_public_signup: bool,
     #[serde(with = "url_serde", default = "make_localhost")]
     public_url: Url,
@@ -89,7 +87,6 @@ impl Default for SiteConfig {
     fn default() -> Self {
         SiteConfig {
             enable_user_directory: false,
-            enable_anonymous_submissions: false,
             enable_public_signup: false,
             public_url: Url::parse("http://localhost").unwrap(),
             hide_text_post: false,
@@ -853,8 +850,8 @@ async fn mod_log(conn: MoreInterestingConn, login: Option<LoginSession>, flash: 
 }
 
 #[get("/post")]
-async fn create_post_form(conn: MoreInterestingConn, login: Option<LoginSession>, config: &State<SiteConfig>, customization: Customization) -> template::CreatePost {
-    let (user, session) = login.map(|l| (l.user, l.session)).unwrap_or((User::default(), UserSession::default()));
+async fn create_post_form(conn: MoreInterestingConn, login: LoginSession, config: &State<SiteConfig>, customization: Customization) -> template::CreatePost {
+    let (user, session) = (login.user, login.session);
     let notifications = conn.list_notifications(user.id).await.unwrap_or(Vec::new());
 
     let submitted_by_username_urlencode = utf8_percent_encode(&user.username, NON_ALPHANUMERIC).to_string();
@@ -911,22 +908,6 @@ async fn post_preview(login: Option<LoginSession>, customization: Customization,
             return Err(Status::InternalServerError);
         }
         user
-    } else if config.enable_anonymous_submissions {
-        if let Ok(user) = conn.get_user_by_username("anonymous").await {
-            user
-        } else {
-            let p: [char; 16] = rand::random();
-            let mut password = String::new();
-            password.extend(p.iter());
-            let user = conn.register_user(NewUser{
-                username: "anonymous".to_owned(),
-                password,
-                invited_by: None,
-            }).await.map_err(|_| Status::InternalServerError)?;
-            conn.change_user_trust_level(user.id, -1).await.map_err(|_| Status::InternalServerError)?;
-            conn.change_user_banned(user.id, true).await.map_err(|_| Status::InternalServerError)?;
-            user
-        }
     } else {
         return Err(Status::BadRequest);
     };
@@ -1026,8 +1007,8 @@ async fn post_preview(login: Option<LoginSession>, customization: Customization,
 }
 
 #[get("/submit")]
-async fn create_link_form(login: Option<LoginSession>, config: &State<SiteConfig>, conn: MoreInterestingConn, customization: Customization, flash: Option<FlashMessage<'_>>) -> template::Submit {
-    let (user, session) = login.map(|l| (l.user, l.session)).unwrap_or((User::default(), UserSession::default()));
+async fn create_link_form(login: LoginSession, config: &State<SiteConfig>, conn: MoreInterestingConn, customization: Customization, flash: Option<FlashMessage<'_>>) -> template::Submit {
+    let (user, session) = (login.user, login.session);
     let submitted_by_username_urlencode = utf8_percent_encode(&user.username, NON_ALPHANUMERIC).to_string();
     let submitted_by_username = user.username.clone();
     template::Submit {
@@ -1092,22 +1073,6 @@ async fn submit_preview(login: Option<LoginSession>, customization: Customizatio
             return Err(Status::InternalServerError);
         }
         user
-    } else if config.enable_anonymous_submissions {
-        if let Ok(user) = conn.get_user_by_username("anonymous").await {
-            user
-        } else {
-            let p: [char; 16] = rand::random();
-            let mut password = String::new();
-            password.extend(p.iter());
-            let user = conn.register_user(NewUser{
-                username: "anonymous".to_owned(),
-                password,
-                invited_by: None,
-            }).await.map_err(|_| Status::InternalServerError)?;
-            conn.change_user_trust_level(user.id, -1).await.map_err(|_| Status::InternalServerError)?;
-            conn.change_user_banned(user.id, true).await.map_err(|_| Status::InternalServerError)?;
-            user
-        }
     } else {
         return Err(Status::BadRequest);
     };
@@ -1208,35 +1173,14 @@ async fn submit_preview(login: Option<LoginSession>, customization: Customizatio
 }
 
 #[post("/submit", data = "<post>")]
-async fn create(login: Option<LoginSession>, conn: MoreInterestingConn, post: Form<NewPostForm>, config: &State<SiteConfig>) -> Result<Flash<Redirect>, Status> {
+async fn create(login: LoginSession, conn: MoreInterestingConn, post: Form<NewPostForm>, config: &State<SiteConfig>) -> Result<Flash<Redirect>, Status> {
     lazy_static!{
         static ref TAGS_SPLIT: Regex = Regex::new(r"[#, \t]+").unwrap();
     }
-    let user = login.as_ref().map(|l| l.user.clone());
-    let user = if let Some(user) = user {
-        if user.banned {
-            return Err(Status::InternalServerError);
-        }
-        user
-    } else if config.enable_anonymous_submissions {
-        if let Ok(user) = conn.get_user_by_username("anonymous").await {
-            user
-        } else {
-            let p: [char; 16] = rand::random();
-            let mut password = String::new();
-            password.extend(p.iter());
-            let user = conn.register_user(NewUser{
-                username: "anonymous".to_owned(),
-                password,
-                invited_by: None,
-            }).await.map_err(|_| Status::InternalServerError)?;
-            conn.change_user_trust_level(user.id, -1).await.map_err(|_| Status::InternalServerError)?;
-            conn.change_user_banned(user.id, true).await.map_err(|_| Status::InternalServerError)?;
-            user
-        }
-    } else {
-        return Err(Status::BadRequest);
-    };
+    let user = login.user.clone();
+    if user.banned {
+        return Err(Status::InternalServerError);
+    }
     if user.trust_level == 1 &&
         (Utc::now().naive_utc() - user.created_at) > Duration::seconds(60 * 60 * 24 * 7) {
         conn.change_user_trust_level(user.id, 2).await.expect("if voting works, then so should switching trust level")
