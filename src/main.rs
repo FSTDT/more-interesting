@@ -877,6 +877,7 @@ async fn create_post_form(conn: MoreInterestingConn, login: Option<LoginSession>
             comment_count: 0,
             comment_readpoint: None,
             blog_post: false,
+            anon: false,
             created_at: Utc::now().naive_utc(),
             created_at_relative: relative_date(&Utc::now().naive_utc()),
             submitted_by: user.id,
@@ -933,7 +934,7 @@ async fn post_preview(login: Option<LoginSession>, customization: Customization,
         (Utc::now().naive_utc() - user.created_at) > Duration::seconds(60 * 60 * 24 * 7) {
         conn.change_user_trust_level(user.id, 2).await.expect("if voting works, then so should switching trust level")
     }
-    let NewPostForm { title, url, excerpt, tags, no_preview, blog_post } = &*post;
+    let NewPostForm { title, url, excerpt, tags, no_preview, blog_post, anon } = &*post;
     let mut title = title.clone();
     for tag in TAGS_SPLIT.split(tags.as_ref().map(|x| &x[..]).unwrap_or("")) {
         if tag == "" { continue }
@@ -974,6 +975,7 @@ async fn post_preview(login: Option<LoginSession>, customization: Customization,
         comment_count: 0,
         comment_readpoint: None,
         blog_post: *blog_post,
+        anon: *anon,
         created_at: Utc::now().naive_utc(),
         created_at_relative: relative_date(&Utc::now().naive_utc()),
         submitted_by: user.id,
@@ -1051,6 +1053,7 @@ async fn create_link_form(login: Option<LoginSession>, config: &State<SiteConfig
             comment_count: 0,
             comment_readpoint: None,
             blog_post: false,
+            anon: false,
             created_at: Utc::now().naive_utc(),
             created_at_relative: relative_date(&Utc::now().naive_utc()),
             submitted_by: user.id,
@@ -1075,6 +1078,7 @@ struct NewPostForm {
     excerpt: Option<String>,
     no_preview: Option<bool>,
     blog_post: bool,
+    anon: bool,
 }
 
 #[post("/preview-submit", data = "<post>")]
@@ -1111,7 +1115,7 @@ async fn submit_preview(login: Option<LoginSession>, customization: Customizatio
         (Utc::now().naive_utc() - user.created_at) > Duration::seconds(60 * 60 * 24 * 7) {
         conn.change_user_trust_level(user.id, 2).await.expect("if voting works, then so should switching trust level")
     }
-    let NewPostForm { title, url, excerpt, tags, no_preview, blog_post } = &*post;
+    let NewPostForm { title, url, excerpt, tags, no_preview, blog_post, anon } = &*post;
     let mut title = title.clone();
     for tag in TAGS_SPLIT.split(tags.as_ref().map(|x| &x[..]).unwrap_or("")) {
         if tag == "" { continue }
@@ -1152,6 +1156,7 @@ async fn submit_preview(login: Option<LoginSession>, customization: Customizatio
         comment_count: 0,
         comment_readpoint: None,
         blog_post: *blog_post,
+        anon: *anon,
         created_at: Utc::now().naive_utc(),
         created_at_relative: relative_date(&Utc::now().naive_utc()),
         submitted_by: user.id,
@@ -1236,7 +1241,7 @@ async fn create(login: Option<LoginSession>, conn: MoreInterestingConn, post: Fo
         (Utc::now().naive_utc() - user.created_at) > Duration::seconds(60 * 60 * 24 * 7) {
         conn.change_user_trust_level(user.id, 2).await.expect("if voting works, then so should switching trust level")
     }
-    let NewPostForm { title, url, excerpt, tags, blog_post, .. } = &*post;
+    let NewPostForm { title, url, excerpt, tags, blog_post, anon, .. } = &*post;
     let mut title = title.clone();
     for tag in TAGS_SPLIT.split(tags.as_ref().map(|x| &x[..]).unwrap_or("")) {
         if tag == "" { continue }
@@ -1268,6 +1273,7 @@ async fn create(login: Option<LoginSession>, conn: MoreInterestingConn, post: Fo
         visible,
         private: false,
         blog_post: *blog_post,
+        anon: *anon,
         title, excerpt, url,
     }, config.body_format, user.username != "anonymous").await {
         Ok(post) => Ok(Flash::success(Redirect::to(post.uuid.to_string()), "Post created")),
@@ -1335,6 +1341,7 @@ async fn create_message(login: LoginSession, conn: MoreInterestingConn, post: Fo
         visible: true,
         private: true,
         blog_post: false,
+        anon: false,
         title, excerpt
     }, config.body_format, false).await {
         Ok(post) => {
@@ -2145,6 +2152,7 @@ async fn edit_post(conn: MoreInterestingConn, login: ModeratorSession, form: For
             visible: login.user.trust_level >= 3,
             private: post_info.private,
             blog_post: post_info.blog_post,
+            anon: post_info.anon,
         }, config.body_format).await {
             Ok(_) => {
                 if !post_info.private {

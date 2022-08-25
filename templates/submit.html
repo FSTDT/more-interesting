@@ -16,6 +16,7 @@
     <label>Excerpt
         <smart-textarea><textarea name=excerpt is=smart-punct-textarea>{% if excerpt.is_some() %}{{excerpt.as_ref().unwrap()}}{% endif %}</textarea></smart-textarea>
     </label>
+    <label><input type=checkbox name=anon style="margin:0.5em 0"> Hide my username</label>
     <div class=form-footer>
         <button>Submit link</button>
     </div>

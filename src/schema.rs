@@ -239,6 +239,7 @@ table! {
         blog_post -> Bool,
         noindex -> Bool,
         locked -> Bool,
+        anon -> Bool,
     }
 }
 

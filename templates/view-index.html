@@ -25,7 +25,18 @@
         <img width=12 height=12 class=good-img src=assets/star.svg alt="Add star">
     </button>
     {% endif %}
+    {% if post.anon %}
+    {% if user.trust_level >= 3 %}
+    <details class=details-dialog-outer>
+        <summary class=inline-summary><u>anonymous</u></summary>
+        <details-dialog>{{post.submitted_by_username}}</details-dialog>
+    </details>
+    {% else %}
+    anonymous
+    {% endif %}
+    {% else %}
     <a href="@{{post.submitted_by_username_urlencode}}">{{post.submitted_by_username}}</a>
+    {% endif %}
     {% if post.blog_post %}authored{% else %}submitted{% endif %}
     <a is=local-date href="{{post.uuid}}" title="{{post.created_at}}+00:00">{{post.created_at_relative}}<span class=hide-small> ago</span></a> and got
     <a href="{{post.uuid}}#comments">{{post.comment_count}} comments</a>
@@ -66,7 +77,18 @@
     <button class="{% if post.blog_post %}blog-post-star{% endif %}" disabled title="Log in to add star" name="add_star">
         <img width=12 height=12 class=good-img src=assets/star.svg alt="Log in to add star">
     </button>
+    {% if post.anon %}
+    {% if user.trust_level >= 3 %}
+    <details class=details-dialog-outer>
+        <summary class=inline-summary><u>anonymous</u></summary>
+        <details-dialog>{{post.submitted_by_username}}</details-dialog>
+    </details>
+    {% else %}
+    anonymous
+    {% endif %}
+    {% else %}
     <a href="@{{post.submitted_by_username_urlencode}}">{{post.submitted_by_username}}</a>
+    {% endif %}
     {% if post.blog_post %}authored{% else %}submitted{% endif %}
     <a is=local-date href="{{post.uuid}}" title="{{post.created_at}}+00:00">{{post.created_at_relative}}</a>
     and got <a href="{{post.uuid}}#comments">{{post.comment_count}} comments</a>

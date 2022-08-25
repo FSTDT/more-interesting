@@ -21,7 +21,18 @@
     <button disabled title="Cannot add star to preview" name="add_star">
         <img width=12 height=12 class=good-img src=assets/star.svg alt="Cannot add star to preview">
     </button>
+    {% if post.anon %}
+    {% if user.trust_level >= 3 %}
+    <details class=details-dialog-outer>
+        <summary class=inline-summary><u>anonymous</u></summary>
+        <details-dialog>{{post.submitted_by_username}}</details-dialog>
+    </details>
+    {% else %}
+    anonymous
+    {% endif %}
+    {% else %}
     <a href="@{{post.submitted_by_username_urlencode}}">{{post.submitted_by_username}}</a>
+    {% endif %}
     submitted
     <span is=local-date title="{{post.created_at}}+00:00">{{post.created_at_relative}} <span class=hide-small>ago</span></span>
     </div>

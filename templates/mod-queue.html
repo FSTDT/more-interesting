@@ -12,7 +12,19 @@
             {% endif %}
             <footer class=footer-container>
                 <div class=footer-main>
-                <a href="@{{post.submitted_by_username_urlencode}}">{{post.submitted_by_username}}</a> {% if post.blog_post %}authored{% else %}submitted{% endif %}
+                {% if post.anon %}
+                {% if user.trust_level >= 3 %}
+                <details class=details-dialog-outer>
+                    <summary class=inline-summary><u>anonymous</u></summary>
+                    <details-dialog>{{post.submitted_by_username}}</details-dialog>
+                </details>
+                {% else %}
+                anonymous
+                {% endif %}
+                {% else %}
+                <a href="@{{post.submitted_by_username_urlencode}}">{{post.submitted_by_username}}</a>
+                {% endif %}
+                {% if post.blog_post %}authored{% else %}submitted{% endif %}
                 <a is=local-date href="{{post.uuid}}" title="{{post.created_at}}+00:00">{{post.created_at_relative}}</a> and got
                 <a href="{{post.uuid}}#comments">{{post.comment_count}} comments</a>
                 </div>
@@ -62,7 +74,19 @@
                 <main>{{post.excerpt_html.as_ref().unwrap()|safe}}</main>
             {% endif %}
             <footer>
-            <a href="@{{post.submitted_by_username_urlencode}}">{{post.submitted_by_username}}</a> submitted
+            {% if post.anon %}
+            {% if user.trust_level >= 3 %}
+            <details class=details-dialog-outer>
+                <summary class=inline-summary><u>anonymous</u></summary>
+                <details-dialog>{{post.submitted_by_username}}</details-dialog>
+            </details>
+            {% else %}
+            anonymous
+            {% endif %}
+            {% else %}
+            <a href="@{{post.submitted_by_username_urlencode}}">{{post.submitted_by_username}}</a>
+            {% endif %}
+            submitted
             <a is=local-date href={{post.uuid}} title="{{post.created_at}}+00:00">{{post.created_at_relative}}</a> and got
             <a href="{{post.uuid}}#comments">{{post.comment_count}} comments</a>
             </footer>

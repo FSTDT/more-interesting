@@ -77,7 +77,18 @@
             <button{% if user.id != 0 %} title="{% if post_info.starred_by_me %}Remove star{% else %}Add star{% endif %}"{% else %} disabled title="Log in to vote"{% endif %} class="{% if post_info.blog_post %}blog-post-star{% endif %}" name="{% if post_info.starred_by_me %}rm_star{% else %}add_star{% endif %}" value={{post_info.uuid}}>
                 <img width=12 height=12 class=good-img src=assets/{% if post_info.starred_by_me %}star_active.svg{% else %}star.svg{% endif %} alt="{% if post_info.starred_by_me %}Remove star{% else %}Add star{% endif %}">
             </button>
+            {% if post_info.anon %}
+            {% if user.trust_level >= 3 %}
+            <details class=details-dialog-outer>
+                <summary class=inline-summary><u>anonymous</u></summary>
+                <details-dialog>{{post_info.submitted_by_username}}</details-dialog>
+            </details>
+            {% else %}
+            anonymous
+            {% endif %}
+            {% else %}
             <a href="@{{post_info.submitted_by_username_urlencode}}">{{post_info.submitted_by_username}}</a>
+            {% endif %}
             {% if post_info.blog_post %}authored{% else %}submitted{% endif %}
             <a is=local-date href="" title="{{post_info.created_at}}+00:00">{{post_info.created_at_relative}}<span class=hide-small> ago</span></a>
             <details class=details-dialog-outer id=sp-{{post_info.uuid}}>
