@@ -61,7 +61,7 @@ impl<'r> FromRequest<'r> for LoginSession {
                 .and_then(|v| v.ok()).and_then(|v| v);
             if session_uuid_param != session_uuid {
                 warn!("Got invalid CSRF session token");
-                return Outcome::Failure((Status::BadRequest, ()));
+                return Outcome::Failure((Status::Unauthorized, ()));
             }
         }
         if let Some(session_uuid) = session_uuid {
@@ -75,18 +75,18 @@ impl<'r> FromRequest<'r> for LoginSession {
                         conn.change_user_trust_level(user.id, -2).await.expect("if logging in worked, then so should changing trust level");
                     }
                     if user.banned {
-                        return Outcome::Failure((Status::BadRequest, ()));
+                        return Outcome::Failure((Status::Unauthorized, ()));
                     }
                     let _ = conn.bump_last_seen_at(session_uuid).await;
                     Outcome::Success(LoginSession { session, user })
                 } else {
-                    Outcome::Failure((Status::BadRequest, ()))
+                    Outcome::Failure((Status::Unauthorized, ()))
                 }
             } else {
-                Outcome::Failure((Status::BadRequest, ()))
+                Outcome::Failure((Status::Unauthorized, ()))
             }
         } else {
-            Outcome::Failure((Status::BadRequest, ()))
+            Outcome::Failure((Status::Unauthorized, ()))
         }
     }
 }
@@ -107,7 +107,7 @@ impl<'r> FromRequest<'r> for ModeratorSession {
                 let session = mem::replace(&mut login_session.session, UserSession::default());
                 Outcome::Success(ModeratorSession { session, user })
             },
-            Outcome::Success(_junior_user) => Outcome::Failure((Status::BadRequest, ())),
+            Outcome::Success(_junior_user) => Outcome::Failure((Status::Unauthorized, ())),
             Outcome::Failure(f) => Outcome::Failure(f),
             Outcome::Forward(f) => Outcome::Forward(f),
         }

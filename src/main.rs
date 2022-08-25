@@ -2710,6 +2710,11 @@ Disallow: /
 ", crawl_delay)
 }
 
+#[catch(401)]
+fn unauthorized_to_login() -> Redirect {
+    Redirect::to("login".to_string())
+}
+
 #[rocket::launch]
 fn launch() -> rocket::Rocket<rocket::Build> {
     //env_logger::init();
@@ -2739,5 +2744,6 @@ fn launch() -> rocket::Rocket<rocket::Build> {
         }))
         .mount("/", routes![index, blog_index, advanced_search, login_form, login, logout, create_link_form, create_post_form, create, post_preview, submit_preview, get_comments, vote, signup, get_settings, create_invite, invite_tree, change_password, post_comment, vote_comment, get_admin_tags, admin_tags, get_tags, edit_post, get_edit_post, edit_comment, get_edit_comment, set_dark_mode, set_big_mode, mod_log, get_mod_queue, moderate_post, moderate_comment, get_public_signup, random, redirect_legacy_id, latest, rss, blog_rss, top, banner_post, advanced_post, robots_txt, search_comments, new, get_admin_domains, admin_domains, create_message_form, create_message, subscriptions, post_subscriptions, get_reply_comment, preview_comment, get_admin_customization, admin_customization, conv_legacy_id, get_tags_json, get_domains_json, get_admin_flags, get_admin_comment_flags, get_admin_users, get_admin_users_search, faq, identicon, create_poll, close_poll, vote_poll])
         .mount("/assets", FileServer::from("assets"))
+        .register("/submit", catchers![unauthorized_to_login])
         .attach(PidFileFairing)
 }
