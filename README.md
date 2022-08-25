@@ -2,7 +2,7 @@
 
 **Warning**: This software does not currently provide any kind of stability guarantee. If you want to use it, be prepared for manual migrations and other kinds of breakage.
 
-Dependencies: libpq-dev pkg-config build-essential rust
+Dependencies: libpq-dev pkg-config build-essential rust libssl-dev
 
 # A kit for more interesting links and discussions
 
