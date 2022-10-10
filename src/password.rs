@@ -1,7 +1,8 @@
 use ring::{digest, pbkdf2, rand};
 use ring::rand::SecureRandom;
+use std::num::NonZeroU32;
 
-static DIGEST_ALG: &'static digest::Algorithm = &digest::SHA256;
+static PBKDF2_ALG: pbkdf2::Algorithm = pbkdf2::PBKDF2_HMAC_SHA256;
 const CREDENTIAL_LEN: usize = digest::SHA256_OUTPUT_LEN;
 const PBKDF2_ITER: u32 = 100_000;
 
@@ -43,8 +44,8 @@ pub fn password_hash(password: &str) -> Vec<u8> {
     parts.version[0] = 1;
     get_salt(parts.salt);
     pbkdf2::derive(
-        DIGEST_ALG,
-        PBKDF2_ITER,
+        PBKDF2_ALG,
+        NonZeroU32::new(PBKDF2_ITER).unwrap(),
         parts.salt,
         password.as_bytes(),
         parts.hash,
@@ -68,8 +69,8 @@ pub fn password_verify(password: &str, password_hash: &mut [u8]) -> PasswordResu
         1 => {
             let parts = parts(password_hash);
             let result = pbkdf2::verify(
-                DIGEST_ALG,
-                PBKDF2_ITER,
+                PBKDF2_ALG,
+                NonZeroU32::new(PBKDF2_ITER).unwrap(),
                 parts.salt,
                 password.as_bytes(),
                 parts.hash,
