@@ -1968,6 +1968,9 @@ struct AddBlockedRegexForm {
 
 #[post("/admin/blocked-regexes", data = "<form>")]
 async fn add_admin_blocked_regex(conn: MoreInterestingConn, _login: ModeratorSession, form: Form<AddBlockedRegexForm>) -> Option<Flash<Redirect>> {
+    if let Err(e) = Regex::new(&form.regex) {
+        return Some(Flash::error(Redirect::to(uri!(get_admin_blocked_regexes)), e.to_string()));
+    }
     match conn.add_blocked_regex(models::NewBlockedRegex {
         regex: form.regex.clone(),
     }).await {
