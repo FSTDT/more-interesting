@@ -1,6 +1,15 @@
 table! {
     use crate::sql_types::*;
 
+    blocked_regexes (id) {
+        id -> Int4,
+        regex -> Varchar,
+    }
+}
+
+table! {
+    use crate::sql_types::*;
+
     comment_flags (user_id, comment_id) {
         user_id -> Int4,
         comment_id -> Int4,
@@ -352,6 +361,7 @@ joinable!(subscriptions -> posts (post_id));
 joinable!(user_sessions -> users (user_id));
 
 allow_tables_to_appear_in_same_query!(
+    blocked_regexes,
     comment_flags,
     comment_hides,
     comment_readpoints,

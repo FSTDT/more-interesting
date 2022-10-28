@@ -2,6 +2,7 @@ use askama::Template;
 use serde::{Serialize, Serializer};
 use crate::models::{Comment, CommentInfo, CommentSearchResult, LegacyCommentInfo, ModerationInfo, NotificationInfo, PostInfo, User, UserSession};
 use crate::models::{Tag, CommentFlagInfo, PollInfo, PostFlagInfo, SiteCustomization, DomainSynonymInfo};
+use crate::models::BlockedRegex;
 use crate::customization::Customization;
 use crate::SiteConfig;
 use more_interesting_base32::Base32;
@@ -551,6 +552,19 @@ pub struct AdminUsers {
     pub users_list: Vec<User>,
 }
 
+#[derive(Template)]
+#[template(path = "admin/blocked-regexes.html")]
+pub struct AdminBlockedRegexes {
+    pub title: String,
+    pub alert: String,
+    pub page: AdminPageId,
+    pub user: User,
+    pub session: UserSession,
+    pub customization: Customization,
+    pub config: SiteConfig,
+    pub blocked_regexes: Vec<BlockedRegex>,
+}
+
 #[derive(Clone, Copy, Eq, PartialEq)]
 pub enum NavPageId {
     Home = 1,
@@ -596,6 +610,7 @@ pub enum AdminPageId {
     Flags = 4,
     CommentFlags = 5,
     Users = 6,
+    BlockedRegexes = 7,
 }
 
 impl Serialize for AdminPageId {

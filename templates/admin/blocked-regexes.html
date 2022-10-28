@@ -1,0 +1,33 @@
+{% extends "layout.html" %}
+{% block page %}
+    <div class=admin-list>
+        {% for blocked_regex in blocked_regexes %}
+        <details>
+            <summary class="admin-list-item details-dialog-summary-special">{{blocked_regex.regex}}</summary>
+            <details-dialog>
+                <form action="delete-blocked-regex?U={{session.uuid}}" method=POST>
+                <input name=id value={{blocked_regex.id}} type=hidden>
+                <div class=form-footer>
+                    <button class=button-default>Delete</button>
+                    <a href="" onclick="return !window.DetailsDialogElement" class=button data-close-dialog>Cancel</a>
+                </div>
+                </form>
+            </details-dialog>
+        </details>
+        {% endfor %}
+    </div>
+    <details-menu-bar>
+        <details class=details-dialog-outer>
+            <summary class=details-dialog-summary>+ New blocked regex</summary>
+            <details-dialog>
+                <form action="blocked-regexes?U={{session.uuid}}" method=POST>
+                <label>Regex <input name=regex required autofocus></label>
+                <div class=form-footer>
+                    <button class=button-default>Save</button>
+                    <a href="" onclick="return !window.DetailsDialogElement" class=button data-close-dialog>Cancel</a>
+                </div>
+                </form>
+            </details-dialog>
+        </details>
+    </details-menu-bar>
+{% endblock %}

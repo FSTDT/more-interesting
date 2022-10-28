@@ -1177,7 +1177,7 @@ async fn create(login: LoginSession, conn: MoreInterestingConn, post: Form<NewPo
     lazy_static!{
         static ref TAGS_SPLIT: Regex = Regex::new(r"[#, \t]+").unwrap();
     }
-    let user = login.user.clone();
+    let mut user = login.user.clone();
     if user.banned {
         return Err(Status::InternalServerError);
     }
@@ -1185,7 +1185,24 @@ async fn create(login: LoginSession, conn: MoreInterestingConn, post: Form<NewPo
         (Utc::now().naive_utc() - user.created_at) > Duration::seconds(60 * 60 * 24 * 7) {
         conn.change_user_trust_level(user.id, 2).await.expect("if voting works, then so should switching trust level")
     }
+
     let NewPostForm { title, url, excerpt, tags, blog_post, anon, .. } = &*post;
+
+    if let Some(excerpt) = &excerpt {
+        let blocked_regexes = conn.get_all_blocked_regexes().await.unwrap_or(Vec::new());
+        for blocked_regex in blocked_regexes {
+            let regex = if let Ok(regex) = Regex::new(&blocked_regex.regex) {
+                regex
+            } else {
+                continue
+            };
+            if regex.is_match(&excerpt) {
+                conn.change_user_trust_level(user.id, -2).await.expect("if voting works, then so should switching trust level");
+                user.trust_level = -2;
+            }
+        }
+    }
+
     let mut title = title.clone();
     for tag in TAGS_SPLIT.split(tags.as_ref().map(|x| &x[..]).unwrap_or("")) {
         if tag == "" { continue }
@@ -1926,6 +1943,58 @@ async fn admin_tags(conn: MoreInterestingConn, _login: ModeratorSession, form: F
         Err(e) => {
             debug!("Unable to update site tags: {:?}", e);
             Flash::error(Redirect::to(uri!(get_admin_tags)), "Unable to update site tags")
+        }
+    }
+}
+
+#[get("/admin/blocked-regexes")]
+async fn get_admin_blocked_regexes(conn: MoreInterestingConn, customization: Customization, login: ModeratorSession, flash: Option<FlashMessage<'_>>, config: &State<SiteConfig>) -> template::AdminBlockedRegexes {
+    let blocked_regexes = conn.get_all_blocked_regexes().await.unwrap_or(Vec::new());
+    template::AdminBlockedRegexes {
+        title: String::from("add or edit blocked regexes"),
+        user: login.user,
+        session: login.session,
+        alert: flash.map(|f| f.message().to_owned()).unwrap_or_else(String::new),
+        config: config.inner().clone(),
+        page: AdminPageId::BlockedRegexes,
+        blocked_regexes, customization,
+    }
+}
+
+#[derive(FromForm)]
+struct AddBlockedRegexForm {
+    regex: String,
+}
+
+#[post("/admin/blocked-regexes", data = "<form>")]
+async fn add_admin_blocked_regex(conn: MoreInterestingConn, _login: ModeratorSession, form: Form<AddBlockedRegexForm>) -> Option<Flash<Redirect>> {
+    match conn.add_blocked_regex(models::NewBlockedRegex {
+        regex: form.regex.clone(),
+    }).await {
+        Ok(_) => {
+            Some(Flash::success(Redirect::to(uri!(get_admin_blocked_regexes)), "Added new blocked regex"))
+        }
+        Err(e) => {
+            warn!("Unable to add blocked regex: {:?}", e);
+            Some(Flash::error(Redirect::to(uri!(get_admin_blocked_regexes)), "Unable to add blocked regex"))
+        }
+    }
+}
+
+#[derive(FromForm)]
+struct DeleteBlockedRegexForm {
+    id: i32,
+}
+
+#[post("/admin/delete-blocked-regex", data = "<form>")]
+async fn delete_admin_blocked_regex(conn: MoreInterestingConn, _login: ModeratorSession, form: Form<DeleteBlockedRegexForm>) -> Option<Flash<Redirect>> {
+    match conn.delete_blocked_regex(form.id).await {
+        Ok(_) => {
+            Some(Flash::success(Redirect::to(uri!(get_admin_blocked_regexes)), "Deleted blocked regex"))
+        }
+        Err(e) => {
+            warn!("Unable to delete blocked regex: {:?}", e);
+            Some(Flash::error(Redirect::to(uri!(get_admin_blocked_regexes)), "Unable to delete blocked regex"))
         }
     }
 }
@@ -2742,7 +2811,7 @@ fn launch() -> rocket::Rocket<rocket::Build> {
                 }
             })
         }))
-        .mount("/", routes![index, blog_index, advanced_search, login_form, login, logout, create_link_form, create_post_form, create, post_preview, submit_preview, get_comments, vote, signup, get_settings, create_invite, invite_tree, change_password, post_comment, vote_comment, get_admin_tags, admin_tags, get_tags, edit_post, get_edit_post, edit_comment, get_edit_comment, set_dark_mode, set_big_mode, mod_log, get_mod_queue, moderate_post, moderate_comment, get_public_signup, random, redirect_legacy_id, latest, rss, blog_rss, top, banner_post, advanced_post, robots_txt, search_comments, new, get_admin_domains, admin_domains, create_message_form, create_message, subscriptions, post_subscriptions, get_reply_comment, preview_comment, get_admin_customization, admin_customization, conv_legacy_id, get_tags_json, get_domains_json, get_admin_flags, get_admin_comment_flags, get_admin_users, get_admin_users_search, faq, identicon, create_poll, close_poll, vote_poll])
+        .mount("/", routes![index, blog_index, advanced_search, login_form, login, logout, create_link_form, create_post_form, create, post_preview, submit_preview, get_comments, vote, signup, get_settings, create_invite, invite_tree, change_password, post_comment, vote_comment, get_admin_tags, admin_tags, get_tags, edit_post, get_edit_post, edit_comment, get_edit_comment, set_dark_mode, set_big_mode, mod_log, get_mod_queue, moderate_post, moderate_comment, get_public_signup, random, redirect_legacy_id, latest, rss, blog_rss, top, banner_post, advanced_post, robots_txt, search_comments, new, get_admin_domains, admin_domains, create_message_form, create_message, subscriptions, post_subscriptions, get_reply_comment, preview_comment, get_admin_customization, admin_customization, conv_legacy_id, get_tags_json, get_domains_json, get_admin_flags, get_admin_comment_flags, get_admin_users, get_admin_users_search, faq, identicon, create_poll, close_poll, vote_poll, get_admin_blocked_regexes, add_admin_blocked_regex, delete_admin_blocked_regex])
         .mount("/assets", FileServer::from("assets"))
         .register("/submit", catchers![unauthorized_to_login])
         .attach(PidFileFairing)

@@ -4,7 +4,7 @@ use diesel::prelude::*;
 use diesel::sql_types;
 use diesel::result::Error as DieselError;
 use chrono::{NaiveDate, NaiveDateTime, NaiveTime, Utc, Duration};
-use crate::schema::{site_customization, users, user_sessions, posts, stars, invite_tokens, comments, comment_stars, tags, post_tagging, moderation, flags, comment_flags, domains, legacy_comments, domain_synonyms, notifications, subscriptions, post_hides, comment_hides, post_word_freq, comment_readpoints, domain_restrictions, polls, poll_votes, poll_choices};
+use crate::schema::{site_customization, users, user_sessions, posts, stars, invite_tokens, comments, comment_stars, tags, post_tagging, moderation, flags, comment_flags, domains, legacy_comments, domain_synonyms, notifications, subscriptions, post_hides, comment_hides, post_word_freq, comment_readpoints, domain_restrictions, polls, poll_votes, poll_choices, blocked_regexes};
 use crate::password::{password_hash, password_verify, PasswordResult};
 use serde::{Deserialize, Serialize};
 use more_interesting_base32::Base32;
@@ -297,6 +297,18 @@ pub struct Domain {
     pub hostname: String,
     pub is_www: bool,
     pub is_https: bool,
+}
+
+#[derive(Queryable, Serialize)]
+pub struct BlockedRegex {
+    pub id: i32,
+    pub regex: String,
+}
+
+#[derive(Insertable)]
+#[table_name="blocked_regexes"]
+pub struct NewBlockedRegex {
+    pub regex: String,
 }
 
 #[derive(Insertable)]
@@ -2369,6 +2381,33 @@ impl MoreInterestingConn {
             .inner_join(domains)
             .select((from_hostname, hostname))
             .get_results::<DomainSynonymInfo>(conn)
+    }
+    pub async fn add_blocked_regex(&self, new_blocked_regex: NewBlockedRegex) -> Result<(), DieselError> {
+        self.run(move |conn| Self::add_blocked_regex_(conn, new_blocked_regex)).await
+    }
+    fn add_blocked_regex_(conn: &PgConnection, new_blocked_regex: NewBlockedRegex) -> Result<(), DieselError> {
+        use self::blocked_regexes::dsl::*;
+        diesel::insert_into(blocked_regexes)
+            .values(new_blocked_regex)
+            .execute(conn)
+            .map(|_| ())
+    }
+    pub async fn delete_blocked_regex(&self, id: i32) -> Result<(), DieselError> {
+        self.run(move |conn| Self::delete_blocked_regex_(conn, id)).await
+    }
+    fn delete_blocked_regex_(conn: &PgConnection, id_: i32) -> Result<(), DieselError> {
+        use self::blocked_regexes::dsl::*;
+        diesel::delete(blocked_regexes.filter(id.eq(id_)))
+            .execute(conn)?;
+        Ok(())
+    }
+    pub async fn get_all_blocked_regexes(&self) -> Result<Vec<BlockedRegex>, DieselError> {
+        self.run(move |conn| Self::get_all_blocked_regexes_(conn)).await
+    }
+    fn get_all_blocked_regexes_(conn: &PgConnection) -> Result<Vec<BlockedRegex>, DieselError> {
+        use self::blocked_regexes::dsl::*;
+        blocked_regexes
+            .get_results::<BlockedRegex>(conn)
     }
     pub async fn get_all_tags(&self) -> Result<Vec<Tag>, DieselError> {
         self.run(move |conn| Self::get_all_tags_(conn)).await
