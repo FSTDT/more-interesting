@@ -2771,6 +2771,12 @@ Disallow: /
 User-agent: serpstatbot
 Disallow: /
 
+User-agent: DataForSeoBot
+Disallow: /
+
+User-agent: PetalBot
+Disallow: /
+
 User-agent: DotBot
 Disallow: /
 
