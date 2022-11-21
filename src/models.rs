@@ -889,7 +889,7 @@ impl MoreInterestingConn {
         }
         let mut before_date = search.before_date;
         let mut after_date = search.after_date;
-        if before_date < after_date {
+        if before_date < after_date && before_date.is_some() && after_date.is_some() {
             mem::swap(&mut after_date, &mut before_date);
         }
         if let Some(before_date) = before_date {

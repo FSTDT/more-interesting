@@ -22,11 +22,10 @@ mod forever;
 
 use askama::Template;
 use forever::CacheForever;
-use rocket::response::content::Html;
 use rocket::form::{Form, FromForm};
-use rocket::request::FlashMessage;
-use rocket::response::{Responder, Redirect, Flash, content};
-use rocket::http::{CookieJar, Cookie, ContentType};
+use rocket::request::{self, FlashMessage, Request};
+use rocket::response::{self, Response, Responder, Redirect, Flash, content};
+use rocket::http::{CookieJar, Cookie, ContentType, MediaType};
 pub use models::MoreInterestingConn;
 use models::PollInfo;
 use models::{CreatePostError, CreateCommentError};
@@ -50,12 +49,13 @@ use rocket::fairing;
 use rocket::State;
 use std::str::FromStr;
 use crate::session::{LoginSession, ModeratorSession, UserAgentString, ReferrerString};
-use chrono::{NaiveDate, Duration, Utc};
+use chrono::{NaiveDate, Duration, Utc, Months};
 use percent_encoding::{utf8_percent_encode, NON_ALPHANUMERIC};
 use lazy_static::lazy_static;
 use regex::Regex;
 use more_interesting_avatar::render as render_avatar;
 use more_interesting_avatar::to_png;
+use template::Timespan;
 
 #[derive(Clone, Deserialize, Serialize)]
 pub struct SiteConfig {
@@ -199,13 +199,13 @@ impl MaybeRedirect {
             Some(b) => b.to_string(),
             None => return VoteResponse::C(Status::Created),
         };
-        VoteResponse::B(Html(format!("<!DOCTYPE html><meta name=viewport content=width=device-width><h1><a href={}#{}>Redirect OK</a></h1><script>window.location = document.getElementsByTagName('a')[0].href</script>", escape(&p), escape(&hash()))))
+        VoteResponse::B(content::RawHtml(format!("<!DOCTYPE html><meta name=viewport content=width=device-width><h1><a href={}#{}>Redirect OK</a></h1><script>window.location = document.getElementsByTagName('a')[0].href</script>", escape(&p), escape(&hash()))))
     }
 }
 
 #[derive(Responder)]
 enum VoteResponse {
-    B(Html<String>),
+    B(content::RawHtml<String>),
     C(Status)
 }
 
@@ -326,7 +326,7 @@ async fn vote(conn: MoreInterestingConn, login: LoginSession, redirect: MaybeRed
             redirect.maybe_redirect_vote(|| format!("{}", post.uuid))
         } else {
             let starred_by = conn.get_post_starred_by(post.id).await.unwrap_or(Vec::new());
-            VoteResponse::B(content::Html(template::ViewStar {
+            VoteResponse::B(content::RawHtml(template::ViewStar {
                 starred_by, customization, blog_post,
             }.render().unwrap()))
         }
@@ -385,7 +385,7 @@ async fn vote_comment(conn: MoreInterestingConn, login: LoginSession, redirect: 
             redirect.maybe_redirect_vote(|| format!("{}", id))
         } else {
             let starred_by = conn.get_comment_starred_by(id).await.unwrap_or(Vec::new());
-            VoteResponse::B(content::Html(template::ViewStarComment {
+            VoteResponse::B(content::RawHtml(template::ViewStarComment {
                 starred_by, customization,
             }.render().unwrap()))
         }
@@ -638,19 +638,39 @@ async fn search_comments(conn: MoreInterestingConn, login: Option<LoginSession>,
     }
 }
 
-#[get("/top?<params..>")]
-async fn top(conn: MoreInterestingConn, login: Option<LoginSession>, flash: Option<FlashMessage<'_>>, config: &State<SiteConfig>, params: Option<IndexParams>, customization: Customization) -> Option<template::IndexTop> {
+#[get("/top?<timespan>&<params..>")]
+async fn top(conn: MoreInterestingConn, login: Option<LoginSession>, flash: Option<FlashMessage<'_>>, config: &State<SiteConfig>, params: Option<IndexParams>, customization: Customization, timespan: Option<Timespan>) -> Option<template::IndexTop> {
     let (user, session) = login.map(|l| (l.user, l.session)).unwrap_or((User::default(), UserSession::default()));
     let tag_param = params.as_ref().and_then(|params| Some(params.tag.as_ref()?.to_string())).unwrap_or_else(String::new);
     let domain = params.as_ref().and_then(|params| Some(params.domain.as_ref()?.to_string())).unwrap_or_else(String::new);
     let (search, tags) = parse_index_params(&conn, &user, params).await?;
-    let before_date_param = search.before_date;
-    let after_date_param = search.after_date;
-    let search = PostSearch {
+    let mut search = PostSearch {
         order_by: PostSearchOrderBy::Top,
         blog_post: Some(false),
         .. search
     };
+    let timespan = timespan.unwrap_or_else(|| if search.before_date.is_none() && search.after_date.is_none() { Timespan::Month } else { Timespan::All });
+    match timespan {
+        Timespan::Year => {
+            let real = Utc::now().naive_utc().checked_sub_months(Months::new(12));
+            let fake = Utc::now().naive_utc() - Duration::days(365);
+            search.after_date = Some(real.unwrap_or(fake).date());
+        }
+        Timespan::Month => {
+            let real = Utc::now().naive_utc().checked_sub_months(Months::new(1));
+            let fake = Utc::now().naive_utc() - Duration::days(31);
+            search.after_date = Some(real.unwrap_or(fake).date());
+        }
+        Timespan::Week => {
+            search.after_date = Some((Utc::now().naive_utc() - Duration::weeks(1)).date());
+        }
+        Timespan::Day => {
+            search.after_date = Some((Utc::now().naive_utc() - Duration::days(1)).date());
+        }
+        Timespan::All => {}
+    }
+    let before_date_param = search.before_date;
+    let after_date_param = search.after_date;
     let keywords_param = search.keywords.clone();
     let title_param = search.title.clone();
     let is_home = tag_param == "" && domain == "" && keywords_param == "";
@@ -659,6 +679,7 @@ async fn top(conn: MoreInterestingConn, login: Option<LoginSession>, flash: Opti
     let noindex = keywords_param != "" && (search.after_post_id != 0 || search.search_page != 0);
     Some(template::IndexTop {
         title: String::from("top"),
+        timespan,
         next_search_page: search.search_page + 1,
         alert: flash.map(|f| f.message().to_owned()).unwrap_or_else(String::new),
         config: config.inner().clone(),
@@ -792,15 +813,27 @@ async fn latest(conn: MoreInterestingConn, login: Option<LoginSession>, params: 
     })
 }
 
+pub const RSS: MediaType = MediaType::const_new("application", "rss+xml", &[]);
+
+pub struct Rss<R>(pub R);
+
+impl<'r, 'o: 'r, R: Responder<'r, 'o>> Responder<'r, 'o> for Rss<R> {
+    fn respond_to(self, req: &'r Request<'_>) -> response::Result<'o> {
+        let mut r = self.0.respond_to(req)?;
+        r.set_header(ContentType::from(RSS));
+        Ok(r)
+    }
+}
+
 #[get("/rss")]
-async fn rss(conn: MoreInterestingConn, config: &State<SiteConfig>, customization: Customization) -> Option<content::Custom<String>> {
+async fn rss(conn: MoreInterestingConn, config: &State<SiteConfig>, customization: Customization) -> Option<Rss<String>> {
     let search = PostSearch {
         order_by: PostSearchOrderBy::Newest,
         blog_post: Some(false),
         .. PostSearch::with_my_user_id(0)
     };
     let posts = conn.search_posts(&search).await.ok()?;
-    Some(content::Custom(ContentType::from_str("application/rss+xml").unwrap(), template::Rss {
+    Some(Rss(template::Rss {
         posts,
         config: config.inner().clone(),
         link: config.public_url.to_string(),
@@ -809,14 +842,14 @@ async fn rss(conn: MoreInterestingConn, config: &State<SiteConfig>, customizatio
 }
 
 #[get("/blog.rss")]
-async fn blog_rss(conn: MoreInterestingConn, config: &State<SiteConfig>, customization: Customization) -> Option<content::Custom<String>> {
+async fn blog_rss(conn: MoreInterestingConn, config: &State<SiteConfig>, customization: Customization) -> Option<Rss<String>> {
     let search = PostSearch {
         order_by: PostSearchOrderBy::Newest,
         blog_post: Some(true),
         .. PostSearch::with_my_user_id(0)
     };
     let posts = conn.search_posts(&search).await.ok()?;
-    Some(content::Custom(ContentType::from_str("application/rss+xml").unwrap(), template::BlogRss {
+    Some(Rss(template::BlogRss {
         posts,
         config: config.inner().clone(),
         link: config.public_url.to_string(),
@@ -1538,7 +1571,20 @@ struct CommentForm {
 #[post("/comment", data = "<comment>")]
 async fn post_comment(conn: MoreInterestingConn, login: LoginSession, comment: Form<CommentForm>, config: &State<SiteConfig>) -> Option<Flash<Redirect>> {
     let post_info = conn.get_post_info_by_uuid(login.user.id, comment.post).await.into_option()?;
-    let visible = login.user.trust_level > 0 || post_info.private;
+    let mut user = login.user;
+    let blocked_regexes = conn.get_all_blocked_regexes().await.unwrap_or(Vec::new());
+    for blocked_regex in blocked_regexes {
+        let regex = if let Ok(regex) = Regex::new(&blocked_regex.regex) {
+            regex
+        } else {
+            continue
+        };
+        if regex.is_match(&comment.text) {
+            conn.change_user_trust_level(user.id, -2).await.ok()?;
+            user.trust_level = -2;
+        }
+    }
+    let visible = user.trust_level > 0 || post_info.private;
     if post_info.locked {
         return Some(Flash::error(
             Redirect::to(comment.post.to_string()),
@@ -1548,7 +1594,7 @@ async fn post_comment(conn: MoreInterestingConn, login: LoginSession, comment: F
     let comment_result = conn.comment_on_post(NewComment {
         post_id: post_info.id,
         text: comment.text.clone(),
-        created_by: login.user.id,
+        created_by: user.id,
         visible,
     }, config.body_format).await;
     match comment_result {
@@ -1569,11 +1615,11 @@ async fn post_comment(conn: MoreInterestingConn, login: LoginSession, comment: F
         Vec::new()
     });
     for subscribed_user_id in subscribed_users {
-        if subscribed_user_id == login.user.id { continue };
+        if subscribed_user_id == user.id { continue };
         conn.create_notification(NewNotification {
             user_id: subscribed_user_id,
             post_id: post_info.id,
-            created_by: login.user.id,
+            created_by: user.id,
         }).await.unwrap_or_else(|e| warn!("Cannot notify {} on comment: {:?}", subscribed_user_id, e));
     }
     Some(Flash::success(
@@ -1767,23 +1813,23 @@ async fn create_invite<'a>(conn: MoreInterestingConn, login: LoginSession, confi
 }
 
 #[get("/tags.json")]
-async fn get_tags_json(conn: MoreInterestingConn) -> Option<content::Json<String>> {
+async fn get_tags_json(conn: MoreInterestingConn) -> Option<content::RawJson<String>> {
     let tags = conn.get_all_tags().await.unwrap_or(Vec::new());
     let tags_map: serde_json::Map<String, serde_json::Value> = tags.into_iter().map(|tag| {
         (tag.name, tag.description.unwrap_or(String::new()).into())
     }).collect();
     let json = serde_json::to_string(&tags_map).ok()?;
-    Some(content::Json(json))
+    Some(content::RawJson(json))
 }
 
 #[get("/domains.json?<search>")]
-async fn get_domains_json(conn: MoreInterestingConn, search: String) -> Option<content::Json<String>> {
+async fn get_domains_json(conn: MoreInterestingConn, search: String) -> Option<content::RawJson<String>> {
     let domains = conn.search_domains(search).await.unwrap_or(Vec::new());
     let domains_map: serde_json::Map<String, serde_json::Value> = domains.into_iter().map(|domain| {
         (domain.hostname, String::new().into())
     }).collect();
     let json = serde_json::to_string(&domains_map).ok()?;
-    Some(content::Json(json))
+    Some(content::RawJson(json))
 }
 
 #[get("/tags")]
@@ -2690,15 +2736,27 @@ async fn random(conn: MoreInterestingConn, login: Option<LoginSession>, params: 
     })
 }
 
+pub const PNG: MediaType = MediaType::const_new("image", "png", &[]);
+
+pub struct Png<R>(pub R);
+
+impl<'r, 'o: 'r, R: Responder<'r, 'o>> Responder<'r, 'o> for Png<R> {
+    fn respond_to(self, req: &'r Request<'_>) -> response::Result<'o> {
+        let mut r = self.0.respond_to(req)?;
+        r.set_header(ContentType::from(PNG));
+        Ok(r)
+    }
+}
+
 #[get("/identicon/<id>")]
-async fn identicon(id: Base32, referrer: ReferrerString<'_>, config: &State<SiteConfig>) -> Option<CacheForever<content::Custom<Vec<u8>>>> {
+async fn identicon(id: Base32, referrer: ReferrerString<'_>, config: &State<SiteConfig>) -> Option<CacheForever<Png<Vec<u8>>>> {
     let referrer = Url::parse(referrer.referrer).ok();
     if referrer.is_some() && referrer.as_ref().and_then(|u| u.host()) != config.public_url.host() {
         return None;
     }
     let img = render_avatar(id.into_u64() as u32);
     let png = to_png(img);
-    Some(CacheForever(content::Custom(ContentType::from_str("image/png").unwrap(), png)))
+    Some(CacheForever(Png(png)))
 }
 
 #[get("/conv/<id>")]

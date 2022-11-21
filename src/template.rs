@@ -68,6 +68,15 @@ pub struct Subscriptions {
     pub noindex: bool,
 }
 
+#[derive(Clone, Copy, FromFormField, Eq, PartialEq)]
+pub enum Timespan {
+    Day,
+    Week,
+    Month,
+    Year,
+    All,
+}
+
 #[derive(Template)]
 #[template(path = "index-top.html")]
 pub struct IndexTop {
@@ -80,6 +89,7 @@ pub struct IndexTop {
     pub next_search_page: i32,
     pub before_date_param: Option<NaiveDate>,
     pub after_date_param: Option<NaiveDate>,
+    pub timespan: Timespan,
     pub title: String,
     pub posts: Vec<PostInfo>,
     pub is_home: bool,

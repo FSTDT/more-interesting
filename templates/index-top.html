@@ -6,6 +6,27 @@
 {%-endif-%}
 {% endblock %}
 {% block page %}
+<details-menu-bar>
+	Top posts {% if timespan == Timespan::All %}for{% else %}since{% endif %}
+	<details class="details-menu-outer">
+		<summary id=top-switcher class="details-menu-summary" aria-haspopup=menu role=button>
+			{% match timespan %}
+			{% when Timespan::Day %}yesterday
+			{% when Timespan::Week %}last week
+			{% when Timespan::Month %}last month
+			{% when Timespan::Year %}last year
+			{% when Timespan::All %}all time
+			{% endmatch %}
+		</summary>
+        <div class="details-menu-inner backwards" role=menu>
+        	<a class=details-menu-item role=menuitem href="top?timespan=day#top-switcher">yesterday</a>
+        	<a class=details-menu-item role=menuitem href="top?timespan=week#top-switcher">last week</a>
+        	<a class=details-menu-item role=menuitem href="top?timespan=month#top-switcher">last month</a>
+        	<a class=details-menu-item role=menuitem href="top?timespan=year#top-switcher">last year</a>
+        	<a class=details-menu-item role=menuitem href="top?timespan=all#top-switcher">all time</a>
+        </div>
+	</details>
+</details-menu-bar>
 {% for tag in tags %}
 {% call nav::tag_nav(tag, NavPageId::Top, before_date_param, after_date_param) %}
 {% endfor %}
