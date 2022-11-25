@@ -1,0 +1,1 @@
+UPDATE users SET trust_level = -2 WHERE trust_level = -3;

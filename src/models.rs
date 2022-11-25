@@ -172,6 +172,18 @@ pub struct UserSession {
 pub struct User {
     pub id: i32,
     pub banned: bool,
+    /// trust levels
+    ///
+    ///  # | desc
+    /// ---|------
+    ///  4 | admin (absolutely everything)
+    ///  3 | moderator (everything except one-shot bans, which aren't implemented yet)
+    ///  2 | leader (no moderation, private messages)
+    ///  1 | visitor (no moderation)
+    ///  0 | newbie (everything goes through the mod queue)
+    /// -1 | probation (posts get moderated, comments don't)
+    /// -2 | locked (posts and comments both get moderated)
+    /// -3 | shadowbanned
     pub trust_level: i32,
     pub username: String,
     pub password_hash: Vec<u8>,
@@ -210,7 +222,7 @@ impl Default for User {
         User {
             id: 0,
             banned: false,
-            trust_level: -2,
+            trust_level: -3,
             username: "".to_string(),
             password_hash: vec![],
             created_at: NaiveDateTime::from_timestamp(0, 0),
@@ -2892,7 +2904,7 @@ impl MoreInterestingConn {
             ))
             .filter(visible.eq(false))
             .filter(rejected.eq(false))
-            .filter(self::users::dsl::trust_level.gt(-2))
+            .filter(self::users::dsl::trust_level.gt(-3))
             .order_by(self::posts::dsl::created_at.asc())
             .limit(50)
             .get_results::<(i32, Base32, String, Option<String>, Option<String>, bool, bool, i32, i32, i32, Option<i32>, bool, NaiveDateTime, i32, Option<String>, Option<String>, Option<i32>, Option<i32>, Option<i32>, String, Option<String>, Option<String>, bool, bool, bool)>(conn)?
@@ -2933,7 +2945,7 @@ impl MoreInterestingConn {
             ))
             .filter(visible.eq(false))
             .filter(rejected.eq(false))
-            .filter(self::users::dsl::trust_level.gt(-2))
+            .filter(self::users::dsl::trust_level.gt(-3))
             .order_by(self::comments::dsl::created_at.asc())
             .limit(50)
             .get_results::<(i32, String, String, bool, i32, NaiveDateTime, i32, Option<i32>, Option<i32>, Option<i32>, String, i32)>(conn)?

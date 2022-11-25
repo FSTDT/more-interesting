@@ -1230,8 +1230,8 @@ async fn create(login: LoginSession, conn: MoreInterestingConn, post: Form<NewPo
                 continue
             };
             if regex.is_match(&excerpt) {
-                conn.change_user_trust_level(user.id, -2).await.expect("if voting works, then so should switching trust level");
-                user.trust_level = -2;
+                conn.change_user_trust_level(user.id, -3).await.expect("if voting works, then so should switching trust level");
+                user.trust_level = -3;
             }
         }
     }
@@ -1397,7 +1397,7 @@ async fn login(conn: MoreInterestingConn, post: Form<UserForm>, cookies: &Cookie
         password: post.password.clone(),
     }).await {
         Some(user) => {
-            if user.trust_level == -2 || user.banned {
+            if user.trust_level <= -3 || user.banned {
                 let cookie = Cookie::build("B", "1").path("/").permanent().same_site(SameSite::None).finish();
                 cookies.add(cookie);
             }
@@ -1584,7 +1584,7 @@ async fn post_comment(conn: MoreInterestingConn, login: LoginSession, comment: F
             user.trust_level = -2;
         }
     }
-    let visible = user.trust_level > 0 || post_info.private;
+    let visible = user.trust_level > 0 || post_info.private || user.trust_level == -1;
     if post_info.locked {
         return Some(Flash::error(
             Redirect::to(comment.post.to_string()),
@@ -1709,11 +1709,11 @@ async fn signup(conn: MoreInterestingConn, user_agent: UserAgentString<'_>, form
         invited_by,
     }).await {
         if cookies.get("B").is_some() {
-            conn.change_user_trust_level(user.id, -2).await.expect("if logging in worked, then so should changing trust level");
+            conn.change_user_trust_level(user.id, -3).await.expect("if logging in worked, then so should changing trust level");
         } else if let Some(other_user) = cookies.get("N") {
             if let Ok(other_user) = conn.get_user_by_username(other_user.value()).await {
-                if other_user.banned || other_user.trust_level <= -2 {
-                    conn.change_user_trust_level(user.id, -2).await.expect("if logging in worked, then so should changing trust level");
+                if other_user.banned || other_user.trust_level <= -3 {
+                    conn.change_user_trust_level(user.id, -3).await.expect("if logging in worked, then so should changing trust level");
                 }
             }
         } else if let Some(invited_by) = invited_by.as_ref() {
