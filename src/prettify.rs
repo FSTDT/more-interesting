@@ -1140,7 +1140,7 @@ mod test {
 
         let html = "<span class=article-header-inner><a href=\"url\">this is a #test for </a></span><span class=article-header-inner><a class=inner-link href=\"./?tag=words\">#words</a></span><span class=article-header-inner><a href=\"url\"> here</a></span>";
 
-        assert_eq!(CLEANER.clean(&prettify_title(title, "url", &mut MyData).string).to_string(), CLEANER.clean(html).to_string());
+        assert_eq!(CLEANER.clean(&prettify_title(title, "url", &mut MyData, false).string).to_string(), CLEANER.clean(html).to_string());
     }
     #[test]
     fn test_example_title_avoid_empty_links() {
@@ -1164,7 +1164,7 @@ mod test {
 
         let html = "<span class=article-header-inner><a href=\"url\">this is a #test for </a></span><span class=article-header-inner><a class=inner-link href=\"./?tag=words\">#words</a> </span><span class=article-header-inner><a class=inner-link href=\"./?tag=words\">#words</a></span>";
 
-        assert_eq!(&prettify_title(title, "url", &mut MyData).string, html);
+        assert_eq!(&prettify_title(title, "url", &mut MyData, false).string, html);
     }
     #[test]
     fn test_windows_newlines() {
@@ -1269,7 +1269,7 @@ mod test {
                 hostname.to_owned()
             }
         }
-        assert_eq!(CLEANER.clean(&prettify_title(comment, "url", &mut MyData).string).to_string(), CLEANER.clean(html).to_string());
+        assert_eq!(CLEANER.clean(&prettify_title(comment, "url", &mut MyData, false).string).to_string(), CLEANER.clean(html).to_string());
     }
     #[test]
     fn test_double_space_title() {
@@ -1290,7 +1290,7 @@ mod test {
                 hostname.to_owned()
             }
         }
-        assert_eq!(CLEANER.clean(&prettify_title(comment, "url", &mut MyData).string).to_string(), CLEANER.clean(html).to_string());
+        assert_eq!(CLEANER.clean(&prettify_title(comment, "url", &mut MyData, false).string).to_string(), CLEANER.clean(html).to_string());
     }
     #[test]
     fn test_ends_with_hash_title() {
@@ -1311,7 +1311,7 @@ mod test {
                 hostname.to_owned()
             }
         }
-        assert_eq!(CLEANER.clean(&prettify_title(comment, "url", &mut MyData).string).to_string(), CLEANER.clean(html).to_string());
+        assert_eq!(CLEANER.clean(&prettify_title(comment, "url", &mut MyData, false).string).to_string(), CLEANER.clean(html).to_string());
     }
     #[test]
     fn test_bbcode() {

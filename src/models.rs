@@ -2112,6 +2112,24 @@ impl MoreInterestingConn {
         if Self::get_user_comments_count_today_(conn, new_post.created_by) > 100_000 {
             return Err(CreateCommentError::TooManyComments);
         }
+        if let Ok(comments) = Self::get_comments_from_post_(conn, new_post.post_id, new_post.created_by) {
+            let now = Utc::now().naive_utc();
+            if let [.., last] = &comments[..] {
+                if last.created_by == new_post.created_by && (now - last.created_at) < Duration::seconds(60) {
+                    return Err(CreateCommentError::TooManyComments);
+                }
+            }
+            if let [.., second_last, last] = &comments[..] {
+                if last.created_by == new_post.created_by && second_last.created_by == new_post.created_by && (now - last.created_at) < Duration::seconds(60 * 60 * 48) {
+                    return Err(CreateCommentError::TooManyComments);
+                }
+            }
+            if let [.., third_last, second_last, last] = &comments[..] {
+                if last.created_by == new_post.created_by && second_last.created_by == new_post.created_by && third_last.created_by == new_post.created_by && (now - last.created_at) < Duration::seconds(60 * 60 * 24 * 14) {
+                    return Err(CreateCommentError::TooManyComments);
+                }
+            }
+        }
         let html_and_stuff = match body_format {
             BodyFormat::Plain => crate::prettify::prettify_body(&new_post.text, &mut PrettifyData::new(conn, new_post.post_id)),
             BodyFormat::BBCode => crate::prettify::prettify_body_bbcode(&new_post.text, &mut PrettifyData::new(conn, new_post.post_id)),
