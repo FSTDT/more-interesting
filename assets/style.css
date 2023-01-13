@@ -321,6 +321,7 @@ textarea,
 button,
 .details-dialog-summary,
 .details-menu-summary,
+.details-menu-item,
 :link.button,
 :visited.button {
     /* tweaked font stack without color emoji in it, so reply button looks right */
