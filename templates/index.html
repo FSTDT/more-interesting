@@ -32,6 +32,6 @@
 {% endif %}
 {% include "view-index.html" %}
 {%- if !keywords_param.is_empty() %}
-<p><a href=".?page={{next_search_page}}&q={{keywords_param|urlencode}}{% if !title_param.is_empty() %}&title={{title_param|urlencode}}{% endif %}{% if !tag_param.is_empty() %}&tag={{tag_param}}{% endif %}{% if !domain.is_empty() %}&domain={{domain}}{% endif %}">Next page</a></p>
+<p><a href=".?page={{next_search_page}}&q={{keywords_param|urlencode}}{% if !title_param.is_empty() %}&title={{title_param|urlencode}}{% endif %}{% if !tag_param.is_empty() %}&tag={{tag_param}}{% endif %}{% if !domain.is_empty() %}&domain={{domain}}{% endif %}{% if before_date_param.is_some() %}&before_date={{ before_date_param.unwrap() }}{% endif %}{% if before_date_param.is_some() %}&after_date={{ after_date_param.unwrap() }}{% endif %}">Next page</a></p>
 {% endif %}
 {% endblock %}
