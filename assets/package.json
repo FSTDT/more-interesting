@@ -6,12 +6,12 @@
     "@babel/core": "^7.10.2",
     "@babel/preset-env": "^7.9.5",
     "babel-loader": "^8.1.0",
-    "webpack": "^4.46.0",
+    "webpack": "^5.82.0",
     "webpack-cli": "^3.3.11"
   },
   "dependencies": {
-    "@webcomponents/webcomponentsjs": "^2.4.3",
     "@github/details-dialog-element": "^3.1.2",
+    "@webcomponents/webcomponentsjs": "^2.4.3",
     "details-element-polyfill": "^2.4.0"
   }
 }
