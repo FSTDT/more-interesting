@@ -1251,6 +1251,9 @@ details[open] > .img-lightbox:before {
     flex-grow: 1;
     white-space: nowrap;
 }
+article .footer-container {
+    margin-left: calc(-0.25em + 1px);
+}
 .footer-container {
     display: flex;
     flex-direction: row;
