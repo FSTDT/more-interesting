@@ -2112,7 +2112,7 @@ impl MoreInterestingConn {
         if Self::get_user_comments_count_today_(conn, new_post.created_by) > 100_000 {
             return Err(CreateCommentError::TooManyComments);
         }
-        if let Ok(comments) = Self::get_comments_from_post_(conn, new_post.post_id, new_post.created_by) {
+        if let Ok(comments) = Self::get_comments_from_post_including_moderated_(conn, new_post.post_id, new_post.created_by) {
             let now = Utc::now().naive_utc();
             if let [.., last] = &comments[..] {
                 if last.created_by == new_post.created_by && (now - last.created_at) < Duration::seconds(60) {
@@ -2191,6 +2191,39 @@ impl MoreInterestingConn {
                 self::users::dsl::identicon,
             ))
             .filter(visible.eq(true))
+            .filter(self::comments::dsl::post_id.eq(post_id_param))
+            .order_by(self::comments::dsl::created_at)
+            .get_results::<(i32, String, String, bool, i32, NaiveDateTime, i32, Option<i32>, Option<i32>, Option<i32>, String, i32)>(conn)?
+            .into_iter()
+            .map(|t| tuple_to_comment_info(conn, t))
+            .collect();
+        Ok(all)
+    }
+    fn get_comments_from_post_including_moderated_(conn: &PgConnection, post_id_param: i32, user_id_param: i32) -> Result<Vec<CommentInfo>, DieselError> {
+        use self::comments::dsl::*;
+        use self::comment_stars::dsl::*;
+        use self::comment_flags::dsl::*;
+        use self::comment_hides::dsl::*;
+        use self::users::dsl::*;
+        let all: Vec<CommentInfo> = comments
+            .left_outer_join(comment_stars.on(self::comment_stars::dsl::comment_id.eq(self::comments::dsl::id).and(self::comment_stars::dsl::user_id.eq(user_id_param))))
+            .left_outer_join(comment_flags.on(self::comment_flags::dsl::comment_id.eq(self::comments::dsl::id).and(self::comment_flags::dsl::user_id.eq(user_id_param))))
+            .left_outer_join(comment_hides.on(self::comment_hides::dsl::comment_id.eq(self::comments::dsl::id).and(self::comment_hides::dsl::user_id.eq(user_id_param))))
+            .inner_join(users)
+            .select((
+                self::comments::dsl::id,
+                self::comments::dsl::text,
+                self::comments::dsl::html,
+                self::comments::dsl::visible,
+                self::comments::dsl::post_id,
+                self::comments::dsl::created_at,
+                self::comments::dsl::created_by,
+                self::comment_stars::dsl::comment_id.nullable(),
+                self::comment_flags::dsl::comment_id.nullable(),
+                self::comment_hides::dsl::comment_id.nullable(),
+                self::users::dsl::username,
+                self::users::dsl::identicon,
+            ))
             .filter(self::comments::dsl::post_id.eq(post_id_param))
             .order_by(self::comments::dsl::created_at)
             .get_results::<(i32, String, String, bool, i32, NaiveDateTime, i32, Option<i32>, Option<i32>, Option<i32>, String, i32)>(conn)?
