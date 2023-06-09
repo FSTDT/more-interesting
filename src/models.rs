@@ -1521,6 +1521,15 @@ impl MoreInterestingConn {
             if !is_https && domain.is_https && url.scheme() == "http" {
                 url.set_scheme("https").expect("https is a valid scheme");
             }
+            if host == "twitter.com" && url.path().contains("/status/") {
+                if let Some((part1, part2)) = url.as_str().split_once("?ref_src=") {
+                    let mut new_url = Url::parse(part1).unwrap_or_else(|_| url.clone());
+                    if let Some((part2a, part2b)) = part2.split_once("&") {
+                        new_url.set_query(Some(part2b));
+                    }
+                    url = new_url;
+                }
+            }
             (Some(url.to_string()), Some(domain))
         } else {
             (None, None)
