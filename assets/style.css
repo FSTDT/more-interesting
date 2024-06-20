@@ -1283,3 +1283,23 @@ button.hide-button {
     font-weight: inherit;
     font-size: inherit;
 }
+
+/* pro-adblock */
+
+.ad {
+    position: sticky;
+    bottom: 0;
+    margin: 1rem;
+}
+#ftf-dma-close-btn {
+    float: right;
+    padding: 0.25rem 0.5rem;
+    cursor: pointer;
+}
+.ftf-dma-note-header {
+    font-weight: bold;
+}
+#ftf-dma-close-btn:hover, #ftf-dma-close-btn:active, #ftf-dma-close-btn:focus {
+    color: #fff;
+    background: #000;
+}
