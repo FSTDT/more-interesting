@@ -2122,19 +2122,15 @@ impl MoreInterestingConn {
             return Err(CreateCommentError::TooManyComments);
         }
         if let Ok(comments) = Self::get_comments_from_post_including_moderated_(conn, new_post.post_id, new_post.created_by) {
-            let now = Utc::now().naive_utc();
-            if let [.., last] = &comments[..] {
-                if last.created_by == new_post.created_by && (now - last.created_at) < Duration::seconds(60) {
+            let comments_by_me = comments.iter().rev().take_while(|comment| comment.created_by == new_post.created_by).count();
+            if comments_by_me != 0 {
+                if comments_by_me > 16 {
                     return Err(CreateCommentError::TooManyComments);
                 }
-            }
-            if let [.., second_last, last] = &comments[..] {
-                if last.created_by == new_post.created_by && second_last.created_by == new_post.created_by && (now - last.created_at) < Duration::seconds(60 * 60 * 48) {
-                    return Err(CreateCommentError::TooManyComments);
-                }
-            }
-            if let [.., third_last, second_last, last] = &comments[..] {
-                if last.created_by == new_post.created_by && second_last.created_by == new_post.created_by && third_last.created_by == new_post.created_by && (now - last.created_at) < Duration::seconds(60 * 60 * 24 * 14) {
+                let now = Utc::now().naive_utc();
+                let limit = 60 * if comments_by_me == 1 { 1 } else { 60 << (comments_by_me + 1) };
+                let recent_at = comments.last().unwrap().created_at;
+                if (now - recent_at) < Duration::seconds(limit) {
                     return Err(CreateCommentError::TooManyComments);
                 }
             }
